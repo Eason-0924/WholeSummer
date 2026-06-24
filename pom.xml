@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.0.0</version>
+	<version>1.0.1</version>
 	<name>霍爾夏天補習班 Whole Summer</name>
 	<description>Local cram school management system</description>
 	<properties>
