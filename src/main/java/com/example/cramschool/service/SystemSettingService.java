@@ -16,7 +16,6 @@ import com.example.cramschool.repository.SystemSettingRepository;
 @Transactional
 public class SystemSettingService {
 
-	public static final String THEME_MODE = "THEME_MODE";
 	public static final String HOMEWORK_WARNING_DAYS = "HOMEWORK_WARNING_DAYS";
 	public static final String SYSTEM_NAME = "SYSTEM_NAME";
 	public static final String BACKUP_REMINDER_DAYS = "BACKUP_REMINDER_DAYS";
@@ -58,7 +57,6 @@ public class SystemSettingService {
 	}
 
 	public void ensureDefaults() {
-		setIfMissing(THEME_MODE, "light");
 		setIfMissing(HOMEWORK_WARNING_DAYS, "3");
 		setIfMissing(SYSTEM_NAME, "霍爾夏天補習班 Whole Summer");
 		setIfMissing(BACKUP_REMINDER_DAYS, "7");

@@ -26,11 +26,6 @@ public class GlobalModelAttributes {
 		return systemSettingService.getValue(SystemSettingService.SYSTEM_NAME, "霍爾夏天補習班 Whole Summer");
 	}
 
-	@ModelAttribute("themeMode")
-	public String themeMode() {
-		return systemSettingService.getValue(SystemSettingService.THEME_MODE, "light");
-	}
-
 	@ModelAttribute("homeworkWarningDays")
 	public int homeworkWarningDays() {
 		return systemSettingService.getInt(SystemSettingService.HOMEWORK_WARNING_DAYS, 3);

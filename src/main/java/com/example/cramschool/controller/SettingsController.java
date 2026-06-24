@@ -34,7 +34,6 @@ public class SettingsController {
 	public String index(Model model) {
 		systemSettingService.ensureDefaults();
 		model.addAttribute("pageTitle", "系統設定");
-		model.addAttribute("themeModeValue", systemSettingService.getValue(SystemSettingService.THEME_MODE, "light"));
 		model.addAttribute("systemNameValue", systemSettingService.getValue(SystemSettingService.SYSTEM_NAME,
 				"霍爾夏天補習班 Whole Summer"));
 		model.addAttribute("homeworkWarningDaysValue",
@@ -51,12 +50,10 @@ public class SettingsController {
 	}
 
 	@PostMapping("/general")
-	public String updateGeneral(@RequestParam String themeMode,
-			@RequestParam String systemName,
+	public String updateGeneral(@RequestParam String systemName,
 			@RequestParam int homeworkWarningDays,
 			@RequestParam int backupReminderDays,
 			RedirectAttributes redirectAttributes) {
-		systemSettingService.setValue(SystemSettingService.THEME_MODE, "dark".equals(themeMode) ? "dark" : "light");
 		systemSettingService.setValue(SystemSettingService.SYSTEM_NAME,
 				systemName == null || systemName.isBlank() ? "霍爾夏天補習班 Whole Summer" : systemName.trim());
 		systemSettingService.setValue(SystemSettingService.HOMEWORK_WARNING_DAYS,

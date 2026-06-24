@@ -60,7 +60,7 @@
 			<div class="col-12 col-md-4">
 				<div class="border rounded bg-white p-4 h-100">
 					<div class="text-secondary mb-2">累計薪資</div>
-					<div class="fs-3 fw-semibold text-primary"
+					<div class="fs-3 fw-semibold salary-gold"
 							th:text="${'NT$ ' + #numbers.formatDecimal(summary.salary, 1, 2)}">NT$ 0.00</div>
 				</div>
 			</div>
@@ -98,7 +98,7 @@
 					<td th:text="${selectedYear + ' 年 ' + selectedMonth + ' 月'}">2026 年 6 月</td>
 					<td th:text="${summary.workHoursText}">0 小時 0 分</td>
 					<td th:text="${'NT$ ' + #numbers.formatDecimal(summary.hourlyRate, 1, 2)}">NT$ 0.00</td>
-					<td class="fw-semibold"
+					<td class="fw-semibold salary-gold"
 							th:text="${'NT$ ' + #numbers.formatDecimal(summary.salary, 1, 2)}">NT$ 0.00</td>
 					<td class="text-end">
 						<form class="d-inline-flex justify-content-end gap-2"

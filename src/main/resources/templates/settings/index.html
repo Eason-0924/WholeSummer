@@ -9,7 +9,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0">系統設定</h1>
-				<span th:replace="~{fragments/layout :: help('在此調整系統名稱、畫面模式、提醒天數與目前登入教師的個人密碼。設定會儲存在資料庫中。')}"></span>
+				<span th:replace="~{fragments/layout :: help('在此調整系統名稱、畫面模式、提醒天數與目前登入教師的個人密碼。\n∙ 畫面模式儲存在目前瀏覽器\n∙ 其他系統設定儲存在資料庫')}"></span>
 			</div>
 		</div>
 		<a class="btn btn-outline-secondary" th:href="@{/}">返回首頁</a>
@@ -19,26 +19,29 @@
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
 
 	<section class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-3">畫面模式</h2>
+		<div class="btn-group" role="group" aria-label="畫面模式">
+			<input type="radio" class="btn-check" id="themeLight"
+					value="light" data-theme-option autocomplete="off">
+			<label class="btn btn-outline-secondary" for="themeLight">亮色</label>
+
+			<input type="radio" class="btn-check" id="themeDark"
+					value="dark" data-theme-option autocomplete="off">
+			<label class="btn btn-outline-secondary" for="themeDark">暗色</label>
+
+			<input type="radio" class="btn-check" id="themeSystem"
+					value="system" data-theme-option autocomplete="off">
+			<label class="btn btn-outline-secondary" for="themeSystem">跟隨裝置</label>
+		</div>
+	</section>
+
+	<section class="bg-white border rounded p-4 mb-4">
 		<h2 class="h5 mb-3">一般設定</h2>
 		<form th:action="@{/settings/general}" method="post" class="row g-3">
 			<div class="col-md-6">
 				<label for="systemName" class="form-label">系統名稱</label>
 				<input id="systemName" class="form-control" type="text" name="systemName"
 						th:value="${systemNameValue}" required>
-			</div>
-			<div class="col-md-6">
-				<label class="form-label d-block">畫面模式</label>
-				<div class="btn-group" role="group" aria-label="畫面模式">
-					<input type="radio" class="btn-check" name="themeMode" id="themeLight"
-							value="light" data-theme-option autocomplete="off"
-							th:checked="${themeModeValue == 'light'}">
-					<label class="btn btn-outline-secondary" for="themeLight">亮色</label>
-
-					<input type="radio" class="btn-check" name="themeMode" id="themeDark"
-							value="dark" data-theme-option autocomplete="off"
-							th:checked="${themeModeValue == 'dark'}">
-					<label class="btn btn-outline-secondary" for="themeDark">暗色</label>
-				</div>
 			</div>
 			<div class="col-md-6">
 				<label for="homeworkWarningDays" class="form-label">即將到期作業提醒天數</label>

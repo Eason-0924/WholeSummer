@@ -69,5 +69,5 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v7
         with:
-          name: WholeSummer-Windows-Installer-${{ env.APP_VERSION }}
+          name: WholeSummer-Windows-Installer-v${{ env.APP_VERSION }}
           path: dist/*.exe
