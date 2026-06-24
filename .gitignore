@@ -32,3 +32,17 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Maven
+target/
+*.log
+
+# 本機設定
+.env
+
+# 資料庫備份
+data/backups/
