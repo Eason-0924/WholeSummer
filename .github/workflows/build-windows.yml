@@ -6,6 +6,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -22,7 +25,9 @@ jobs:
           } else {
             $version = "1.0.0"
           }
+
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+          echo "EXE_NAME=WholeSummer-Windows-Installer-$version.exe" >> $env:GITHUB_ENV
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -38,16 +43,16 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path input
-      
+
           $jar = Get-ChildItem target -Filter "*.jar" |
             Where-Object { $_.Name -notlike "*.original" } |
             Select-Object -First 1
-      
+
           if ($null -eq $jar) {
             Write-Error "No jar file found in target folder."
             exit 1
           }
-      
+
           Write-Host "Found jar: $($jar.FullName)"
           Copy-Item $jar.FullName input\WholeSummer.jar
 
@@ -66,8 +71,46 @@ jobs:
             --win-dir-chooser ^
             --java-options "-Dspring.config.additional-location=file:C:/WholeSummer/config/"
 
-      - name: Upload Windows installer
+      - name: Rename Windows installer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release
+
+          $exe = Get-ChildItem dist -Filter "*.exe" | Select-Object -First 1
+
+          if ($null -eq $exe) {
+            Write-Error "No exe file found in dist folder."
+            exit 1
+          }
+
+          Copy-Item $exe.FullName "release\${{ env.EXE_NAME }}"
+
+          Write-Host "Installer prepared: release\${{ env.EXE_NAME }}"
+
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v7
         with:
           name: WholeSummer-Windows-Installer-v${{ env.APP_VERSION }}
-          path: dist/*.exe
+          path: release/${{ env.EXE_NAME }}
+
+      - name: Create or update GitHub Release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $file = "release\${{ env.EXE_NAME }}"
+          $title = "WholeSummer $tag"
+
+          gh release view $tag
+
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release already exists. Uploading asset with --clobber..."
+            gh release upload $tag $file --clobber
+          } else {
+            Write-Host "Release does not exist. Creating release..."
+            gh release create $tag $file `
+              --title $title `
+              --notes-from-tag
+          }
