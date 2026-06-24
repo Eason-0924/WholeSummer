@@ -57,6 +57,10 @@ public final class ExternalConfigMigration {
 		values.put("app.update.check-interval-hours", "24");
 		values.put("app.update.github-owner", "Eason-0924");
 		values.put("app.update.github-repo", "WholeSummer");
+		values.put("app.report.mail.enabled", "${WHOLESUMMER_REPORT_ENABLED:false}");
+		values.put("app.report.mail.api-key", "${RESEND_API_KEY:}");
+		values.put("app.report.mail.from", "${WHOLESUMMER_REPORT_FROM:}");
+		values.put("app.report.mail.recipient", "${WHOLESUMMER_REPORT_RECIPIENT:}");
 		return values;
 	}
 

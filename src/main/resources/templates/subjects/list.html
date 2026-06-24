@@ -26,7 +26,7 @@
 				<th>科目名稱</th>
 				<th>教師</th>
 				<th>適用年級</th>
-				<th>說明</th>
+				<th class="tablet-hidden-column">說明</th>
 				<th>開課班級</th>
 				<th>狀態</th>
 				<th class="text-end">操作</th>
@@ -40,7 +40,7 @@
 				<td th:text="${subject.name}">科目名稱</td>
 				<td th:text="${subject.teacherDisplay}">-</td>
 				<td th:text="${subject.gradeLevelDisplay}">國一、國二</td>
-				<td th:text="${subject.description ?: '-'}">-</td>
+				<td class="tablet-hidden-column" th:text="${subject.description ?: '-'}">-</td>
 				<td>
 					<span th:if="${#lists.isEmpty(activeClassesBySubject[subject.id])}" class="text-secondary">-</span>
 					<span th:each="classRoom, iterStat : ${activeClassesBySubject[subject.id]}">

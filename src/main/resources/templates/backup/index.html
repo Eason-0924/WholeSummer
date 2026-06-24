@@ -76,7 +76,10 @@
 					<td colspan="6" class="text-center text-secondary py-4">目前尚無備份紀錄</td>
 				</tr>
 				<tr th:each="backup : ${backups}">
-					<td th:text="${backup.fileName}">backup.sql</td>
+					<td class="backup-file-name"
+							th:data-file-name="${backup.fileName}"
+							th:title="${backup.fileName}"
+							th:text="${backup.fileName}">backup.sql</td>
 					<td th:text="${#temporals.format(backup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01</td>
 					<td th:text="${backup.fileSizeText}">-</td>
 					<td>

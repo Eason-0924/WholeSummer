@@ -1,18 +1,34 @@
 # WholeSummer 補習班管理系統
 
+> [!IMPORTANT]
+> 問題回報郵件需要先設定 Resend 環境變數。請在 Windows PowerShell 執行下列指令，
+> 將 API Key 與 Email 換成自己的資料，接著完全關閉並重新啟動 WholeSummer：
+
+```powershell
+[Environment]::SetEnvironmentVariable("WHOLESUMMER_REPORT_ENABLED", "true", "User")
+[Environment]::SetEnvironmentVariable("RESEND_API_KEY", "re_新的API金鑰", "User")
+[Environment]::SetEnvironmentVariable("WHOLESUMMER_REPORT_FROM", "WholeSummer <onboarding@resend.dev>", "User")
+[Environment]::SetEnvironmentVariable("WHOLESUMMER_REPORT_RECIPIENT", "你的Resend註冊Email", "User")
+```
+
+請勿將 API Key 寫入 GitHub、`src/main/resources/application.properties` 或公開安裝包。
+
 WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，提供學生、教師、班級、科目、測驗、作業、出勤、薪資與資料備份等日常教務功能。
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.0.3**
+目前版本：**1.1.0**
 
-## 1.0.3 更新內容
+## 1.1.0 更新內容
 
-- 優化手機版學生、教師、班級、科目、測驗、作業及薪資頁面。
-- 手機版表格隱藏次要資訊，操作按鈕依頁面空間重新排列。
-- 詳細頁支援區塊展開與收合，統計資料改為單欄顯示。
-- 上課時間表支援橫向捲動，多日課程時間自動分行。
-- 手機版資訊提示與操作確認改用適合觸控操作的浮動面板。
+- 完整優化手機與平板的學生、教師、班級、科目、測驗、作業、設定及薪資頁面。
+- 手機版表格隱藏次要資訊，日期與操作按鈕依可用空間重新排列。
+- 平板直向與橫向分別套用響應式排版，保留接近桌面版的操作方式。
+- 詳細頁在手機支援區塊展開與收合，統計資料改為單欄顯示。
+- 上課時間表支援橫向捲動、多日課程時間分行及響應式匯出工具列。
+- 手機版資訊提示與操作確認改用適合觸控的浮動面板。
+- 新增問題與 Bug 回報，可保存本機紀錄、透過 Resend 通知開發者及重新寄送。
+- 新增自訂 Spring 設定 metadata，改善 Eclipse 對 `app.*` 屬性的提示。
 - 一般教師只能為自己快速打卡，主任可管理所有教師出勤。
 - 教師新增時可選擇職位，每月時薪改以整數儲存。
 
@@ -52,6 +68,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 - **系統管理**
   - 亮色、暗色及跟隨裝置模式
   - MySQL 備份、下載、還原及初始資料匯入
+  - 問題回報本機紀錄與 Resend Email 通知
   - Windows 外部設定檔與 GitHub Releases 更新
 
 ## 技術架構
@@ -231,6 +248,49 @@ Windows 安裝版會透過 GitHub Releases 檢查新版本：
 
 若更新失敗，安裝檔會保留，使用者可手動執行。
 
+## 問題回報郵件
+
+每位登入教師都可以在設定頁提交錯誤回報、操作問題或功能建議。回報會先保存至本機
+`bug_reports` 資料表，再透過 Resend 寄送給開發者。寄送失敗時可從設定頁重新寄送。
+
+在外部 `application.properties` 設定：
+
+```properties
+app.report.mail.enabled=true
+app.report.mail.api-key=re_xxxxxxxxx
+app.report.mail.from=WholeSummer <reports@updates.example.com>
+app.report.mail.recipient=developer@example.com
+```
+
+若目前沒有自己的網域，可先使用 Resend 測試寄件地址：
+
+```properties
+app.report.mail.enabled=true
+app.report.mail.api-key=re_xxxxxxxxx
+app.report.mail.from=WholeSummer <onboarding@resend.dev>
+app.report.mail.recipient=你註冊 Resend 使用的 Email
+```
+
+測試寄件地址通常只能寄到 Resend 帳號擁有者自己的 Email，正好適合將所有使用者回報集中寄給
+WholeSummer 開發者。若日後需要寄給其他收件人，則需加入並驗證自己的寄件網域。
+
+也可以使用環境變數提供敏感資訊：
+
+```text
+RESEND_API_KEY
+WHOLESUMMER_REPORT_ENABLED
+WHOLESUMMER_REPORT_FROM
+WHOLESUMMER_REPORT_RECIPIENT
+```
+
+Windows 指令已列於本文件最前方。設定後需完全關閉並重新啟動 WholeSummer。
+首次初始化建立的外部設定檔會保留環境變數占位符，
+不會將 API Key 寫入安裝包或 Git Repository。
+
+`app.report.mail.from` 必須使用已在 Resend 驗證的寄件網域。API Key 不可提交至 Git，
+也不應直接寫入公開安裝包。若系統會提供給無法信任的第三方使用，建議改由自有 HTTPS
+回報 API 代為呼叫 Resend，避免使用者從本機設定檔取得寄信金鑰。
+
 ## 測試
 
 執行全部測試：
@@ -295,6 +355,7 @@ src/main/resources
 ## 安全注意事項
 
 - 不要提交資料庫密碼、外部設定檔或 SQL 備份。
+- 不要提交 Resend API Key；若金鑰疑似外洩，應立即在 Resend Dashboard 刪除並重建。
 - 正式環境請變更預設教師註冊安全碼。
 - 資料庫帳號應限制在必要權限範圍。
 - 還原資料庫、調整教師職位、設定薪資與安裝更新僅限主任。

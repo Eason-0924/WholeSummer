@@ -274,6 +274,77 @@
 		.class-schedule-line:not(:last-child)::after {
 			content: "、";
 		}
+		.schedule-toolbar-controls {
+			align-items: center;
+			display: flex;
+			gap: 0.5rem;
+			margin-left: auto;
+		}
+		.schedule-color-select {
+			width: 140px;
+		}
+		.schedule-export-select {
+			width: 105px;
+		}
+		@media (min-width: 576px) and (max-width: 991.98px) and (orientation: portrait),
+				(min-width: 768px) and (max-width: 1199.98px) and (orientation: landscape) {
+			main.container {
+				max-width: 100%;
+				padding-left: 1.25rem;
+				padding-right: 1.25rem;
+			}
+			main > .d-flex.justify-content-between.align-items-center {
+				align-items: center !important;
+				flex-direction: row;
+			}
+			main > .d-flex.justify-content-between.align-items-center > .d-flex,
+			main > .d-flex.justify-content-between.align-items-center > form {
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+			.mobile-secondary-column {
+				display: table-cell !important;
+			}
+			.tablet-hidden-column {
+				display: none !important;
+			}
+			.responsive-login-title .login-title-english {
+				display: block;
+				margin-top: 0.2rem;
+			}
+			.backup-file-name {
+				max-width: 190px;
+				white-space: nowrap;
+			}
+			.mobile-collapse-toggle,
+			.mobile-generated-section-title {
+				display: none !important;
+			}
+			.mobile-collapse-content {
+				display: block !important;
+			}
+			.schedule-toolbar {
+				flex-wrap: nowrap !important;
+			}
+			.schedule-toolbar-controls {
+				flex: 0 1 auto;
+				flex-wrap: nowrap;
+				gap: 0.4rem;
+			}
+			.schedule-toolbar-controls .form-label {
+				font-size: 0.75rem;
+				white-space: nowrap;
+			}
+			.schedule-color-select {
+				width: 112px;
+			}
+			.schedule-export-select {
+				width: 88px;
+			}
+			.schedule-table {
+				min-width: 760px;
+			}
+		}
 		@media (max-width: 575.98px) {
 			main.container {
 				padding: 1rem 0.75rem 1.5rem !important;
@@ -417,19 +488,35 @@
 				align-items: flex-start !important;
 			}
 			.schedule-toolbar-controls {
-				align-items: flex-end !important;
+				align-items: center;
+				display: grid;
+				gap: 0.35rem 0.5rem;
+				grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 				width: 100%;
 			}
-			.schedule-toolbar-group {
-				align-items: center;
-				display: flex;
-				gap: 0.5rem;
+			.schedule-color-label {
+				grid-column: 1;
+				grid-row: 1;
 			}
-			.schedule-export-controls {
-				flex-wrap: nowrap;
-				margin-left: auto;
+			.schedule-export-label {
+				grid-column: 2;
+				grid-row: 1;
 			}
-			.schedule-export-controls .form-label {
+			.schedule-color-select {
+				grid-column: 1;
+				grid-row: 2;
+				width: 100%;
+			}
+			.schedule-export-select {
+				grid-column: 2;
+				grid-row: 2;
+				width: 100%;
+			}
+			.schedule-export-button {
+				grid-column: 3;
+				grid-row: 2;
+			}
+			.schedule-toolbar-controls .form-label {
 				white-space: nowrap;
 			}
 			.exam-actions {
@@ -452,6 +539,10 @@
 			.mobile-date-year,
 			.mobile-date-month-day {
 				display: block;
+				white-space: nowrap;
+			}
+			.backup-file-name {
+				max-width: 125px;
 				white-space: nowrap;
 			}
 			.practice-score-mark {
@@ -642,6 +733,45 @@
 		}
 
 		const wholeSummerMobileQuery = window.matchMedia('(max-width: 575.98px)');
+		const wholeSummerTabletQuery = window.matchMedia(
+			'(min-width: 576px) and (max-width: 991.98px) and (orientation: portrait), '
+			+ '(min-width: 768px) and (max-width: 1199.98px) and (orientation: landscape)'
+		);
+
+		document.querySelectorAll('.responsive-login-title').forEach((title) => {
+			const titleText = title.textContent.trim();
+			const englishTitle = 'Whole Summer';
+			if (!titleText.endsWith(englishTitle)) {
+				return;
+			}
+			const chineseTitle = titleText.slice(0, -englishTitle.length).trim();
+			title.textContent = '';
+			const chineseSpan = document.createElement('span');
+			chineseSpan.textContent = chineseTitle;
+			const englishSpan = document.createElement('span');
+			englishSpan.className = 'login-title-english';
+			englishSpan.textContent = `${chineseTitle ? ' ' : ''}${englishTitle}`;
+			title.append(chineseSpan, englishSpan);
+		});
+
+		function shortenBackupFileNames() {
+			document.querySelectorAll('.backup-file-name[data-file-name]').forEach((cell) => {
+				const fileName = cell.dataset.fileName || '';
+				const compact = wholeSummerMobileQuery.matches || wholeSummerTabletQuery.matches;
+				const maximumLength = wholeSummerMobileQuery.matches ? 18 : 28;
+				if (!compact || fileName.length <= maximumLength) {
+					cell.textContent = fileName;
+					return;
+				}
+				const suffixLength = Math.min(10, Math.floor(maximumLength * 0.4));
+				const prefixLength = maximumLength - suffixLength - 3;
+				cell.textContent = `${fileName.slice(0, prefixLength)}...${fileName.slice(-suffixLength)}`;
+			});
+		}
+		shortenBackupFileNames();
+		wholeSummerMobileQuery.addEventListener('change', shortenBackupFileNames);
+		wholeSummerTabletQuery.addEventListener('change', shortenBackupFileNames);
+
 		const secondaryTableLabels = new Set([
 			'性別', '學校', '電話', 'Email', '科目', '說明', '備註', '教師備註',
 			'教師', '學生數', '提交時間', '建立時間', '更新時間', '加入時間', '發派日期',

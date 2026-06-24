@@ -1,0 +1,73 @@
+{
+  "properties": [
+    {
+      "name": "app.data.dir",
+      "type": "java.lang.String",
+      "description": "WholeSummer application data directory."
+    },
+    {
+      "name": "app.backup.dir",
+      "type": "java.lang.String",
+      "description": "Directory used to store MySQL backup files."
+    },
+    {
+      "name": "app.update.dir",
+      "type": "java.lang.String",
+      "description": "Directory used to store downloaded application updates."
+    },
+    {
+      "name": "app.mysql.bin-dir",
+      "type": "java.lang.String",
+      "description": "Optional directory containing MySQL command-line tools."
+    },
+    {
+      "name": "app.auto-update.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enables the Windows automatic update workflow."
+    },
+    {
+      "name": "app.update.check-on-startup",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "Checks GitHub Releases for updates when the application starts."
+    },
+    {
+      "name": "app.update.check-interval-hours",
+      "type": "java.lang.Long",
+      "defaultValue": 24,
+      "description": "Minimum interval in hours between update checks."
+    },
+    {
+      "name": "app.update.github-owner",
+      "type": "java.lang.String",
+      "description": "GitHub repository owner used for update checks."
+    },
+    {
+      "name": "app.update.github-repo",
+      "type": "java.lang.String",
+      "description": "GitHub repository name used for update checks."
+    },
+    {
+      "name": "app.report.mail.enabled",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "Enables sending locally stored problem reports through Resend."
+    },
+    {
+      "name": "app.report.mail.api-key",
+      "type": "java.lang.String",
+      "description": "Resend API key used to send problem reports."
+    },
+    {
+      "name": "app.report.mail.from",
+      "type": "java.lang.String",
+      "description": "Verified Resend sender in the form WholeSummer <reports@example.com>."
+    },
+    {
+      "name": "app.report.mail.recipient",
+      "type": "java.lang.String",
+      "description": "Developer email address that receives problem reports."
+    }
+  ]
+}

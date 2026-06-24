@@ -112,6 +112,111 @@
 		</form>
 	</section>
 
+	<section id="bug-report" class="bg-white border rounded p-4 mb-4">
+		<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+			<div>
+				<h2 class="h5 mb-1">問題與 Bug 回報</h2>
+				<div class="text-secondary small">
+					回報會先保存在本機，再寄送給 WholeSummer 開發者。
+				</div>
+			</div>
+			<span th:if="${bugReportMailConfigured}" class="badge text-bg-success">郵件服務已設定</span>
+			<span th:unless="${bugReportMailConfigured}" class="badge text-bg-warning text-dark">僅保存於本機</span>
+		</div>
+
+		<form th:action="@{/settings/bug-reports}" th:object="${bugReportForm}"
+				method="post" class="row g-3">
+			<div class="col-md-4">
+				<label for="bugReportType" class="form-label">問題類型</label>
+				<select id="bugReportType" class="form-select" th:field="*{type}" required>
+					<option th:each="type : ${bugReportTypes}" th:value="${type}"
+							th:text="${type.displayName}">錯誤回報</option>
+				</select>
+			</div>
+			<div class="col-md-8">
+				<label for="bugReportTitle" class="form-label">標題</label>
+				<input id="bugReportTitle" class="form-control" type="text"
+						th:field="*{title}" maxlength="200" required>
+			</div>
+			<div class="col-12">
+				<label for="bugReportDescription" class="form-label">問題描述</label>
+				<textarea id="bugReportDescription" class="form-control" rows="5"
+						th:field="*{description}" maxlength="5000" required></textarea>
+				<div class="form-text">請描述操作步驟、預期結果，以及實際發生的情況。</div>
+			</div>
+			<div class="col-md-6">
+				<label for="bugReportPageUrl" class="form-label">發生頁面</label>
+				<input id="bugReportPageUrl" class="form-control" type="text"
+						th:field="*{pageUrl}" maxlength="1000"
+						placeholder="例如：班級管理／測驗詳細頁">
+			</div>
+			<div class="col-md-6">
+				<label for="bugReportContactEmail" class="form-label">聯絡 Email</label>
+				<input id="bugReportContactEmail" class="form-control" type="email"
+						th:field="*{contactEmail}" maxlength="200"
+						placeholder="選填，供開發者回覆">
+			</div>
+			<div class="col-12">
+				<div class="form-check">
+					<input id="includeSystemInformation" class="form-check-input" type="checkbox"
+							th:field="*{includeSystemInformation}">
+					<label class="form-check-label" for="includeSystemInformation">
+						附加作業系統、Java 版本與教師職位
+					</label>
+				</div>
+				<div class="form-text">
+					不會附加密碼、註冊安全碼、資料庫連線資訊或學生資料。
+				</div>
+			</div>
+			<div class="col-12">
+				<button class="btn btn-primary" type="submit">送出問題回報</button>
+			</div>
+		</form>
+
+		<div class="mt-4">
+			<div class="d-flex align-items-center gap-2 mb-2">
+				<h3 class="h6 mb-0">最近回報</h3>
+				<span class="badge text-bg-primary" th:text="${#lists.size(bugReports)}">0</span>
+			</div>
+			<div class="table-responsive border rounded">
+				<table class="table table-hover align-middle mb-0">
+					<thead class="table-light">
+					<tr>
+						<th>建立時間</th>
+						<th>類型</th>
+						<th>標題</th>
+						<th>狀態</th>
+						<th>結果</th>
+						<th class="text-end">操作</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:if="${#lists.isEmpty(bugReports)}">
+						<td colspan="6" class="text-center text-secondary py-4">目前尚無問題回報</td>
+					</tr>
+					<tr th:each="report : ${bugReports}">
+						<td th:text="${#temporals.format(report.createdAt, 'yyyy-MM-dd HH:mm')}">2026-01-01</td>
+						<td th:text="${report.type.displayName}">錯誤回報</td>
+						<td th:text="${report.title}">標題</td>
+						<td>
+							<span th:class="${report.status.name() == 'SENT' ? 'badge text-bg-success' : (report.status.name() == 'FAILED' ? 'badge text-bg-danger' : 'badge text-bg-secondary')}"
+									th:text="${report.status.displayName}">待寄送</span>
+						</td>
+						<td class="small"
+								th:text="${report.status.name() == 'SENT' ? '已通知開發者' : (report.errorMessage ?: '-')}">-</td>
+						<td class="text-end">
+							<form th:if="${report.status.name() == 'FAILED'}"
+									th:action="@{/settings/bug-reports/{id}/retry(id=${report.id})}" method="post">
+								<button class="btn btn-sm btn-outline-primary" type="submit">重新寄送</button>
+							</form>
+						</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
+
 	<section th:if="${currentTeacherIsDirector}" id="system-update"
 			class="bg-white border rounded p-4 mb-4">
 		<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">

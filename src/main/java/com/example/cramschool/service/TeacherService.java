@@ -12,6 +12,7 @@ import com.example.cramschool.entity.TeacherPosition;
 import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.form.TeacherForm;
 import com.example.cramschool.repository.ClassRoomRepository;
+import com.example.cramschool.repository.BugReportRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
 import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
@@ -27,17 +28,20 @@ public class TeacherService {
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherAccountRepository teacherAccountRepository;
 	private final TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
+	private final BugReportRepository bugReportRepository;
 
 	public TeacherService(TeacherRepository teacherRepository, ClassRoomRepository classRoomRepository,
 			SubjectRepository subjectRepository, TeacherAttendanceService teacherAttendanceService,
 			TeacherAccountRepository teacherAccountRepository,
-			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository) {
+			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository,
+			BugReportRepository bugReportRepository) {
 		this.teacherRepository = teacherRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherAccountRepository = teacherAccountRepository;
 		this.teacherMonthlySalaryRepository = teacherMonthlySalaryRepository;
+		this.bugReportRepository = bugReportRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -108,6 +112,7 @@ public class TeacherService {
 		subjectRepository.saveAll(subjects);
 
 		teacherAttendanceService.deleteByTeacherId(id);
+		bugReportRepository.deleteByTeacherId(id);
 		teacherAccountRepository.deleteByTeacherId(id);
 		teacherMonthlySalaryRepository.deleteByTeacherId(id);
 		teacherRepository.delete(teacher);

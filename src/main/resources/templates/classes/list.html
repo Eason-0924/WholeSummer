@@ -133,24 +133,23 @@
 	<section class="mb-4">
 		<div class="schedule-toolbar d-flex justify-content-between align-items-center flex-wrap gap-3 mb-2">
 			<h2 class="h5 mb-0">上課時間表</h2>
-			<div class="schedule-toolbar-controls d-flex align-items-center flex-wrap gap-2">
-				<div class="schedule-toolbar-group">
-					<label class="form-label small text-secondary mb-0" for="scheduleColorMode">標記方式</label>
-					<select id="scheduleColorMode" class="form-select form-select-sm" style="width: 140px;">
-						<option value="subject">科目</option>
-						<option value="teacher">老師</option>
-						<option value="grade">年級</option>
-					</select>
-				</div>
-				<div class="schedule-toolbar-group schedule-export-controls">
-					<label class="form-label small text-secondary mb-0" for="exportScheduleFormat">匯出格式</label>
-					<select id="exportScheduleFormat" class="form-select form-select-sm" style="width: 105px;">
-						<option value="jpeg">JPEG</option>
-						<option value="docx">DOCX</option>
-						<option value="xlsx">XLSX</option>
-					</select>
-					<button id="exportScheduleJpeg" class="btn btn-outline-primary btn-sm" type="button">匯出</button>
-				</div>
+			<div class="schedule-toolbar-controls">
+				<label class="schedule-color-label form-label small text-secondary mb-0"
+						for="scheduleColorMode">標記方式</label>
+				<select id="scheduleColorMode" class="schedule-color-select form-select form-select-sm">
+					<option value="subject">科目</option>
+					<option value="teacher">老師</option>
+					<option value="grade">年級</option>
+				</select>
+				<label class="schedule-export-label form-label small text-secondary mb-0"
+						for="exportScheduleFormat">匯出格式</label>
+				<select id="exportScheduleFormat" class="schedule-export-select form-select form-select-sm">
+					<option value="jpeg">JPEG</option>
+					<option value="docx">DOCX</option>
+					<option value="xlsx">XLSX</option>
+				</select>
+				<button id="exportScheduleJpeg" class="schedule-export-button btn btn-outline-primary btn-sm"
+						type="button">匯出</button>
 			</div>
 		</div>
 		<div th:if="${#lists.isEmpty(scheduleRows)}" class="bg-white border rounded text-center text-secondary py-4">
