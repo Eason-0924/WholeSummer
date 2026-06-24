@@ -28,12 +28,17 @@
 	<section class="bg-white border rounded p-4 mb-4">
 		<h2 class="h5 mb-3">快速打卡</h2>
 		<form class="row g-2 align-items-end">
-			<div class="col-md-5">
+			<div class="col-md-5" th:if="${attendanceDirectorView}">
 				<label for="quickTeacherId" class="form-label">教師</label>
 				<select id="quickTeacherId" class="form-select" name="teacherId" required>
 					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
 							th:text="${teacher.displayName}">教師</option>
 				</select>
+			</div>
+			<div class="col-md-5" th:unless="${attendanceDirectorView}">
+				<label class="form-label">教師</label>
+				<input class="form-control" type="text" th:value="${currentTeacherName}" disabled>
+				<input type="hidden" name="teacherId" th:value="${currentTeacherId}">
 			</div>
 			<div class="col-md-7 d-flex flex-wrap gap-2">
 				<button class="btn btn-success" type="submit"
@@ -48,7 +53,7 @@
 		</form>
 	</section>
 
-	<section class="bg-white border rounded p-4 mb-4">
+	<section class="bg-white border rounded p-4 mb-4" th:if="${attendanceDirectorView}">
 		<h2 class="h5 mb-3">手動登記</h2>
 		<form class="row g-3" th:action="@{/teachers/attendance}" th:object="${attendanceForm}" method="post">
 			<div class="col-md-4">

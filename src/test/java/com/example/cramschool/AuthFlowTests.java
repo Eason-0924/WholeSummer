@@ -188,7 +188,7 @@ class AuthFlowTests {
 				.andExpect(status().is3xxRedirection());
 		assertThat(teacherMonthlySalaryRepository
 				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 6)
-				.orElseThrow().getHourlyRate()).isEqualByComparingTo("800.00");
+				.orElseThrow().getHourlyRate()).isEqualTo(800);
 		assertThat(teacherMonthlySalaryRepository
 				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 7))
 				.isEmpty();

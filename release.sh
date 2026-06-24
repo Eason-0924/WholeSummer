@@ -180,9 +180,9 @@ echo
 echo "建立 Git tag：$TAG"
 
 if [ -n "$RELEASE_NOTES" ]; then
-  git tag -a "$TAG" -m "WholeSummer $TAG" -m "$RELEASE_NOTES"
+  git tag -a "$TAG" -m "Release $VERSION" -m "$RELEASE_NOTES"
 else
-  git tag -a "$TAG" -m "WholeSummer $TAG"
+  git tag -a "$TAG" -m "Release $VERSION"
 fi
 
 git push origin "$TAG"

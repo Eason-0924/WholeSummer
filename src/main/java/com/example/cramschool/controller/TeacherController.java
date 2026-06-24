@@ -76,9 +76,6 @@ public class TeacherController {
 			return "teachers/form";
 		}
 
-		if (!isDirector(session)) {
-			teacherForm.setPosition(TeacherPosition.TEACHER);
-		}
 		Teacher teacher = teacherService.create(teacherForm);
 		redirectAttributes.addFlashAttribute("message", "已新增教師：" + teacher.getDisplayName());
 		return "redirect:/teachers/" + teacher.getId();

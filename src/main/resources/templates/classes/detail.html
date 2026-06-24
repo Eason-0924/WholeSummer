@@ -143,7 +143,8 @@
 				<h2 class="h5 mb-0">出缺席統計</h2>
 				<span class="badge text-bg-primary" th:text="${attendanceStats.totalCount}">0</span>
 			</div>
-			<a class="btn btn-sm btn-outline-success" th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
+			<a class="btn btn-sm btn-outline-success mobile-section-action"
+					th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
 		</div>
 		<div class="row g-3 mb-3">
 			<div class="col-md-3">
@@ -219,7 +220,7 @@
 				<h2 class="h5 mb-0">作業列表</h2>
 				<span class="badge text-bg-primary" th:text="${#lists.size(homeworks)}">0</span>
 			</div>
-			<a class="btn btn-sm btn-outline-primary"
+			<a class="btn btn-sm btn-outline-primary mobile-section-action"
 					th:href="@{/homeworks/new(classRoomId=${classRoom.id})}">新增作業</a>
 		</div>
 		<div class="table-responsive bg-white border rounded">
@@ -260,7 +261,7 @@
 				<h2 class="h5 mb-0">測驗列表</h2>
 				<span class="badge text-bg-primary" th:text="${#lists.size(exams)}">0</span>
 			</div>
-			<a class="btn btn-sm btn-outline-primary"
+			<a class="btn btn-sm btn-outline-primary mobile-section-action"
 					th:href="@{/exams/new(classRoomId=${classRoom.id})}">新增測驗</a>
 		</div>
 		<div th:if="${#lists.isEmpty(exams)}" class="table-responsive bg-white border rounded">

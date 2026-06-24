@@ -34,7 +34,7 @@ jobs:
           }
 
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
-          echo "EXE_NAME=WholeSummer-Windows-Installer-$version.exe" >> $env:GITHUB_ENV
+          echo "EXE_NAME=WholeSummer-Windows-Installer-v$version.exe" >> $env:GITHUB_ENV
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -113,16 +113,29 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $file = "release\${{ env.EXE_NAME }}"
-          $title = "WholeSummer $tag"
+          $version = "${{ env.APP_VERSION }}"
+          $title = "WholeSummer $version"
+          $notesFile = "release\release-notes.md"
+          $tagContents = git for-each-ref --format="%(contents)" "refs/tags/$tag"
+          $detailLines = @($tagContents | Where-Object { $_ -match "^\s*-\s+" })
+
+          Set-Content -Path $notesFile -Value "Release $version" -Encoding utf8
+          if ($detailLines.Count -gt 0) {
+            Add-Content -Path $notesFile -Value ""
+            Add-Content -Path $notesFile -Value $detailLines
+          }
 
           gh release view $tag
 
           if ($LASTEXITCODE -eq 0) {
-            Write-Host "Release already exists. Uploading asset with --clobber..."
+            Write-Host "Release already exists. Updating title, notes and asset..."
+            gh release edit $tag `
+              --title $title `
+              --notes-file $notesFile
             gh release upload $tag $file --clobber
           } else {
             Write-Host "Release does not exist. Creating release..."
             gh release create $tag $file `
               --title $title `
-              --notes-from-tag
+              --notes-file $notesFile
           }

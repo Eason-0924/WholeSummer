@@ -39,9 +39,9 @@ public class TeacherMonthlySalary {
 	@Column(name = "salary_month", nullable = false)
 	private int salaryMonth;
 
-	@Column(name = "hourly_rate", nullable = false, precision = 10, scale = 2)
-	@ColumnDefault("0.00")
-	private BigDecimal hourlyRate = BigDecimal.ZERO;
+	@Column(name = "hourly_rate", nullable = false)
+	@ColumnDefault("0")
+	private Integer hourlyRate = 0;
 
 	@Column(name = "work_minutes", nullable = false)
 	@ColumnDefault("0")
@@ -97,12 +97,12 @@ public class TeacherMonthlySalary {
 		this.salaryMonth = salaryMonth;
 	}
 
-	public BigDecimal getHourlyRate() {
-		return hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
+	public Integer getHourlyRate() {
+		return hourlyRate == null ? 0 : hourlyRate;
 	}
 
-	public void setHourlyRate(BigDecimal hourlyRate) {
-		this.hourlyRate = hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
+	public void setHourlyRate(Integer hourlyRate) {
+		this.hourlyRate = hourlyRate == null ? 0 : hourlyRate;
 	}
 
 	public long getWorkMinutes() {

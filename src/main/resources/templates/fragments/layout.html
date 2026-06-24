@@ -267,6 +267,276 @@
 		[data-bs-theme="dark"] .attendance-note-popover::before {
 			background: #1b1f23;
 		}
+		.mobile-collapse-toggle,
+		.mobile-generated-section-title {
+			display: none;
+		}
+		.class-schedule-line:not(:last-child)::after {
+			content: "、";
+		}
+		@media (max-width: 575.98px) {
+			main.container {
+				padding: 1rem 0.75rem 1.5rem !important;
+			}
+			main > .d-flex.justify-content-between.align-items-center {
+				align-items: center !important;
+				display: grid !important;
+				gap: 0.5rem !important;
+				grid-template-columns: minmax(0, 1fr) auto;
+			}
+			main > .d-flex.justify-content-between.align-items-center > .d-flex,
+			main > .d-flex.justify-content-between.align-items-center > form {
+				align-items: center;
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+			main > .d-flex.justify-content-between.align-items-center .btn {
+				flex: 0 0 auto;
+				padding-left: 0.65rem;
+				padding-right: 0.65rem;
+			}
+			.page-title-line {
+				align-items: center;
+			}
+			.navbar > .container {
+				padding-left: 0.75rem;
+				padding-right: 0.75rem;
+			}
+			.navbar-brand {
+				font-size: 1rem;
+				line-height: 1.25;
+				max-width: calc(100% - 4rem);
+				white-space: normal;
+			}
+			.navbar-collapse {
+				padding-top: 0.5rem;
+			}
+			.navbar-nav .nav-link,
+			.navbar-nav .navbar-text {
+				padding-bottom: 0.55rem !important;
+				padding-top: 0.55rem !important;
+			}
+			.bg-white.p-4,
+			form.bg-white.p-4,
+			section.bg-white.p-4 {
+				padding: 1rem !important;
+			}
+			.table > :not(caption) > * > * {
+				padding: 0.55rem 0.5rem;
+			}
+			.table td,
+			.table th {
+				vertical-align: middle;
+			}
+			.mobile-secondary-column {
+				display: none !important;
+			}
+			.table td.text-end .d-inline-flex,
+			.table td.text-end > form,
+			.table td.text-end > div {
+				flex-wrap: wrap;
+				justify-content: flex-end;
+			}
+			.table-responsive {
+				-webkit-overflow-scrolling: touch;
+			}
+			.mobile-schedule-scroll {
+				overflow-x: auto !important;
+			}
+			.mobile-schedule-scroll .schedule-table {
+				min-width: 860px !important;
+				width: 860px !important;
+			}
+			.mobile-schedule-scroll .schedule-cell {
+				min-width: 128px;
+			}
+			.mobile-stat-grid {
+				display: grid;
+				grid-template-columns: minmax(0, 1fr);
+			}
+			.mobile-stat-grid > [class*="col"],
+			.mobile-stat-grid > .col {
+				width: 100%;
+			}
+			.mobile-stat-grid > [class*="col"] > .text-secondary.small:first-child {
+				margin-bottom: 0.2rem;
+			}
+			.mobile-detail-page .mobile-collapsible-section {
+				overflow: visible;
+			}
+			.mobile-collapse-header {
+				align-items: center !important;
+				cursor: pointer;
+				display: flex !important;
+				justify-content: flex-start !important;
+				margin-bottom: 0.75rem !important;
+				min-height: 2rem;
+			}
+			.mobile-collapse-header h2 {
+				font-size: 1.05rem !important;
+				margin-bottom: 0 !important;
+			}
+			.mobile-generated-section-title {
+				display: block;
+			}
+			.mobile-collapse-toggle {
+				align-items: center;
+				background: transparent;
+				border: 0;
+				color: inherit;
+				display: inline-flex;
+				flex: 0 0 auto;
+				font-size: 1.1rem;
+				height: 2rem;
+				justify-content: center;
+				padding: 0;
+				transform: rotate(180deg);
+				transition: transform 0.2s ease;
+				margin-left: auto;
+				width: 2rem;
+			}
+			.mobile-collapse-header .mobile-section-action {
+				flex: 0 0 auto;
+				margin-left: auto;
+			}
+			.mobile-collapse-header .mobile-section-action + .mobile-collapse-toggle {
+				margin-left: 0.25rem;
+			}
+			.class-schedule-line {
+				display: block;
+				white-space: normal;
+			}
+			.class-schedule-line + .class-schedule-line {
+				margin-top: 0.25rem;
+			}
+			.class-schedule-line:not(:last-child)::after {
+				content: "";
+			}
+			.schedule-toolbar {
+				align-items: flex-start !important;
+			}
+			.schedule-toolbar-controls {
+				align-items: flex-end !important;
+				width: 100%;
+			}
+			.schedule-toolbar-group {
+				align-items: center;
+				display: flex;
+				gap: 0.5rem;
+			}
+			.schedule-export-controls {
+				flex-wrap: nowrap;
+				margin-left: auto;
+			}
+			.schedule-export-controls .form-label {
+				white-space: nowrap;
+			}
+			.exam-actions {
+				align-items: stretch;
+				flex-direction: column;
+				gap: 0.35rem !important;
+			}
+			.class-actions {
+				align-items: stretch;
+				flex-direction: column;
+				gap: 0.35rem !important;
+			}
+			.exam-actions .btn,
+			.exam-actions form,
+			.class-actions .btn,
+			.class-actions form {
+				display: block;
+				width: 100%;
+			}
+			.mobile-date-year,
+			.mobile-date-month-day {
+				display: block;
+				white-space: nowrap;
+			}
+			.practice-score-mark {
+				font-size: 1.1rem;
+				font-weight: 700;
+			}
+			.mobile-collapsed .mobile-collapse-toggle {
+				transform: rotate(0deg);
+			}
+			.mobile-collapsed > .mobile-collapse-content {
+				display: none;
+			}
+			.page-help-popover,
+			.attendance-note-popover {
+				bottom: auto;
+				left: 0.75rem;
+				max-height: calc(100vh - 7rem);
+				max-width: none;
+				overflow-y: auto;
+				position: fixed;
+				right: 0.75rem;
+				top: 8.5rem;
+				white-space: normal;
+				width: auto;
+				z-index: 1090;
+			}
+			.page-help-popover::before,
+			.attendance-note-popover::before {
+				display: none;
+			}
+			.page-help-wrapper:not(.mobile-open) .page-help-popover,
+			.attendance-note-wrapper:not(.mobile-open) .attendance-note-popover {
+				opacity: 0 !important;
+				visibility: hidden !important;
+			}
+			.page-help-wrapper.mobile-open .page-help-popover,
+			.attendance-note-wrapper.mobile-open .attendance-note-popover {
+				opacity: 1;
+				visibility: visible;
+			}
+			.modal-dialog {
+				margin: 0;
+				max-width: none;
+				min-height: 100%;
+				width: 100%;
+			}
+			.modal-content {
+				border: 0;
+				border-radius: 0;
+				min-height: 100vh;
+			}
+			.modal-body {
+				overflow-y: auto;
+			}
+			.mobile-confirm-dialog .modal-content {
+				display: flex;
+				justify-content: center;
+			}
+			.mobile-confirm-dialog .modal-body {
+				align-items: center;
+				display: flex;
+				flex: 1 1 auto;
+				font-size: 1.05rem;
+				justify-content: center;
+				line-height: 1.7;
+				padding: 2rem 1.5rem;
+				text-align: center;
+			}
+			.mobile-confirm-dialog .modal-footer {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				padding: 1rem;
+			}
+			.mobile-confirm-dialog .modal-footer .btn {
+				margin: 0;
+				width: 100%;
+			}
+			.btn-group {
+				flex-wrap: wrap;
+			}
+			.form-actions,
+			form > .d-flex.justify-content-end {
+				flex-wrap: wrap;
+			}
+		}
 	</style>
 </head>
 <body>
@@ -370,6 +640,194 @@
 		if (overdueReminderDaysInput) {
 			overdueReminderDaysInput.value = overdueReminderDaysInput.dataset.currentValue || '3';
 		}
+
+		const wholeSummerMobileQuery = window.matchMedia('(max-width: 575.98px)');
+		const secondaryTableLabels = new Set([
+			'性別', '學校', '電話', 'Email', '科目', '說明', '備註', '教師備註',
+			'教師', '學生數', '提交時間', '建立時間', '更新時間', '加入時間', '發派日期',
+			'當日課程', '上班時間', '下班時間', '適用年級', '開課班級',
+			'授課班級數'
+		]);
+
+		document.querySelectorAll('table:not(.schedule-table)').forEach((table) => {
+			table.querySelectorAll('thead th').forEach((header) => {
+				const label = header.textContent.trim();
+				if (header.colSpan !== 1 || !secondaryTableLabels.has(label)) {
+					return;
+				}
+				const columnIndex = header.cellIndex;
+				header.classList.add('mobile-secondary-column');
+				table.querySelectorAll('tbody tr').forEach((row) => {
+					if (row.cells[columnIndex] && row.cells[columnIndex].colSpan === 1) {
+						row.cells[columnIndex].classList.add('mobile-secondary-column');
+					}
+				});
+			});
+		});
+
+		document.querySelectorAll('.schedule-table').forEach((table) => {
+			table.closest('.table-responsive')?.classList.add('mobile-schedule-scroll');
+		});
+
+		document.querySelectorAll('.row.g-3').forEach((row) => {
+			const columns = Array.from(row.children).filter((child) =>
+				child.matches('.col, [class*="col-"]'));
+			if (columns.length < 2) {
+				return;
+			}
+			const cardLikeColumns = columns.every((column) =>
+				column.querySelector(':scope > .bg-white.border.rounded, :scope > .border.rounded.bg-white')
+				|| column.querySelector(':scope > .text-secondary.small'));
+			if (cardLikeColumns) {
+				row.classList.add('mobile-stat-grid');
+			}
+		});
+
+		const detailPagePattern = /^\/(students|teachers|classes|exams|homeworks)\/\d+\/?$/;
+		if (detailPagePattern.test(window.location.pathname)) {
+			const main = document.querySelector('main');
+			main?.classList.add('mobile-detail-page');
+			main?.querySelectorAll(':scope > section').forEach((section, index) => {
+				section.classList.add('mobile-collapsible-section');
+				let header = Array.from(section.children).find((child) => child.querySelector('h2'));
+				if (!header) {
+					header = document.createElement('div');
+					header.className = 'mobile-collapse-header mobile-generated-section-title';
+					const heading = document.createElement('h2');
+					heading.className = 'h5';
+					heading.textContent = '基本資料';
+					header.appendChild(heading);
+					section.prepend(header);
+				} else {
+					header.classList.add('mobile-collapse-header');
+				}
+
+				const content = document.createElement('div');
+				content.className = 'mobile-collapse-content';
+				Array.from(section.children)
+					.filter((child) => child !== header)
+					.forEach((child) => content.appendChild(child));
+				section.appendChild(content);
+
+				const toggle = document.createElement('button');
+				toggle.type = 'button';
+				toggle.className = 'mobile-collapse-toggle';
+				toggle.setAttribute('aria-label', '展開或收合區塊');
+				toggle.textContent = '⌃';
+				header.appendChild(toggle);
+				if (index > 0) {
+					section.classList.add('mobile-collapsed');
+				}
+				header.addEventListener('click', (event) => {
+					if (!wholeSummerMobileQuery.matches
+							|| event.target.closest('a, form, input, select, textarea')) {
+						return;
+					}
+					section.classList.toggle('mobile-collapsed');
+				});
+			});
+		}
+
+		function closeMobilePopovers(except = null) {
+			document.querySelectorAll('.page-help-wrapper.mobile-open, .attendance-note-wrapper.mobile-open')
+				.forEach((wrapper) => {
+					if (wrapper !== except) {
+						wrapper.classList.remove('mobile-open');
+					}
+				});
+		}
+
+		document.querySelectorAll('.page-help-wrapper, .attendance-note-wrapper').forEach((wrapper) => {
+			wrapper.addEventListener('click', (event) => {
+				if (!wholeSummerMobileQuery.matches) {
+					return;
+				}
+				event.stopPropagation();
+				const opening = !wrapper.classList.contains('mobile-open');
+				closeMobilePopovers(wrapper);
+				wrapper.classList.toggle('mobile-open', opening);
+			});
+		});
+		document.addEventListener('click', () => closeMobilePopovers());
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') {
+				closeMobilePopovers();
+			}
+		});
+
+		function showMobileConfirm(message, onConfirm) {
+			let modalElement = document.getElementById('mobileConfirmDialog');
+			if (!modalElement) {
+				modalElement = document.createElement('div');
+				modalElement.id = 'mobileConfirmDialog';
+				modalElement.className = 'modal fade mobile-confirm-dialog';
+				modalElement.tabIndex = -1;
+				modalElement.setAttribute('aria-hidden', 'true');
+				modalElement.innerHTML = `
+					<div class="modal-dialog">
+						<div class="modal-content">
+							<div class="modal-header">
+								<h2 class="modal-title fs-5">請確認操作</h2>
+								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+							</div>
+							<div class="modal-body"></div>
+							<div class="modal-footer">
+								<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+								<button type="button" class="btn btn-danger mobile-confirm-submit">確認</button>
+							</div>
+						</div>
+					</div>`;
+				document.body.appendChild(modalElement);
+			}
+
+			modalElement.querySelector('.modal-body').textContent = message;
+			const confirmButton = modalElement.querySelector('.mobile-confirm-submit');
+			const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+			confirmButton.onclick = () => {
+				modal.hide();
+				onConfirm();
+			};
+			modal.show();
+		}
+
+		document.addEventListener('submit', (event) => {
+			if (!wholeSummerMobileQuery.matches) {
+				return;
+			}
+			const form = event.target;
+			const submitHandler = form.getAttribute('onsubmit') || '';
+			const messageMatch = submitHandler.match(/confirm\((['"`])([\s\S]*?)\1\)/);
+			if (!messageMatch) {
+				return;
+			}
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			showMobileConfirm(messageMatch[2], () => {
+				form.removeAttribute('onsubmit');
+				HTMLFormElement.prototype.submit.call(form);
+			});
+		}, true);
+
+		document.addEventListener('click', (event) => {
+			if (!wholeSummerMobileQuery.matches) {
+				return;
+			}
+			const target = event.target.closest('[onclick*="confirm("]');
+			if (!target) {
+				return;
+			}
+			const clickHandler = target.getAttribute('onclick') || '';
+			const messageMatch = clickHandler.match(/confirm\((['"`])([\s\S]*?)\1\)/);
+			if (!messageMatch) {
+				return;
+			}
+			event.preventDefault();
+			event.stopImmediatePropagation();
+			showMobileConfirm(messageMatch[2], () => {
+				target.removeAttribute('onclick');
+				target.click();
+			});
+		}, true);
 	</script>
 </th:block>
 </body>

@@ -2,8 +2,6 @@ package com.example.cramschool.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
-
 import org.junit.jupiter.api.Test;
 
 import com.example.cramschool.dto.TeacherSalarySummary;
@@ -16,12 +14,12 @@ class TeacherSalarySummaryTests {
 		Teacher teacher = new Teacher();
 
 		TeacherSalarySummary juneSummary = new TeacherSalarySummary(
-				teacher, 150, new BigDecimal("600.00"));
+				teacher, 150, 600);
 		TeacherSalarySummary julySummary = new TeacherSalarySummary(
-				teacher, 150, new BigDecimal("800.00"));
+				teacher, 150, 800);
 
 		assertThat(juneSummary.getSalary()).isEqualByComparingTo("1500.00");
-		assertThat(juneSummary.getHourlyRate()).isEqualByComparingTo("600.00");
+		assertThat(juneSummary.getHourlyRate()).isEqualTo(600);
 		assertThat(juneSummary.getWorkHoursText()).isEqualTo("2 小時 30 分");
 		assertThat(julySummary.getSalary()).isEqualByComparingTo("2000.00");
 	}

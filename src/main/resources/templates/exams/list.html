@@ -36,15 +36,24 @@
 				<td colspan="6" class="text-center text-secondary py-4">目前尚無測驗資料</td>
 			</tr>
 			<tr th:each="exam : ${exams}">
-				<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+				<td>
+					<span class="mobile-date-year"
+							th:text="${#temporals.format(exam.examDate, 'yyyy-')}">2026-</span><span
+							class="mobile-date-month-day"
+							th:text="${#temporals.format(exam.examDate, 'MM-dd')}">01-01</span>
+				</td>
 				<td>
 					<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗名稱</a>
 				</td>
 				<td th:text="${exam.classRoom.displayName}">班級</td>
 				<td th:text="${exam.subject.name}">科目</td>
-				<td th:text="${exam.fullScore == 0 ? '不計分' : exam.fullScore}">100</td>
+				<td>
+					<span th:if="${exam.fullScore == 0}" class="practice-score-mark"
+							aria-label="不計分" title="不計分">×</span>
+					<span th:unless="${exam.fullScore == 0}" th:text="${exam.fullScore}">100</span>
+				</td>
 				<td class="text-end">
-					<div class="d-inline-flex gap-2">
+					<div class="exam-actions d-inline-flex gap-2">
 						<a class="btn btn-sm btn-outline-success" th:href="@{/exams/{id}/scores(id=${exam.id})}">分數登記</a>
 						<a class="btn btn-sm btn-outline-primary" th:href="@{/exams/{id}/edit(id=${exam.id})}">編輯</a>
 						<form th:action="@{/exams/{id}/delete(id=${exam.id})}"

@@ -1,6 +1,5 @@
 package com.example.cramschool.controller;
 
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,7 +54,7 @@ public class SalaryController {
 
 	@PostMapping("/{teacherId}/hourly-rate")
 	public String updateHourlyRate(@PathVariable Long teacherId,
-			@RequestParam BigDecimal hourlyRate,
+			@RequestParam Integer hourlyRate,
 			@RequestParam(required = false) Integer year,
 			@RequestParam(required = false) Integer month,
 			HttpSession session,

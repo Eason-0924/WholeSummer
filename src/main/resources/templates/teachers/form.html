@@ -47,14 +47,16 @@
 				<label for="hireDate" class="form-label">到職日</label>
 				<input type="date" id="hireDate" class="form-control" th:field="*{hireDate}">
 			</div>
-			<div class="col-md-6" th:if="${currentTeacherIsDirector and (teacher == null or teacher.id != currentTeacherId)}">
+			<div class="col-md-6"
+					th:if="${teacher == null or (currentTeacherIsDirector and teacher.id != currentTeacherId)}">
 				<label for="position" class="form-label">職位</label>
 				<select id="position" class="form-select" th:field="*{position}">
 					<option th:each="position : ${positionOptions}" th:value="${position}"
 							th:text="${position.displayName}">教師</option>
 				</select>
 			</div>
-			<div class="col-md-6" th:unless="${currentTeacherIsDirector and (teacher == null or teacher.id != currentTeacherId)}">
+			<div class="col-md-6"
+					th:unless="${teacher == null or (currentTeacherIsDirector and teacher.id != currentTeacherId)}">
 				<label class="form-label">職位</label>
 				<input class="form-control" type="text" th:value="*{position.displayName}" disabled>
 				<input type="hidden" th:field="*{position}">

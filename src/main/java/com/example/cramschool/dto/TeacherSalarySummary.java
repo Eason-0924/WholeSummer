@@ -9,14 +9,14 @@ public class TeacherSalarySummary {
 
 	private final Teacher teacher;
 	private final long workMinutes;
-	private final BigDecimal hourlyRate;
+	private final int hourlyRate;
 	private final BigDecimal salary;
 
-	public TeacherSalarySummary(Teacher teacher, long workMinutes, BigDecimal hourlyRate) {
+	public TeacherSalarySummary(Teacher teacher, long workMinutes, Integer hourlyRate) {
 		this.teacher = teacher;
 		this.workMinutes = workMinutes;
-		this.hourlyRate = hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
-		this.salary = this.hourlyRate
+		this.hourlyRate = hourlyRate == null ? 0 : hourlyRate;
+		this.salary = BigDecimal.valueOf(this.hourlyRate)
 				.multiply(BigDecimal.valueOf(workMinutes))
 				.divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
 	}
@@ -29,7 +29,7 @@ public class TeacherSalarySummary {
 		return workMinutes;
 	}
 
-	public BigDecimal getHourlyRate() {
+	public int getHourlyRate() {
 		return hourlyRate;
 	}
 

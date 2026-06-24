@@ -64,11 +64,11 @@ public class TeacherSalaryService {
 				.toList();
 	}
 
-	public void updateHourlyRate(Long teacherId, YearMonth month, BigDecimal hourlyRate) {
-		if (hourlyRate == null || hourlyRate.signum() < 0) {
+	public void updateHourlyRate(Long teacherId, YearMonth month, Integer hourlyRate) {
+		if (hourlyRate == null || hourlyRate < 0) {
 			throw new IllegalArgumentException("時薪不可小於 0");
 		}
-		if (hourlyRate.compareTo(new BigDecimal("1000000")) > 0) {
+		if (hourlyRate > 1000000) {
 			throw new IllegalArgumentException("時薪不可超過 1,000,000");
 		}
 		Teacher teacher = teacherRepository.findById(teacherId)
@@ -81,9 +81,8 @@ public class TeacherSalaryService {
 		monthlySalary.setTeacher(teacher);
 		monthlySalary.setSalaryYear(targetMonth.getYear());
 		monthlySalary.setSalaryMonth(targetMonth.getMonthValue());
-		BigDecimal normalizedRate = hourlyRate.setScale(2, java.math.RoundingMode.HALF_UP);
-		monthlySalary.setHourlyRate(normalizedRate);
-		monthlySalary.setTotalSalary(normalizedRate
+		monthlySalary.setHourlyRate(hourlyRate);
+		monthlySalary.setTotalSalary(BigDecimal.valueOf(hourlyRate)
 				.multiply(BigDecimal.valueOf(monthlySalary.getWorkMinutes()))
 				.divide(BigDecimal.valueOf(60), 2, java.math.RoundingMode.HALF_UP));
 		teacherMonthlySalaryRepository.save(monthlySalary);
