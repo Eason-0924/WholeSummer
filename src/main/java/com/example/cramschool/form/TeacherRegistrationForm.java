@@ -1,14 +1,15 @@
 package com.example.cramschool.form;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class TeacherRegistrationForm {
 
-	@NotNull(message = "請選擇教師")
 	private Long teacherId;
+
+	@Size(max = 100, message = "教師姓名不可超過 100 個字元")
+	private String initialTeacherName;
 
 	@NotBlank(message = "請輸入帳號")
 	@Size(min = 3, max = 50, message = "帳號長度需為 3 到 50 個字元")
@@ -31,6 +32,14 @@ public class TeacherRegistrationForm {
 
 	public void setTeacherId(Long teacherId) {
 		this.teacherId = teacherId;
+	}
+
+	public String getInitialTeacherName() {
+		return initialTeacherName;
+	}
+
+	public void setInitialTeacherName(String initialTeacherName) {
+		this.initialTeacherName = initialTeacherName;
 	}
 
 	public String getUsername() {

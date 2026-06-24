@@ -43,6 +43,7 @@ target/
 
 # 本機設定
 .env
+/config/application.properties
 
 # 資料庫備份
 data/backups/

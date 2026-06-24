@@ -20,6 +20,7 @@ import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
+import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAccount;
 import com.example.cramschool.entity.TeacherPosition;
@@ -41,6 +42,9 @@ class PageSmokeTests {
 
 	@Autowired
 	private TeacherAccountRepository teacherAccountRepository;
+
+	@Autowired
+	private TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
 
 	@Autowired
 	private PasswordHashService passwordHashService;
@@ -87,6 +91,7 @@ class PageSmokeTests {
 			teacherAccountRepository.deleteById(testAccount.getId());
 		}
 		if (testTeacher != null) {
+			teacherMonthlySalaryRepository.deleteByTeacherId(testTeacher.getId());
 			teacherRepository.deleteById(testTeacher.getId());
 		}
 	}

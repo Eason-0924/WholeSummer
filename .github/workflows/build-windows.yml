@@ -20,10 +20,17 @@ jobs:
       - name: Set app version
         shell: pwsh
         run: |
+          [xml]$pom = Get-Content "pom.xml"
+          $pomVersion = $pom.project.version
+
           if ("${{ github.ref_type }}" -eq "tag") {
             $version = "${{ github.ref_name }}".TrimStart("v")
+            if ($version -ne $pomVersion) {
+              Write-Error "Tag version $version does not match pom.xml version $pomVersion."
+              exit 1
+            }
           } else {
-            $version = "1.0.0"
+            $version = $pomVersion
           }
 
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
@@ -67,9 +74,14 @@ jobs:
             --main-jar WholeSummer.jar ^
             --dest dist ^
             --win-menu ^
+            --win-menu-group WholeSummer ^
             --win-shortcut ^
             --win-dir-chooser ^
-            --java-options "-Dspring.config.additional-location=file:C:/WholeSummer/config/"
+            --win-upgrade-uuid "6f3c08df-767c-4b13-9d6c-e7bf77709561" ^
+            --vendor "WholeSummer" ^
+            --description "霍爾夏天補習班管理系統" ^
+            --java-options "-Dwholesummer.external-config.enabled=true" ^
+            --java-options "-Dwholesummer.app-exe=$APPDIR/../WholeSummer.exe"
 
       - name: Rename Windows installer
         shell: pwsh

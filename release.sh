@@ -2,19 +2,6 @@
 
 set -e
 
-VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
-
-if [ -z "$VERSION" ]; then
-  echo "錯誤：無法從 pom.xml 讀取 project.version"
-  exit 1
-fi
-
-TAG="v$VERSION"
-
-echo "目前 pom.xml 版本：$VERSION"
-echo "即將發布：$TAG"
-echo
-
 CURRENT_BRANCH=$(git branch --show-current)
 
 if [ "$CURRENT_BRANCH" != "main" ]; then
@@ -22,19 +9,41 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
   exit 1
 fi
 
-LOCAL_TAG_EXISTS=false
-REMOTE_TAG_EXISTS=false
 REPUBLISH=false
 
-if git rev-parse "$TAG" >/dev/null 2>&1; then
-  LOCAL_TAG_EXISTS=true
-fi
+read_project_version() {
+  ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout
+}
 
-if git ls-remote --tags origin "$TAG" | grep -q "refs/tags/$TAG"; then
-  REMOTE_TAG_EXISTS=true
-fi
+refresh_version_state() {
+  VERSION=$(read_project_version)
 
-if [ "$LOCAL_TAG_EXISTS" = true ] || [ "$REMOTE_TAG_EXISTS" = true ]; then
+  if [ -z "$VERSION" ]; then
+    echo "錯誤：無法從 pom.xml 讀取 project.version"
+    exit 1
+  fi
+
+  TAG="v$VERSION"
+  LOCAL_TAG_EXISTS=false
+  REMOTE_TAG_EXISTS=false
+
+  if git rev-parse "$TAG" >/dev/null 2>&1; then
+    LOCAL_TAG_EXISTS=true
+  fi
+
+  if git ls-remote --tags origin "$TAG" | grep -q "refs/tags/$TAG"; then
+    REMOTE_TAG_EXISTS=true
+  fi
+}
+
+update_project_version() {
+  NEW_VERSION="$1"
+  ./mvnw -q versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
+}
+
+refresh_version_state
+
+while [ "$LOCAL_TAG_EXISTS" = true ] || [ "$REMOTE_TAG_EXISTS" = true ]; do
   echo "警告：版本 $TAG 已經存在。"
   echo
 
@@ -47,30 +56,73 @@ if [ "$LOCAL_TAG_EXISTS" = true ] || [ "$REMOTE_TAG_EXISTS" = true ]; then
   fi
 
   echo
-  echo "是否要重新發布 $TAG？"
-  echo "這會刪除本機與遠端的同名 tag，然後重新建立 tag。"
-  read -p "輸入 y 表示重新發布，其他則取消： " REPUBLISH_ANSWER
+  echo "請選擇處理方式："
+  echo "1. 覆蓋並重新發布 $TAG"
+  echo "2. 變更版本號"
+  echo "3. 取消發布"
+  read -p "請輸入 1、2 或 3： " VERSION_ACTION
 
-  if [ "$REPUBLISH_ANSWER" = "y" ] || [ "$REPUBLISH_ANSWER" = "Y" ]; then
-    REPUBLISH=true
+  case "$VERSION_ACTION" in
+    1)
+      REPUBLISH=true
+      echo
+      echo "準備重新發布：$TAG"
 
-    echo
-    echo "準備重新發布：$TAG"
+      if [ "$LOCAL_TAG_EXISTS" = true ]; then
+        echo "刪除本機 tag：$TAG"
+        git tag -d "$TAG"
+      fi
 
-    if [ "$LOCAL_TAG_EXISTS" = true ]; then
-      echo "刪除本機 tag：$TAG"
-      git tag -d "$TAG"
-    fi
+      if [ "$REMOTE_TAG_EXISTS" = true ]; then
+        echo "刪除遠端 tag：$TAG"
+        git push origin ":refs/tags/$TAG"
+      fi
+      LOCAL_TAG_EXISTS=false
+      REMOTE_TAG_EXISTS=false
+      ;;
+    2)
+      while true; do
+        read -p "請輸入新版本號（格式 x.y.z，例如 1.0.2）： " NEW_VERSION
 
-    if [ "$REMOTE_TAG_EXISTS" = true ]; then
-      echo "刪除遠端 tag：$TAG"
-      git push origin ":refs/tags/$TAG"
-    fi
-  else
-    echo "已取消發布。"
-    exit 0
-  fi
-fi
+        if [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          break
+        fi
+
+        echo "版本格式不正確，請使用 x.y.z 格式。"
+      done
+
+      if [ "$NEW_VERSION" = "$VERSION" ]; then
+        echo "新版本號與目前版本相同，請重新選擇。"
+        echo
+        continue
+      fi
+
+      echo "更新 pom.xml 版本：$VERSION -> $NEW_VERSION"
+      update_project_version "$NEW_VERSION"
+      REPUBLISH=false
+      refresh_version_state
+
+      if [ "$LOCAL_TAG_EXISTS" = false ] && [ "$REMOTE_TAG_EXISTS" = false ]; then
+        echo "版本已變更為 $VERSION。"
+      else
+        echo "版本 $TAG 也已存在，請再次選擇處理方式。"
+      fi
+      echo
+      ;;
+    3)
+      echo "已取消發布。"
+      exit 0
+      ;;
+    *)
+      echo "選項無效，請輸入 1、2 或 3。"
+      echo
+      ;;
+  esac
+done
+
+echo "目前 pom.xml 版本：$VERSION"
+echo "即將發布：$TAG"
+echo
 
 echo
 echo "開始 Maven 打包測試..."

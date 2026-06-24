@@ -4,6 +4,8 @@ import com.example.cramschool.service.SystemSettingService;
 import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.entity.BackupStatus;
 import com.example.cramschool.service.BackupService;
+import com.example.cramschool.service.AppVersionService;
+import com.example.cramschool.service.UpdateCoordinator;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -22,18 +24,31 @@ public class SettingsController {
 	private final SystemSettingService systemSettingService;
 	private final TeacherAccountService teacherAccountService;
 	private final BackupService backupService;
+	private final AppVersionService appVersionService;
+	private final UpdateCoordinator updateCoordinator;
 
 	public SettingsController(SystemSettingService systemSettingService, TeacherAccountService teacherAccountService,
-			BackupService backupService) {
+			BackupService backupService, AppVersionService appVersionService,
+			UpdateCoordinator updateCoordinator) {
 		this.systemSettingService = systemSettingService;
 		this.teacherAccountService = teacherAccountService;
 		this.backupService = backupService;
+		this.appVersionService = appVersionService;
+		this.updateCoordinator = updateCoordinator;
 	}
 
 	@GetMapping
-	public String index(Model model) {
+	public String index(HttpSession session, Model model) {
 		systemSettingService.ensureDefaults();
 		model.addAttribute("pageTitle", "系統設定");
+		model.addAttribute("appVersion", appVersionService.currentVersion());
+		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
+		if (accountId instanceof Long id && teacherAccountService.isDirector(id)) {
+			model.addAttribute("updateEnabled", updateCoordinator.isEnabled());
+			model.addAttribute("updateChecking", updateCoordinator.isChecking());
+			model.addAttribute("availableUpdate", updateCoordinator.getAvailableUpdate().orElse(null));
+			model.addAttribute("updateError", updateCoordinator.getLastError());
+		}
 		model.addAttribute("systemNameValue", systemSettingService.getValue(SystemSettingService.SYSTEM_NAME,
 				"霍爾夏天補習班 Whole Summer"));
 		model.addAttribute("homeworkWarningDaysValue",

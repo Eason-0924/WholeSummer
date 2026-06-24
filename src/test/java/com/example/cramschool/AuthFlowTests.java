@@ -64,6 +64,7 @@ class AuthFlowTests {
 		if (teacher != null) {
 			teacherAccountRepository.findByTeacherId(teacher.getId())
 					.ifPresent(account -> teacherAccountRepository.deleteById(account.getId()));
+			teacherMonthlySalaryRepository.deleteByTeacherId(teacher.getId());
 			teacherRepository.deleteById(teacher.getId());
 		}
 		deleteTeacherAndAccount(targetTeacher);
@@ -143,6 +144,11 @@ class AuthFlowTests {
 		assertThat(teacherMonthlySalaryRepository
 				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 6))
 				.isEmpty();
+
+		mockMvc.perform(post("/updates/check").session(regularSession))
+				.andExpect(status().is3xxRedirection());
+		mockMvc.perform(post("/updates/install").session(regularSession))
+				.andExpect(status().is3xxRedirection());
 
 		var regularSalaryResult = mockMvc.perform(get("/salary")
 				.param("year", "2026")

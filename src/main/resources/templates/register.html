@@ -8,17 +8,27 @@
 			<section class="bg-white border rounded p-4 shadow-sm">
 				<div class="mb-4 text-center">
 					<h1 class="h3 mb-2">教師註冊</h1>
-					<div class="text-secondary">請選擇您的教師資料並建立個人帳號</div>
+					<div class="text-secondary"
+							th:text="${initialSetupRequired ? '請建立第一位主任與登入帳號' : '請選擇您的教師資料並建立個人帳號'}">
+						請選擇您的教師資料並建立個人帳號
+					</div>
 				</div>
 
 				<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">註冊失敗</div>
-				<div th:if="${#lists.isEmpty(teacherOptions)}" class="alert alert-info mb-0">
+				<div th:if="${!initialSetupRequired and #lists.isEmpty(teacherOptions)}"
+						class="alert alert-info mb-0">
 					目前沒有可註冊的教師。只有任教中且尚未註冊的教師會顯示於此。
 				</div>
 
-				<form th:unless="${#lists.isEmpty(teacherOptions)}" th:action="@{/register}"
+				<form th:if="${initialSetupRequired or !#lists.isEmpty(teacherOptions)}" th:action="@{/register}"
 						th:object="${registrationForm}" method="post" class="row g-3">
-					<div class="col-12">
+					<div th:if="${initialSetupRequired}" class="col-12">
+						<label class="form-label" for="initialTeacherName">主任姓名</label>
+						<input id="initialTeacherName" class="form-control" type="text"
+								th:field="*{initialTeacherName}" maxlength="100" required>
+					</div>
+
+					<div th:unless="${initialSetupRequired}" class="col-12">
 						<label class="form-label" for="teacherId">教師</label>
 						<select id="teacherId" class="form-select" th:field="*{teacherId}"
 								th:classappend="${#fields.hasErrors('teacherId')} ? 'is-invalid'" required>

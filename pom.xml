@@ -10,9 +10,9 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.0.1</version>
+	<version>1.0.2</version> <!-- Enter system version before release -->
 	<name>霍爾夏天補習班 Whole Summer</name>
-	<description>Local cram school management system</description>
+	<description>Cram school management system</description>
 	<properties>
 		<java.version>25</java.version>
 	</properties>

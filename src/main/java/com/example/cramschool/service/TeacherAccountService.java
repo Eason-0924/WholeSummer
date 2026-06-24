@@ -42,31 +42,57 @@ public class TeacherAccountService {
 				.toList();
 	}
 
+	@Transactional(readOnly = true)
+	public boolean isInitialSetupRequired() {
+		return teacherAccountRepository.count() == 0 && teacherRepository.count() == 0;
+	}
+
 	public TeacherAccount register(TeacherRegistrationForm form) {
 		String username = normalizeUsername(form.getUsername());
+		boolean initialSetup = isInitialSetupRequired();
 		if (!systemSettingService.matchesRegistrationCode(form.getRegistrationCode())) {
 			throw new IllegalArgumentException("教師註冊安全碼不正確");
 		}
 		if (teacherAccountRepository.existsByUsernameIgnoreCase(username)) {
 			throw new IllegalArgumentException("此帳號已被使用");
 		}
-		if (teacherAccountRepository.existsByTeacherId(form.getTeacherId())) {
-			throw new IllegalArgumentException("此教師已完成註冊");
-		}
 		if (!form.getPassword().equals(form.getConfirmPassword())) {
 			throw new IllegalArgumentException("密碼與確認密碼不一致");
 		}
-		Teacher teacher = teacherRepository.findById(form.getTeacherId())
-				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
-		if (teacher.getStatus() != TeacherStatus.ACTIVE) {
-			throw new IllegalArgumentException("只有任教中的教師可以註冊");
-		}
+		Teacher teacher = initialSetup ? createInitialDirector(form) : findRegistrationTeacher(form);
 
 		TeacherAccount account = new TeacherAccount();
 		account.setTeacher(teacher);
 		account.setUsername(username);
 		setPassword(account, form.getPassword());
 		return teacherAccountRepository.save(account);
+	}
+
+	private Teacher createInitialDirector(TeacherRegistrationForm form) {
+		String name = form.getInitialTeacherName() == null ? "" : form.getInitialTeacherName().trim();
+		if (name.isBlank()) {
+			throw new IllegalArgumentException("請輸入第一位主任姓名");
+		}
+		Teacher teacher = new Teacher();
+		teacher.setName(name);
+		teacher.setPosition(TeacherPosition.DIRECTOR);
+		teacher.setStatus(TeacherStatus.ACTIVE);
+		return teacherRepository.save(teacher);
+	}
+
+	private Teacher findRegistrationTeacher(TeacherRegistrationForm form) {
+		if (form.getTeacherId() == null) {
+			throw new IllegalArgumentException("請選擇教師");
+		}
+		if (teacherAccountRepository.existsByTeacherId(form.getTeacherId())) {
+			throw new IllegalArgumentException("此教師已完成註冊");
+		}
+		Teacher teacher = teacherRepository.findById(form.getTeacherId())
+				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
+		if (teacher.getStatus() != TeacherStatus.ACTIVE) {
+			throw new IllegalArgumentException("只有任教中的教師可以註冊");
+		}
+		return teacher;
 	}
 
 	public Optional<TeacherAccount> authenticate(String username, String password) {

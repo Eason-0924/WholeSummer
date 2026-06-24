@@ -110,6 +110,7 @@ public class AuthController {
 
 	private void addRegistrationOptions(Model model) {
 		model.addAttribute("teacherOptions", teacherAccountService.findTeachersAvailableForRegistration());
+		model.addAttribute("initialSetupRequired", teacherAccountService.isInitialSetupRequired());
 	}
 
 	private void setAuthenticatedSession(HttpSession session, TeacherAccount account) {

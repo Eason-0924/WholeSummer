@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<main class="container py-5">
+	<div class="row justify-content-center">
+		<div class="col-md-7 col-lg-6">
+			<section class="bg-white border rounded p-5 text-center shadow-sm">
+				<div class="spinner-border text-primary mb-3" role="status">
+					<span class="visually-hidden">處理中</span>
+				</div>
+				<h1 class="h4 mb-3">準備安裝 WholeSummer 更新</h1>
+				<p class="text-secondary mb-1"
+						th:text="${'版本 ' + latestVersion + ' 已下載完成。'}">新版已下載完成。</p>
+				<p class="text-secondary mb-0">系統即將關閉並開啟 Windows 安裝程式。</p>
+			</section>
+		</div>
+	</div>
+</main>
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

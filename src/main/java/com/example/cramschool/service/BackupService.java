@@ -21,40 +21,34 @@ import com.example.cramschool.dto.DatabaseRestoreResult;
 import com.example.cramschool.entity.BackupRecord;
 import com.example.cramschool.entity.BackupStatus;
 import com.example.cramschool.repository.BackupRecordRepository;
+import com.example.cramschool.config.MysqlCommandLocator;
 
 @Service
 @Transactional
 public class BackupService {
 
-	private static final Path BACKUP_DIR = Path.of("data", "backups");
 	private static final DateTimeFormatter FILE_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-	private static final List<String> MYSQLDUMP_CANDIDATES = List.of(
-			"mysqldump",
-			"/usr/local/mysql/bin/mysqldump",
-			"/opt/homebrew/opt/mysql-client/bin/mysqldump",
-			"/opt/homebrew/opt/mysql/bin/mysqldump",
-			"/Applications/MAMP/Library/bin/mysqldump");
-	private static final List<String> MYSQL_CANDIDATES = List.of(
-			"mysql",
-			"/usr/local/mysql/bin/mysql",
-			"/opt/homebrew/opt/mysql-client/bin/mysql",
-			"/opt/homebrew/opt/mysql/bin/mysql",
-			"/Applications/MAMP/Library/bin/mysql");
 	private static final long MAX_IMPORT_SIZE = 20L * 1024 * 1024;
 
 	private final BackupRecordRepository backupRecordRepository;
 	private final String datasourceUrl;
 	private final String username;
 	private final String password;
+	private final Path backupDirectory;
+	private final MysqlCommandLocator mysqlCommandLocator;
 
 	public BackupService(BackupRecordRepository backupRecordRepository,
 			@Value("${spring.datasource.url}") String datasourceUrl,
 			@Value("${spring.datasource.username}") String username,
-			@Value("${spring.datasource.password}") String password) {
+			@Value("${spring.datasource.password}") String password,
+			@Value("${app.backup.dir:${user.dir}/data/backups}") String backupDirectory,
+			@Value("${app.mysql.bin-dir:}") String mysqlBinDirectory) {
 		this.backupRecordRepository = backupRecordRepository;
 		this.datasourceUrl = datasourceUrl;
 		this.username = username;
 		this.password = password;
+		this.backupDirectory = Path.of(backupDirectory).toAbsolutePath().normalize();
+		this.mysqlCommandLocator = new MysqlCommandLocator(mysqlBinDirectory);
 	}
 
 	@Transactional(readOnly = true)
@@ -71,7 +65,7 @@ public class BackupService {
 	public BackupRecord createBackup() {
 		LocalDateTime now = LocalDateTime.now();
 		String fileName = "WholeSummer_backup_" + FILE_TIME_FORMAT.format(now) + ".sql";
-		Path filePath = BACKUP_DIR.resolve(fileName);
+		Path filePath = backupDirectory.resolve(fileName);
 
 		BackupRecord record = new BackupRecord();
 		record.setFileName(fileName);
@@ -79,7 +73,7 @@ public class BackupService {
 		record.setBackupTime(now);
 
 		try {
-			Files.createDirectories(BACKUP_DIR);
+			Files.createDirectories(backupDirectory);
 			ProcessBuilder processBuilder = new ProcessBuilder(
 					mysqldumpCommand(),
 					"--host=" + databaseHost(),
@@ -130,7 +124,7 @@ public class BackupService {
 	public Path backupPath(Long id) {
 		BackupRecord record = findById(id);
 		Path path = Path.of(record.getFilePath()).toAbsolutePath().normalize();
-		Path backupRoot = BACKUP_DIR.toAbsolutePath().normalize();
+		Path backupRoot = backupDirectory;
 		if (!path.startsWith(backupRoot)) {
 			throw new IllegalArgumentException("備份檔案路徑不合法");
 		}
@@ -158,8 +152,8 @@ public class BackupService {
 		validateImportFile(file);
 		Path uploadedFile = null;
 		try {
-			Files.createDirectories(BACKUP_DIR);
-			uploadedFile = Files.createTempFile(BACKUP_DIR, "initial_import_", ".sql");
+			Files.createDirectories(backupDirectory);
+			uploadedFile = Files.createTempFile(backupDirectory, "initial_import_", ".sql");
 			Files.copy(file.getInputStream(), uploadedFile, StandardCopyOption.REPLACE_EXISTING);
 			validateSqlContent(uploadedFile);
 			return restoreSqlFile(uploadedFile, "初始資料庫匯入");
@@ -314,38 +308,11 @@ public class BackupService {
 	}
 
 	private String mysqldumpCommand() {
-		return MYSQLDUMP_CANDIDATES.stream()
-				.filter(this::canUseMysqldump)
-				.findFirst()
-				.orElse("mysqldump");
+		return mysqlCommandLocator.find("mysqldump");
 	}
 
 	private String mysqlCommand() {
-		return MYSQL_CANDIDATES.stream()
-				.filter(this::canUseCommand)
-				.findFirst()
-				.orElse("mysql");
-	}
-
-	private boolean canUseMysqldump(String command) {
-		return canUseCommand(command);
-	}
-
-	private boolean canUseCommand(String command) {
-		if (command.contains("/")) {
-			return Files.isExecutable(Path.of(command));
-		}
-		try {
-			Process process = new ProcessBuilder(command, "--version")
-					.redirectErrorStream(true)
-					.start();
-			return process.waitFor() == 0;
-		} catch (IOException ex) {
-			return false;
-		} catch (InterruptedException ex) {
-			Thread.currentThread().interrupt();
-			return false;
-		}
+		return mysqlCommandLocator.find("mysql");
 	}
 
 	private void applyPassword(ProcessBuilder processBuilder) {
