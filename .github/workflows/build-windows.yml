@@ -1,0 +1,52 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Build Spring Boot jar
+        run: ./mvnw clean package -DskipTests
+
+      - name: Prepare jpackage input folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path input
+          Copy-Item target\WholeSummer.jar input\WholeSummer.jar
+
+      - name: Build Windows EXE with jpackage
+        shell: cmd
+        run: |
+          jpackage ^
+            --type exe ^
+            --name WholeSummer ^
+            --app-version 1.0.0 ^
+            --input input ^
+            --main-jar WholeSummer.jar ^
+            --dest dist ^
+            --win-menu ^
+            --win-shortcut ^
+            --win-dir-chooser ^
+            --java-options "-Dspring.config.additional-location=file:C:/WholeSummer/config/"
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: WholeSummer-Windows-Installer
+          path: dist/*.exe
