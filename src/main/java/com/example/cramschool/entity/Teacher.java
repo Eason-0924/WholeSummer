@@ -2,6 +2,7 @@ package com.example.cramschool.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,6 +39,10 @@ public class Teacher {
 
 	@Column(name = "hire_date")
 	private LocalDate hireDate;
+
+	@Column(name = "hourly_rate", nullable = false, precision = 10, scale = 2)
+	@ColumnDefault("0.00")
+	private BigDecimal hourlyRate = BigDecimal.ZERO;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
@@ -122,6 +127,14 @@ public class Teacher {
 
 	public void setHireDate(LocalDate hireDate) {
 		this.hireDate = hireDate;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate == null ? BigDecimal.ZERO : hourlyRate;
 	}
 
 	public TeacherPosition getPosition() {

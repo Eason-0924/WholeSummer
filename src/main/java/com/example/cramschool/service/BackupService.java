@@ -272,8 +272,11 @@ public class BackupService {
 		if (!normalized.contains("CREATE TABLE") && !normalized.contains("INSERT INTO")) {
 			throw new IllegalArgumentException("檔案中找不到可匯入的資料表或資料內容");
 		}
-		if (!normalized.contains("TEACHER_ACCOUNTS") || !normalized.contains("`POSITION`")) {
-			throw new IllegalArgumentException("此 SQL 版本過舊，缺少教師帳號或職位欄位，無法安全匯入");
+		if (!normalized.contains("TEACHER_ACCOUNTS")
+				|| !normalized.contains("`POSITION`")
+				|| !normalized.contains("TEACHER_MONTHLY_SALARIES")
+				|| !normalized.contains("`HOURLY_RATE`")) {
+			throw new IllegalArgumentException("此 SQL 版本過舊，缺少教師帳號、職位或每月薪資資料表，無法安全匯入");
 		}
 	}
 

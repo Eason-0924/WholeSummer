@@ -112,6 +112,7 @@ class PageSmokeTests {
 				"/subjects/new",
 				"/exams",
 				"/homeworks",
+				"/salary",
 				"/settings"
 		};
 

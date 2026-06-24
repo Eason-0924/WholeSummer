@@ -14,6 +14,7 @@ import com.example.cramschool.form.TeacherForm;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
+import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.repository.TeacherRepository;
 
 @Service
@@ -25,15 +26,18 @@ public class TeacherService {
 	private final SubjectRepository subjectRepository;
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherAccountRepository teacherAccountRepository;
+	private final TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
 
 	public TeacherService(TeacherRepository teacherRepository, ClassRoomRepository classRoomRepository,
 			SubjectRepository subjectRepository, TeacherAttendanceService teacherAttendanceService,
-			TeacherAccountRepository teacherAccountRepository) {
+			TeacherAccountRepository teacherAccountRepository,
+			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository) {
 		this.teacherRepository = teacherRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherAccountRepository = teacherAccountRepository;
+		this.teacherMonthlySalaryRepository = teacherMonthlySalaryRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -105,6 +109,7 @@ public class TeacherService {
 
 		teacherAttendanceService.deleteByTeacherId(id);
 		teacherAccountRepository.deleteByTeacherId(id);
+		teacherMonthlySalaryRepository.deleteByTeacherId(id);
 		teacherRepository.delete(teacher);
 	}
 

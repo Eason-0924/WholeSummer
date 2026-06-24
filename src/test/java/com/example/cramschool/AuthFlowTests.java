@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +20,10 @@ import com.example.cramschool.entity.TeacherAccount;
 import com.example.cramschool.entity.TeacherPosition;
 import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.repository.TeacherAccountRepository;
+import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.service.PasswordHashService;
+import com.example.cramschool.dto.TeacherSalarySummary;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -34,6 +37,9 @@ class AuthFlowTests {
 
 	@Autowired
 	private TeacherAccountRepository teacherAccountRepository;
+
+	@Autowired
+	private TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
 
 	@Autowired
 	private PasswordHashService passwordHashService;
@@ -128,6 +134,29 @@ class AuthFlowTests {
 				.param("confirmRegistrationCode", "changed-code"))
 				.andExpect(status().is3xxRedirection());
 
+		mockMvc.perform(post("/salary/{id}/hourly-rate", targetTeacher.getId())
+				.session(regularSession)
+				.param("year", "2026")
+				.param("month", "6")
+				.param("hourlyRate", "800"))
+				.andExpect(status().is3xxRedirection());
+		assertThat(teacherMonthlySalaryRepository
+				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 6))
+				.isEmpty();
+
+		var regularSalaryResult = mockMvc.perform(get("/salary")
+				.param("year", "2026")
+				.param("month", "6")
+				.session(regularSession))
+				.andExpect(status().isOk())
+				.andExpect(model().attributeExists("salarySummaries"))
+				.andReturn();
+		@SuppressWarnings("unchecked")
+		var regularSummaries = (java.util.List<TeacherSalarySummary>) regularSalaryResult
+				.getModelAndView().getModel().get("salarySummaries");
+		assertThat(regularSummaries).hasSize(1);
+		assertThat(regularSummaries.getFirst().getTeacher().getId()).isEqualTo(teacher.getId());
+
 		director = new Teacher();
 		director.setName("權限測試主任");
 		director.setPosition(TeacherPosition.DIRECTOR);
@@ -144,6 +173,32 @@ class AuthFlowTests {
 				.andExpect(status().is3xxRedirection());
 		assertThat(teacherRepository.findById(targetTeacher.getId()).orElseThrow().getPosition())
 				.isEqualTo(TeacherPosition.TUTOR);
+
+		mockMvc.perform(post("/salary/{id}/hourly-rate", targetTeacher.getId())
+				.session(directorSession)
+				.param("year", "2026")
+				.param("month", "6")
+				.param("hourlyRate", "800"))
+				.andExpect(status().is3xxRedirection());
+		assertThat(teacherMonthlySalaryRepository
+				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 6)
+				.orElseThrow().getHourlyRate()).isEqualByComparingTo("800.00");
+		assertThat(teacherMonthlySalaryRepository
+				.findByTeacherIdAndSalaryYearAndSalaryMonth(targetTeacher.getId(), 2026, 7))
+				.isEmpty();
+
+		var directorSalaryResult = mockMvc.perform(get("/salary")
+				.param("year", "2026")
+				.param("month", "6")
+				.session(directorSession))
+				.andExpect(status().isOk())
+				.andReturn();
+		@SuppressWarnings("unchecked")
+		var directorSummaries = (java.util.List<TeacherSalarySummary>) directorSalaryResult
+				.getModelAndView().getModel().get("salarySummaries");
+		assertThat(directorSummaries)
+				.extracting(summary -> summary.getTeacher().getId())
+				.contains(teacher.getId(), targetTeacher.getId(), director.getId());
 
 		teacherAccountRepository.deleteById(regularAccount.getId());
 	}
@@ -174,6 +229,7 @@ class AuthFlowTests {
 		}
 		teacherAccountRepository.findByTeacherId(teacherToDelete.getId())
 				.ifPresent(account -> teacherAccountRepository.deleteById(account.getId()));
+		teacherMonthlySalaryRepository.deleteByTeacherId(teacherToDelete.getId());
 		teacherRepository.deleteById(teacherToDelete.getId());
 	}
 }

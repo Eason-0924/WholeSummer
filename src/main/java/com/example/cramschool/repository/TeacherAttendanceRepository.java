@@ -19,5 +19,8 @@ public interface TeacherAttendanceRepository extends JpaRepository<TeacherAttend
 
 	Optional<TeacherAttendance> findByTeacherIdAndDate(Long teacherId, LocalDate date);
 
+	List<TeacherAttendance> findByTeacherIdAndDateBetweenOrderByDateAsc(
+			Long teacherId, LocalDate startDate, LocalDate endDate);
+
 	void deleteByTeacherId(Long teacherId);
 }
