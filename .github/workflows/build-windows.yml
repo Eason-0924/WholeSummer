@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path input
-          Copy-Item target\WholeSummer.jar input\WholeSummer.jar
+          Copy-Item target\WholeSummer-1.0.0.jar input\WholeSummer.jar
 
       - name: Build Windows EXE with jpackage
         shell: cmd
