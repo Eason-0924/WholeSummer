@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">系統設定</h1>
+				<span th:replace="~{fragments/layout :: help('在此調整系統名稱、畫面模式、提醒天數與目前登入教師的個人密碼。設定會儲存在資料庫中。')}"></span>
+			</div>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/}">返回首頁</a>
+	</div>
+
+	<div th:if="${message}" class="alert alert-success" th:text="${message}">已更新</div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
+
+	<section class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-3">一般設定</h2>
+		<form th:action="@{/settings/general}" method="post" class="row g-3">
+			<div class="col-md-6">
+				<label for="systemName" class="form-label">系統名稱</label>
+				<input id="systemName" class="form-control" type="text" name="systemName"
+						th:value="${systemNameValue}" required>
+			</div>
+			<div class="col-md-6">
+				<label class="form-label d-block">畫面模式</label>
+				<div class="btn-group" role="group" aria-label="畫面模式">
+					<input type="radio" class="btn-check" name="themeMode" id="themeLight"
+							value="light" data-theme-option autocomplete="off"
+							th:checked="${themeModeValue == 'light'}">
+					<label class="btn btn-outline-secondary" for="themeLight">亮色</label>
+
+					<input type="radio" class="btn-check" name="themeMode" id="themeDark"
+							value="dark" data-theme-option autocomplete="off"
+							th:checked="${themeModeValue == 'dark'}">
+					<label class="btn btn-outline-secondary" for="themeDark">暗色</label>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<label for="homeworkWarningDays" class="form-label">即將到期作業提醒天數</label>
+				<input id="homeworkWarningDays" class="form-control" type="number" min="0" step="1"
+						name="homeworkWarningDays" data-overdue-reminder-days
+						th:data-current-value="${homeworkWarningDaysValue}"
+						th:value="${homeworkWarningDaysValue}">
+			</div>
+			<div class="col-md-6">
+				<label for="backupReminderDays" class="form-label">備份提醒天數</label>
+				<input id="backupReminderDays" class="form-control" type="number" min="0" step="1"
+						name="backupReminderDays" th:value="${backupReminderDaysValue}">
+			</div>
+			<div class="col-12">
+				<button class="btn btn-primary" type="submit">儲存設定</button>
+			</div>
+		</form>
+	</section>
+
+	<section class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-1">個人登入密碼</h2>
+		<div class="text-secondary small mb-3" th:text="${'目前登入：' + currentTeacherName}">目前登入：教師</div>
+		<form th:action="@{/settings/password}" method="post" class="row g-3">
+			<div class="col-md-4">
+				<label for="currentPassword" class="form-label">目前密碼</label>
+				<input id="currentPassword" class="form-control" type="password" name="currentPassword"
+						autocomplete="current-password" required>
+			</div>
+			<div class="col-md-4">
+				<label for="newPassword" class="form-label">新密碼</label>
+				<input id="newPassword" class="form-control" type="password" name="newPassword"
+						autocomplete="new-password" required>
+			</div>
+			<div class="col-md-4">
+				<label for="confirmPassword" class="form-label">確認新密碼</label>
+				<input id="confirmPassword" class="form-control" type="password" name="confirmPassword"
+						autocomplete="new-password" required>
+			</div>
+			<div class="col-12 d-flex align-items-center gap-3">
+				<button class="btn btn-primary" type="submit">更新密碼</button>
+				<span class="text-secondary small">只會變更目前教師帳號的密碼。</span>
+			</div>
+		</form>
+	</section>
+
+	<section th:if="${currentTeacherIsDirector}" class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-1">教師註冊安全碼</h2>
+		<div class="text-secondary small mb-3">只有主任可以變更。新教師註冊時必須輸入此安全碼。</div>
+		<form th:action="@{/settings/registration-code}" method="post" class="row g-3">
+			<div class="col-md-4">
+				<label for="currentRegistrationCode" class="form-label">目前安全碼</label>
+				<input id="currentRegistrationCode" class="form-control" type="password"
+						name="currentRegistrationCode" autocomplete="off" required>
+			</div>
+			<div class="col-md-4">
+				<label for="newRegistrationCode" class="form-label">新安全碼</label>
+				<input id="newRegistrationCode" class="form-control" type="password"
+						name="newRegistrationCode" minlength="8" maxlength="100" autocomplete="off" required>
+			</div>
+			<div class="col-md-4">
+				<label for="confirmRegistrationCode" class="form-label">確認新安全碼</label>
+				<input id="confirmRegistrationCode" class="form-control" type="password"
+						name="confirmRegistrationCode" minlength="8" maxlength="100" autocomplete="off" required>
+			</div>
+			<div class="col-12">
+				<button class="btn btn-primary" type="submit">更新註冊安全碼</button>
+			</div>
+		</form>
+	</section>
+
+	<div th:replace="~{backup/index :: content}"></div>
+
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

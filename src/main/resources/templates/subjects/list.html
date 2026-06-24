@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">科目管理</h1>
+				<span th:replace="~{fragments/layout :: help('管理科目，並查看各科目的開課年級、班級與教師。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-primary" th:href="@{/subjects/new}">新增科目</a>
+		</div>
+	</div>
+
+	<section class="table-responsive bg-white border rounded">
+		<table class="table table-hover align-middle mb-0">
+			<thead class="table-light">
+			<tr>
+				<th>科目名稱</th>
+				<th>教師</th>
+				<th>適用年級</th>
+				<th>說明</th>
+				<th>開課班級</th>
+				<th>狀態</th>
+				<th class="text-end">操作</th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr th:if="${#lists.isEmpty(subjects)}">
+				<td colspan="7" class="text-center text-secondary py-4">目前尚無科目資料</td>
+			</tr>
+			<tr th:each="subject : ${subjects}">
+				<td th:text="${subject.name}">科目名稱</td>
+				<td th:text="${subject.teacherDisplay}">-</td>
+				<td th:text="${subject.gradeLevelDisplay}">國一、國二</td>
+				<td th:text="${subject.description ?: '-'}">-</td>
+				<td>
+					<span th:if="${#lists.isEmpty(activeClassesBySubject[subject.id])}" class="text-secondary">-</span>
+					<span th:each="classRoom, iterStat : ${activeClassesBySubject[subject.id]}">
+						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級</a><span th:if="${!iterStat.last}">、</span>
+					</span>
+				</td>
+				<td>
+					<span th:if="${subject.active}" class="badge text-bg-success">使用中</span>
+					<span th:unless="${subject.active}" class="badge text-bg-danger">已停用</span>
+				</td>
+				<td class="text-end">
+					<div class="d-inline-flex gap-2">
+						<a class="btn btn-sm btn-outline-primary" th:href="@{/subjects/{id}/edit(id=${subject.id})}">編輯</a>
+						<form th:if="${subject.active}" th:action="@{/subjects/{id}/deactivate(id=${subject.id})}"
+								method="post" onsubmit="return confirm('確定要停用這個科目嗎？');">
+							<button class="btn btn-sm btn-outline-danger" type="submit">停用</button>
+						</form>
+						<form th:unless="${subject.active}" th:action="@{/subjects/{id}/activate(id=${subject.id})}"
+								method="post">
+							<button class="btn btn-sm btn-outline-success" type="submit">啟用</button>
+						</form>
+					</div>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

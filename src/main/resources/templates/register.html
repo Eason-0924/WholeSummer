@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<main class="container py-5">
+	<div class="row justify-content-center">
+		<div class="col-sm-11 col-md-8 col-lg-6">
+			<section class="bg-white border rounded p-4 shadow-sm">
+				<div class="mb-4 text-center">
+					<h1 class="h3 mb-2">教師註冊</h1>
+					<div class="text-secondary">請選擇您的教師資料並建立個人帳號</div>
+				</div>
+
+				<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">註冊失敗</div>
+				<div th:if="${#lists.isEmpty(teacherOptions)}" class="alert alert-info mb-0">
+					目前沒有可註冊的教師。只有任教中且尚未註冊的教師會顯示於此。
+				</div>
+
+				<form th:unless="${#lists.isEmpty(teacherOptions)}" th:action="@{/register}"
+						th:object="${registrationForm}" method="post" class="row g-3">
+					<div class="col-12">
+						<label class="form-label" for="teacherId">教師</label>
+						<select id="teacherId" class="form-select" th:field="*{teacherId}"
+								th:classappend="${#fields.hasErrors('teacherId')} ? 'is-invalid'" required>
+							<option value="">請選擇教師</option>
+							<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
+									th:text="${teacher.displayName + '（' + teacher.position.displayName + '）'}">教師</option>
+						</select>
+						<div class="invalid-feedback" th:if="${#fields.hasErrors('teacherId')}"
+								th:errors="*{teacherId}">請選擇教師</div>
+					</div>
+
+					<div class="col-12">
+						<label class="form-label" for="username">登入帳號</label>
+						<input id="username" class="form-control" type="text" th:field="*{username}"
+								th:classappend="${#fields.hasErrors('username')} ? 'is-invalid'"
+								autocomplete="username" required>
+						<div class="form-text">可使用英文字母、數字、句點、底線或連字號。</div>
+						<div class="invalid-feedback" th:if="${#fields.hasErrors('username')}"
+								th:errors="*{username}">帳號格式不正確</div>
+					</div>
+
+					<div class="col-md-6">
+						<label class="form-label" for="password">密碼</label>
+						<input id="password" class="form-control" type="password" th:field="*{password}"
+								th:classappend="${#fields.hasErrors('password')} ? 'is-invalid'"
+								autocomplete="new-password" required>
+						<div class="form-text">至少 8 個字元。</div>
+						<div class="invalid-feedback" th:if="${#fields.hasErrors('password')}"
+								th:errors="*{password}">密碼格式不正確</div>
+					</div>
+
+					<div class="col-md-6">
+						<label class="form-label" for="confirmPassword">確認密碼</label>
+						<input id="confirmPassword" class="form-control" type="password"
+								th:field="*{confirmPassword}"
+								th:classappend="${#fields.hasErrors('confirmPassword')} ? 'is-invalid'"
+								autocomplete="new-password" required>
+						<div class="invalid-feedback" th:if="${#fields.hasErrors('confirmPassword')}"
+								th:errors="*{confirmPassword}">密碼不一致</div>
+					</div>
+
+					<div class="col-12">
+						<label class="form-label" for="registrationCode">教師註冊安全碼</label>
+						<input id="registrationCode" class="form-control" type="password"
+								th:field="*{registrationCode}"
+								th:classappend="${#fields.hasErrors('registrationCode')} ? 'is-invalid'"
+								autocomplete="off" required>
+						<div class="invalid-feedback" th:if="${#fields.hasErrors('registrationCode')}"
+								th:errors="*{registrationCode}">請輸入安全碼</div>
+					</div>
+
+					<div class="col-12 d-grid gap-2">
+						<button class="btn btn-primary" type="submit">完成註冊</button>
+						<a class="btn btn-outline-secondary" th:href="@{/login}">返回登入</a>
+					</div>
+				</form>
+			</section>
+		</div>
+	</div>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

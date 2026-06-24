@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">科目表單</h1>
+				<span th:replace="~{fragments/layout :: help('請填寫科目資料。\n∙ 設定科目名稱、適用年級與建議教師\n∙ 勾選年級後班級才能選用此科目。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/subjects}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${subjectForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-8">
+				<label for="name" class="form-label">科目名稱 <span class="text-danger">*</span></label>
+				<input type="text" id="name" class="form-control" th:field="*{name}"
+						th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{name}">請輸入科目名稱</div>
+			</div>
+			<div class="col-12">
+				<label class="form-label">教師</label>
+				<div th:if="${#lists.isEmpty(teacherOptions)}" class="text-secondary small">
+					目前尚無教師，可先儲存科目後再補選教師。
+				</div>
+				<div class="d-flex flex-wrap gap-3">
+					<div class="form-check" th:each="teacher : ${teacherOptions}">
+						<input class="form-check-input" type="checkbox" th:id="${'teacher-' + teacher.id}"
+								th:value="${teacher.id}" th:field="*{teacherIds}">
+						<label class="form-check-label" th:for="${'teacher-' + teacher.id}"
+								th:text="${teacher.displayName}">王老師</label>
+					</div>
+				</div>
+			</div>
+			<div class="col-12">
+				<label class="form-label">適用年級 <span class="text-danger">*</span></label>
+				<div class="d-flex flex-wrap gap-3 mb-2">
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" id="selectAllGrades">
+						<label class="form-check-label" for="selectAllGrades">全選</label>
+					</div>
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" id="selectJuniorHighGrades">
+						<label class="form-check-label" for="selectJuniorHighGrades">國中</label>
+					</div>
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" id="selectSeniorHighGrades">
+						<label class="form-check-label" for="selectSeniorHighGrades">高中</label>
+					</div>
+				</div>
+				<div class="d-flex flex-wrap gap-3">
+					<div class="form-check" th:each="grade : ${gradeOptions}">
+						<input class="form-check-input" type="checkbox" th:id="${'grade-' + grade}"
+								th:value="${grade}" th:field="*{gradeLevels}" data-grade-level>
+						<label class="form-check-label" th:for="${'grade-' + grade}" th:text="${grade}">國一</label>
+					</div>
+				</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('gradeLevels')}" th:errors="*{gradeLevels}">
+					請至少選擇一個適用年級
+				</div>
+			</div>
+			<div class="col-12">
+				<label for="description" class="form-label">說明</label>
+				<textarea id="description" rows="4" class="form-control" th:field="*{description}"
+						th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{description}">說明格式錯誤</div>
+			</div>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/subjects}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const gradeCheckboxes = Array.from(document.querySelectorAll('[data-grade-level]'));
+	const selectAllGrades = document.getElementById('selectAllGrades');
+	const selectJuniorHighGrades = document.getElementById('selectJuniorHighGrades');
+	const selectSeniorHighGrades = document.getElementById('selectSeniorHighGrades');
+	const juniorHighGrades = ['國一', '國二', '國三'];
+	const seniorHighGrades = ['高一', '高二', '高三'];
+
+	function setGrades(targetGrades, checked) {
+		gradeCheckboxes.forEach((checkbox) => {
+			if (targetGrades.includes(checkbox.value)) {
+				checkbox.checked = checked;
+			}
+		});
+		updateQuickCheckboxes();
+	}
+
+	function updateQuickCheckboxes() {
+		const checkedGrades = gradeCheckboxes
+			.filter((checkbox) => checkbox.checked)
+			.map((checkbox) => checkbox.value);
+		selectAllGrades.checked = gradeCheckboxes.length > 0 && checkedGrades.length === gradeCheckboxes.length;
+		selectJuniorHighGrades.checked = juniorHighGrades.every((grade) => checkedGrades.includes(grade));
+		selectSeniorHighGrades.checked = seniorHighGrades.every((grade) => checkedGrades.includes(grade));
+	}
+
+	selectAllGrades.addEventListener('change', () => {
+		gradeCheckboxes.forEach((checkbox) => checkbox.checked = selectAllGrades.checked);
+		updateQuickCheckboxes();
+	});
+	selectJuniorHighGrades.addEventListener('change', () => setGrades(juniorHighGrades, selectJuniorHighGrades.checked));
+	selectSeniorHighGrades.addEventListener('change', () => setGrades(seniorHighGrades, selectSeniorHighGrades.checked));
+	gradeCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', updateQuickCheckboxes));
+	updateQuickCheckboxes();
+</script>
+</body>
+</html>

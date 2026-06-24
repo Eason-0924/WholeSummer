@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<style>
+		.schedule-table {
+			table-layout: fixed;
+			width: 100%;
+			min-width: 100%;
+		}
+		.schedule-exporting {
+			box-sizing: border-box;
+			background-color: #ffffff;
+			padding: 24px;
+		}
+		.schedule-export-title {
+			text-align: center;
+			font-size: 1.5rem;
+			font-weight: 700;
+			margin-bottom: 16px;
+		}
+		.schedule-exporting .schedule-table-wrap {
+			position: relative;
+		}
+		.schedule-table th,
+		.schedule-table td {
+			vertical-align: top;
+		}
+		.schedule-slot {
+			width: 68px;
+			background-color: #f8f9fa;
+			border-right: 2px solid #dee2e6;
+			white-space: nowrap;
+		}
+		.schedule-cell {
+			min-height: 116px;
+			background-color: #fff;
+		}
+		.schedule-card {
+			display: block;
+			border: 1px solid var(--schedule-border, #b6d9ec);
+			border-left: 4px solid var(--schedule-accent, #0B90D5);
+			border-radius: 8px;
+			background-color: var(--schedule-bg, #f7fcff);
+			color: #212529;
+			padding: 10px 12px;
+			text-decoration: none;
+		}
+		.schedule-card + .schedule-card {
+			margin-top: 8px;
+		}
+		.schedule-card:hover {
+			background-color: var(--schedule-hover, #eef8fd);
+			color: #212529;
+		}
+		.schedule-card-name {
+			font-weight: 600;
+		}
+		.schedule-card-meta {
+			color: #6c757d;
+			font-size: 0.875rem;
+		}
+	</style>
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">班級管理</h1>
+				<span th:replace="~{fragments/layout :: help('管理開課中與已結束班級。\n∙ 新增班級：加入新開課程\n∙ 編輯：變更班級資料\n∙ 結束：將班級設定為「已結束」\n∙ 重新開課：將班級設定為「開課中」\n∙ 刪除：將班級自資料庫中移除\n查看上課時間表並匯出課表。\n∙ 標記方式：選擇課表依照科目/老師/年級標記不同顏色\n∙ 匯出格式：選擇JPEG/DOCX/XLSX格式匯出')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-primary" th:href="@{/classes/new}">新增班級</a>
+		</div>
+	</div>
+
+	<section class="mb-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">開課中</h2>
+			<span class="badge text-bg-success" th:text="${#lists.size(activeClasses)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>班級名稱</th>
+					<th>教師</th>
+					<th>上課時間</th>
+					<th>學生數</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(activeClasses)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無開課中班級</td>
+				</tr>
+				<tr th:each="classRoom : ${activeClasses}">
+					<td>
+						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級名稱</a>
+					</td>
+					<td th:text="${classRoom.teacherName ?: '-'}">-</td>
+					<td th:text="${classRoom.scheduleText}">-</td>
+					<td th:text="${classStudentCounts[classRoom.id]}">0</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a class="btn btn-sm btn-outline-primary"
+									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
+							<form th:action="@{/classes/{id}/deactivate(id=${classRoom.id})}"
+									method="post" onsubmit="return confirm('確定要將這個班級設為已結束嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">結束</button>
+							</form>
+							<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mb-4">
+		<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-2">
+			<h2 class="h5 mb-0">上課時間表</h2>
+			<div class="d-flex align-items-center flex-wrap gap-2">
+				<label class="form-label small text-secondary mb-0" for="scheduleColorMode">標記方式</label>
+				<select id="scheduleColorMode" class="form-select form-select-sm" style="width: 140px;">
+					<option value="subject">科目</option>
+					<option value="teacher">老師</option>
+					<option value="grade">年級</option>
+				</select>
+				<label class="form-label small text-secondary mb-0 ms-2" for="exportScheduleFormat">匯出格式</label>
+				<select id="exportScheduleFormat" class="form-select form-select-sm" style="width: 120px;">
+					<option value="jpeg">JPEG</option>
+					<option value="docx">DOCX</option>
+					<option value="xlsx">XLSX</option>
+				</select>
+				<button id="exportScheduleJpeg" class="btn btn-outline-primary btn-sm" type="button">匯出</button>
+			</div>
+		</div>
+		<div th:if="${#lists.isEmpty(scheduleRows)}" class="bg-white border rounded text-center text-secondary py-4">
+			目前尚無開課時間資料
+		</div>
+			<div th:unless="${#lists.isEmpty(scheduleRows)}">
+				<div class="table-responsive bg-white border rounded">
+					<table id="scheduleTable" class="table schedule-table mb-0">
+						<thead class="table-light">
+						<tr>
+							<th class="schedule-slot"></th>
+							<th class="text-center" th:each="weekday : ${scheduleWeekdays}" th:text="${weekday}">星期一</th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr th:each="scheduleRow : ${scheduleRows}">
+							<th class="schedule-slot text-center" th:text="${scheduleRow.timeSlot}">晚上</th>
+							<td class="schedule-cell" th:each="scheduleCell : ${scheduleRow.cells}">
+								<a class="schedule-card"
+										th:each="scheduledClass : ${scheduleCell.classes}"
+										th:href="@{/classes/{id}(id=${scheduledClass.classRoomId})}"
+										th:attr="data-subject-key=${scheduledClass.subjectKey == null ? '未指定' : scheduledClass.subjectKey},
+												data-teacher-key=${scheduledClass.teacherKey == null ? '未指定' : scheduledClass.teacherKey},
+												data-grade-key=${scheduledClass.gradeKey ?: '未指定'}">
+									<div class="schedule-card-name" th:text="${scheduledClass.className}">國一數學（A班）</div>
+									<div class="schedule-card-meta" th:text="${scheduledClass.teacherName ?: '-'}">王老師</div>
+									<div class="schedule-card-meta" th:text="${scheduledClass.timeRangeText}">18:00 ~ 20:00</div>
+								</a>
+							</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+	</section>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">已結束</h2>
+			<span class="badge text-bg-danger" th:text="${#lists.size(inactiveClasses)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>班級名稱</th>
+					<th>教師</th>
+					<th>上課時間</th>
+					<th>學生數</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(inactiveClasses)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無已結束班級</td>
+				</tr>
+				<tr th:each="classRoom : ${inactiveClasses}">
+					<td>
+						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級名稱</a>
+					</td>
+					<td th:text="${classRoom.teacherName ?: '-'}">-</td>
+					<td th:text="${classRoom.scheduleText}">-</td>
+					<td th:text="${classStudentCounts[classRoom.id]}">0</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a class="btn btn-sm btn-outline-primary"
+									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
+							<form th:action="@{/classes/{id}/activate(id=${classRoom.id})}"
+									method="post">
+								<button class="btn btn-sm btn-outline-success" type="submit">重新開課</button>
+							</form>
+							<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script>
+	const scheduleColorMode = document.getElementById('scheduleColorMode');
+	const scheduleCards = Array.from(document.querySelectorAll('.schedule-card'));
+	const exportScheduleJpeg = document.getElementById('exportScheduleJpeg');
+	const exportScheduleFormat = document.getElementById('exportScheduleFormat');
+	const scheduleTable = document.getElementById('scheduleTable');
+	const schedulePalette = [
+		{ accent: '#0B90D5', border: '#9fcfe9', bg: '#f3fbff', hover: '#e4f5fd' },
+		{ accent: '#d62828', border: '#f1a6a6', bg: '#fff5f5', hover: '#ffe8e8' },
+		{ accent: '#2a9d8f', border: '#9ed8d0', bg: '#f0fffc', hover: '#ddf8f4' },
+		{ accent: '#8e44ad', border: '#d2a8e3', bg: '#fbf4ff', hover: '#f3e4fb' },
+		{ accent: '#f77f00', border: '#f6c48a', bg: '#fff8ef', hover: '#ffefd8' },
+		{ accent: '#3f37c9', border: '#b9b5ef', bg: '#f5f4ff', hover: '#e9e7ff' },
+		{ accent: '#f2c94c', border: '#ecd783', bg: '#fffbea', hover: '#fff4c7' },
+		{ accent: '#6c757d', border: '#c7ccd1', bg: '#f8f9fa', hover: '#eef0f2' }
+	];
+	const darkSchedulePalette = [
+		{ accent: '#38bdf8', border: '#075985', bg: '#0c2638', hover: '#12364d' },
+		{ accent: '#f87171', border: '#7f1d1d', bg: '#321819', hover: '#471f21' },
+		{ accent: '#34d399', border: '#065f46', bg: '#102d25', hover: '#153d32' },
+		{ accent: '#c084fc', border: '#581c87', bg: '#251733', hover: '#342044' },
+		{ accent: '#fb923c', border: '#7c2d12', bg: '#332113', hover: '#472d19' },
+		{ accent: '#818cf8', border: '#3730a3', bg: '#1d2140', hover: '#292e59' },
+		{ accent: '#facc15', border: '#713f12', bg: '#302913', hover: '#433817' },
+		{ accent: '#94a3b8', border: '#475569', bg: '#202833', hover: '#2b3542' }
+	];
+
+	function applyScheduleColors() {
+		if (!scheduleColorMode) {
+			return;
+		}
+		const mode = scheduleColorMode.value;
+		const palette = document.documentElement.dataset.bsTheme === 'dark'
+			? darkSchedulePalette
+			: schedulePalette;
+		const colorByKey = new Map();
+
+		scheduleCards.forEach((card) => {
+			const key = card.dataset[`${mode}Key`] || '未指定';
+			if (!colorByKey.has(key)) {
+				colorByKey.set(key, palette[colorByKey.size % palette.length]);
+			}
+			const color = colorByKey.get(key);
+			card.style.setProperty('--schedule-accent', color.accent);
+			card.style.setProperty('--schedule-border', color.border);
+			card.style.setProperty('--schedule-bg', color.bg);
+			card.style.setProperty('--schedule-hover', color.hover);
+		});
+	}
+
+	if (scheduleColorMode) {
+		scheduleColorMode.addEventListener('change', applyScheduleColors);
+		window.addEventListener('wholeSummerThemeChanged', applyScheduleColors);
+		applyScheduleColors();
+	}
+
+	if (exportScheduleJpeg && scheduleTable) {
+		exportScheduleJpeg.addEventListener('click', async () => {
+			const exportFormat = exportScheduleFormat ? exportScheduleFormat.value : 'jpeg';
+			exportScheduleJpeg.disabled = true;
+			exportScheduleJpeg.textContent = '匯出中...';
+			try {
+				if (exportFormat === 'jpeg') {
+					await exportScheduleAsJpeg();
+				} else if (exportFormat === 'xlsx') {
+					exportScheduleAsXlsx();
+				} else if (exportFormat === 'docx') {
+					await exportScheduleAsDocx();
+				}
+			} catch (error) {
+				console.error(error);
+				alert(`匯出失敗：${error.message || '請重新整理頁面後再試一次。'}`);
+			} finally {
+				exportScheduleJpeg.disabled = false;
+				exportScheduleJpeg.textContent = '匯出';
+			}
+		});
+	}
+
+	async function exportScheduleAsJpeg() {
+		const canvas = await createScheduleCanvas();
+		const blob = await canvasToBlob(canvas, 'image/jpeg', 0.95);
+		downloadBlob(blob, '上課時間表.jpeg');
+	}
+
+	function exportScheduleAsXlsx() {
+		if (!window.XLSX) {
+			throw new Error('XLSX 匯出工具尚未載入完成');
+		}
+		const scheduleData = collectScheduleData();
+		const rows = [
+			['上課時間表'],
+			['時段', ...scheduleData.weekdays],
+			...scheduleData.rows.map((row) => [
+				row.timeSlot,
+				...row.cells.map((cell) => cell.courses.map(formatCourseText).join('\n\n'))
+			])
+		];
+		const worksheet = XLSX.utils.aoa_to_sheet(rows);
+		worksheet['!cols'] = [{ wch: 12 }, ...scheduleData.weekdays.map(() => ({ wch: 28 }))];
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, '上課時間表');
+		XLSX.writeFile(workbook, '上課時間表.xlsx');
+	}
+
+	async function exportScheduleAsDocx() {
+		if (!window.docx) {
+			throw new Error('DOCX 匯出工具尚未載入完成');
+		}
+		const {
+			AlignmentType,
+			Document,
+			Packer,
+			Paragraph,
+			Table,
+			TableCell,
+			TableRow,
+			TextRun,
+			WidthType
+		} = window.docx;
+		const scheduleData = collectScheduleData();
+		const columnWidth = Math.floor(9000 / (scheduleData.weekdays.length + 1));
+		const makeCell = (paragraphs, bold = false) => new TableCell({
+			width: { size: columnWidth, type: WidthType.DXA },
+			children: paragraphs.map((text) => new Paragraph({
+				children: [new TextRun({ text, bold })]
+			}))
+		});
+		const rows = [
+			new TableRow({
+				children: [
+					makeCell(['時段'], true),
+					...scheduleData.weekdays.map((weekday) => makeCell([weekday], true))
+				]
+			}),
+			...scheduleData.rows.map((row) => new TableRow({
+				children: [
+					makeCell([row.timeSlot], true),
+					...row.cells.map((cell) => makeCell(cell.courses.length
+						? cell.courses.flatMap((course, index) => {
+							const lines = [course.name, course.teacher, course.time];
+							return index === 0 ? lines : ['', ...lines];
+						})
+						: ['']))
+				]
+			}))
+		];
+		const document = new Document({
+			sections: [{
+				children: [
+					new Paragraph({
+						alignment: AlignmentType.CENTER,
+						spacing: { after: 300 },
+						children: [new TextRun({ text: '上課時間表', bold: true, size: 32 })]
+					}),
+					new Table({
+						width: { size: 100, type: WidthType.PERCENTAGE },
+						rows
+					})
+				]
+			}]
+		});
+		const blob = await Packer.toBlob(document);
+		downloadBlob(blob, '上課時間表.docx');
+	}
+
+	async function createScheduleCanvas() {
+		if (typeof html2canvas === 'undefined') {
+			throw new Error('圖片匯出工具尚未載入完成');
+		}
+		const tableRect = scheduleTable.getBoundingClientRect();
+		const tableWidth = Math.ceil(Math.max(scheduleTable.scrollWidth, tableRect.width));
+		if (tableWidth <= 0) {
+			throw new Error('無法取得上課時間表尺寸');
+		}
+		const exportClone = buildScheduleExportClone(tableWidth);
+		document.body.appendChild(exportClone);
+		try {
+			if (document.fonts && document.fonts.ready) {
+				await document.fonts.ready;
+			}
+			await new Promise((resolve) => requestAnimationFrame(resolve));
+			const exportRect = exportClone.getBoundingClientRect();
+			const exportWidth = Math.ceil(Math.max(exportClone.scrollWidth, exportRect.width, tableWidth + 48)) + 24;
+			const exportHeight = Math.ceil(Math.max(exportClone.scrollHeight, exportRect.height)) + 24;
+			if (exportWidth <= 0 || exportHeight <= 0) {
+				throw new Error('無法取得匯出圖片尺寸');
+			}
+			exportClone.style.width = `${exportWidth}px`;
+			const canvas = await html2canvas(exportClone, {
+				backgroundColor: '#ffffff',
+				scale: 2,
+				useCORS: true,
+				width: exportWidth,
+				height: exportHeight,
+				windowWidth: exportWidth,
+				windowHeight: exportHeight
+			});
+			if (canvas.width <= 0 || canvas.height <= 0) {
+				throw new Error('匯出圖片建立失敗');
+			}
+			return canvas;
+		} finally {
+			exportClone.remove();
+		}
+	}
+
+	function buildScheduleExportClone(tableWidth) {
+		const title = document.createElement('div');
+		title.className = 'schedule-export-title';
+		title.textContent = '上課時間表';
+
+		const tableWrap = document.createElement('div');
+		tableWrap.className = 'schedule-table-wrap';
+		tableWrap.style.width = `${tableWidth}px`;
+		tableWrap.style.boxSizing = 'border-box';
+		tableWrap.style.position = 'relative';
+
+		const tableClone = scheduleTable.cloneNode(true);
+		tableClone.style.width = `${tableWidth}px`;
+		tableClone.style.minWidth = `${tableWidth}px`;
+		tableWrap.appendChild(tableClone);
+		addExportBorderLines(tableWrap);
+
+		const exportClone = document.createElement('div');
+		exportClone.className = 'schedule-exporting';
+		exportClone.style.position = 'fixed';
+		exportClone.style.left = '-100000px';
+		exportClone.style.top = '-100000px';
+		exportClone.style.width = `${tableWidth + 48}px`;
+		exportClone.style.height = 'auto';
+		exportClone.style.overflow = 'visible';
+		exportClone.style.pointerEvents = 'none';
+		exportClone.style.zIndex = '-9999';
+		exportClone.appendChild(title);
+		exportClone.appendChild(tableWrap);
+		return exportClone;
+	}
+
+	function collectScheduleData() {
+		const weekdays = Array.from(scheduleTable.querySelectorAll('thead th'))
+			.slice(1)
+			.map((header) => header.textContent.trim());
+		const rows = Array.from(scheduleTable.querySelectorAll('tbody tr')).map((row) => {
+			const cells = Array.from(row.querySelectorAll('td')).map((cell) => ({
+				courses: Array.from(cell.querySelectorAll('.schedule-card')).map((card) => {
+					const parts = Array.from(card.querySelectorAll('div')).map((part) => part.textContent.trim());
+					return {
+						name: parts[0] || '',
+						teacher: parts[1] || '',
+						time: parts[2] || '',
+						accentColor: readCssColor(card, '--schedule-accent', '#0B90D5'),
+						borderColor: readCssColor(card, '--schedule-border', '#9fcfe9'),
+						backgroundColor: readCssColor(card, '--schedule-bg', '#f3fbff')
+					};
+				})
+			}));
+			return {
+				timeSlot: row.querySelector('th').textContent.trim(),
+				cells
+			};
+		});
+		return { weekdays, rows };
+	}
+
+	function formatCourseText(course) {
+		return [course.name, course.teacher, course.time].filter(Boolean).join('\n');
+	}
+
+	function readCssColor(element, propertyName, fallback) {
+		const value = getComputedStyle(element).getPropertyValue(propertyName).trim();
+		return value || fallback;
+	}
+
+	function hexToRgb(color) {
+		const normalized = color.trim();
+		if (normalized.startsWith('#')) {
+			const hex = normalized.slice(1);
+			const expanded = hex.length === 3
+				? hex.split('').map((char) => char + char).join('')
+				: hex;
+			const value = parseInt(expanded, 16);
+			return {
+				r: (value >> 16) & 255,
+				g: (value >> 8) & 255,
+				b: value & 255
+			};
+		}
+		const match = normalized.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+		if (match) {
+			return { r: Number(match[1]), g: Number(match[2]), b: Number(match[3]) };
+		}
+		return { r: 222, g: 226, b: 230 };
+	}
+
+	function canvasToBlob(canvas, type, quality) {
+		return new Promise((resolve, reject) => {
+			canvas.toBlob((blob) => {
+				if (!blob || blob.size === 0) {
+					reject(new Error('匯出圖片檔案建立失敗'));
+					return;
+				}
+				resolve(blob);
+			}, type, quality);
+		});
+	}
+
+	function downloadBlob(blob, filename) {
+		const objectUrl = URL.createObjectURL(blob);
+		const link = document.createElement('a');
+		link.download = filename;
+		link.href = objectUrl;
+		link.click();
+		setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+	}
+
+	function addExportBorderLines(parent) {
+		const borderColor = '#dee2e6';
+		const borderWidth = '1px';
+		const sharedStyle = {
+			position: 'absolute',
+			backgroundColor: borderColor,
+			pointerEvents: 'none',
+			zIndex: '5'
+		};
+		const borders = [
+			{ top: '0', left: '0', width: '100%', height: borderWidth },
+			{ top: '0', right: '0', width: borderWidth, height: '100%' },
+			{ bottom: '0', left: '0', width: '100%', height: borderWidth },
+			{ top: '0', left: '0', width: borderWidth, height: '100%' }
+		];
+
+		borders.forEach((border) => {
+			const line = document.createElement('div');
+			Object.assign(line.style, sharedStyle, border);
+			parent.appendChild(line);
+		});
+	}
+</script>
+</body>
+</html>

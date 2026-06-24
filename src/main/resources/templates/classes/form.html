@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">班級表單</h1>
+				<span th:replace="~{fragments/layout :: help('請填寫班級基本資料。選擇年級後，科目與教師選項會依設定自動調整。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/classes}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${classRoomForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<label for="grade" class="form-label">年級 <span class="text-danger">*</span></label>
+				<select id="grade" class="form-select" th:field="*{grade}"
+						th:classappend="${#fields.hasErrors('grade')} ? 'is-invalid'">
+					<option value="">請選擇</option>
+					<option th:each="grade : ${gradeOptions}" th:value="${grade}" th:text="${grade}">國一</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{grade}">請選擇年級</div>
+			</div>
+			<div class="col-md-6">
+				<label for="subjectId" class="form-label">科目 <span class="text-danger">*</span></label>
+				<select id="subjectId" class="form-select" th:field="*{subjectId}"
+						th:classappend="${#fields.hasErrors('subjectId')} ? 'is-invalid'">
+					<option value="">請選擇</option>
+					<option th:each="subject : ${subjectOptions}" th:value="${subject.id}" th:text="${subject.name}"
+							th:data-grades="${#strings.listJoin(subject.gradeLevelList, ',')}"
+							th:data-teacher-ids="${subject.teacherIdList}">數學</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{subjectId}">請選擇科目</div>
+				<div th:if="${#lists.isEmpty(subjectOptions)}" class="form-text text-danger">
+					請先到科目管理新增並啟用科目。
+				</div>
+			</div>
+			<div class="col-md-6">
+				<label for="classType" class="form-label">班別</label>
+				<input type="text" id="classType" class="form-control" th:field="*{classType}"
+						placeholder="例如：A班、銜接班..."
+						th:classappend="${#fields.hasErrors('classType')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{classType}">班別格式錯誤</div>
+			</div>
+			<div class="col-md-6">
+				<label for="teacher" class="form-label">教師</label>
+				<select id="teacher" class="form-select" th:field="*{teacherId}"
+						th:data-current-teacher-id="*{teacherId}"
+						th:classappend="${#fields.hasErrors('teacherId')} ? 'is-invalid'">
+					<option value="">請先選擇科目</option>
+					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
+							th:text="${teacher.displayName}">老師</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{teacherId}">教師格式錯誤</div>
+			</div>
+			<div class="col-12">
+				<div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+					<label class="form-label mb-0">上課時間</label>
+					<button id="addScheduleRow" class="btn btn-sm btn-outline-primary" type="button">+</button>
+				</div>
+				<div id="scheduleRows" class="d-grid gap-2">
+					<div class="row g-2 align-items-center schedule-entry"
+							th:each="scheduleEntry, iterStat : *{scheduleEntries}">
+						<div class="col-md-4">
+							<select class="form-select schedule-weekday"
+									th:field="*{scheduleEntries[__${iterStat.index}__].weekday}"
+									th:classappend="${#fields.hasErrors('scheduleComplete')} ? 'is-invalid'">
+								<option value="">請選擇星期</option>
+								<option th:each="weekday : ${weekdayOptions}" th:value="${weekday}" th:text="${weekday}">星期一</option>
+							</select>
+						</div>
+						<div class="col-md-3">
+							<input type="time" class="form-control schedule-start-time"
+									th:field="*{scheduleEntries[__${iterStat.index}__].startTime}"
+									th:classappend="${#fields.hasErrors('scheduleComplete') || #fields.hasErrors('endTimeAfterStartTime')} ? 'is-invalid'">
+						</div>
+						<div class="col-md-3">
+							<input type="time" class="form-control schedule-end-time"
+									th:field="*{scheduleEntries[__${iterStat.index}__].endTime}"
+									th:classappend="${#fields.hasErrors('scheduleComplete') || #fields.hasErrors('endTimeAfterStartTime')} ? 'is-invalid'">
+						</div>
+						<div class="col-md-2">
+							<button class="btn btn-outline-danger w-100 remove-schedule-row" type="button">刪除</button>
+						</div>
+					</div>
+				</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('scheduleComplete')}"
+						th:errors="*{scheduleComplete}">請完整填寫上課時間</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('endTimeAfterStartTime')}"
+						th:errors="*{endTimeAfterStartTime}">結束時間必須晚於開始時間</div>
+			</div>
+			<div class="col-12">
+				<label for="description" class="form-label">說明</label>
+				<textarea id="description" rows="4" class="form-control" th:field="*{description}"
+						th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{description}">說明格式錯誤</div>
+			</div>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/classes}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const gradeSelect = document.getElementById('grade');
+	const subjectSelect = document.getElementById('subjectId');
+	const teacherSelect = document.getElementById('teacher');
+	const scheduleRows = document.getElementById('scheduleRows');
+	const addScheduleRowButton = document.getElementById('addScheduleRow');
+	const allSubjectOptions = Array.from(subjectSelect.querySelectorAll('option'))
+		.map((option) => option.cloneNode(true));
+	const allTeachers = Array.from(teacherSelect.querySelectorAll('option'))
+		.filter((option) => option.value)
+		.map((option) => ({ id: option.value, label: option.textContent }));
+	const initialTeacherId = teacherSelect.dataset.currentTeacherId || '';
+	let userSelectedTeacher = Boolean(initialTeacherId);
+
+	function refreshSubjectsForGrade() {
+		const selectedGrade = gradeSelect.value;
+		const currentSubjectId = subjectSelect.value;
+		subjectSelect.innerHTML = '';
+
+		allSubjectOptions.forEach((option) => {
+			const grades = option.dataset.grades || '';
+			const isEmptyOption = option.value === '';
+			const supportsGrade = grades.split(',').includes(selectedGrade);
+			if (isEmptyOption || !selectedGrade || supportsGrade) {
+				const clonedOption = option.cloneNode(true);
+				clonedOption.selected = clonedOption.value === currentSubjectId;
+				subjectSelect.appendChild(clonedOption);
+			}
+		});
+
+		if (subjectSelect.selectedIndex < 0) {
+			subjectSelect.value = '';
+		}
+		refreshTeachersForSubject();
+	}
+
+	function appendOption(parent, value, label, selectedValue) {
+		const option = document.createElement('option');
+		option.value = value;
+		option.textContent = label;
+		option.selected = value === selectedValue;
+		parent.appendChild(option);
+	}
+
+	function appendTeacherGroup(label, teachers, selectedValue) {
+		if (teachers.length === 0) {
+			return;
+		}
+		const group = document.createElement('optgroup');
+		group.label = label;
+		teachers.forEach((teacher) => appendOption(group, teacher.id, teacher.label, selectedValue));
+		teacherSelect.appendChild(group);
+	}
+
+	function refreshTeachersForSubject() {
+		const selectedSubjectOption = subjectSelect.selectedOptions[0];
+		const suggestedTeacherIds = selectedSubjectOption && selectedSubjectOption.dataset.teacherIds
+			? selectedSubjectOption.dataset.teacherIds.split(',').filter(Boolean)
+			: [];
+		const suggestedTeachers = allTeachers.filter((teacher) => suggestedTeacherIds.includes(teacher.id));
+		const otherTeachers = allTeachers.filter((teacher) => !suggestedTeacherIds.includes(teacher.id));
+		const currentTeacher = userSelectedTeacher
+			? teacherSelect.value || initialTeacherId
+			: suggestedTeachers[0]?.id || otherTeachers[0]?.id || '';
+		teacherSelect.innerHTML = '';
+
+		appendTeacherGroup('建議教師', suggestedTeachers, currentTeacher);
+		appendTeacherGroup('其他老師', otherTeachers, currentTeacher);
+
+		if (allTeachers.length === 0 && !currentTeacher) {
+			appendOption(teacherSelect, '', '目前沒有可選教師', '');
+			teacherSelect.disabled = true;
+		} else {
+			teacherSelect.disabled = false;
+		}
+	}
+
+	function refreshScheduleRowIndexes() {
+		Array.from(scheduleRows.querySelectorAll('.schedule-entry')).forEach((row, index) => {
+			row.querySelectorAll('select, input').forEach((field) => {
+				field.name = field.name.replace(/scheduleEntries\[\d+\]/, `scheduleEntries[${index}]`);
+				field.id = field.id.replace(/scheduleEntries\d+/, `scheduleEntries${index}`);
+			});
+		});
+		const removeButtons = scheduleRows.querySelectorAll('.remove-schedule-row');
+		removeButtons.forEach((button) => {
+			button.disabled = removeButtons.length <= 1;
+		});
+	}
+
+	function bindScheduleRow(row) {
+		row.querySelector('.remove-schedule-row').addEventListener('click', () => {
+			if (scheduleRows.querySelectorAll('.schedule-entry').length <= 1) {
+				return;
+			}
+			row.remove();
+			refreshScheduleRowIndexes();
+		});
+	}
+
+	function addScheduleRow() {
+		const sourceRow = scheduleRows.querySelector('.schedule-entry');
+		const row = sourceRow.cloneNode(true);
+		row.querySelector('.schedule-weekday').value = '';
+		row.querySelector('.schedule-start-time').value = '00:00';
+		row.querySelector('.schedule-end-time').value = '00:00';
+		row.querySelectorAll('.is-invalid').forEach((field) => field.classList.remove('is-invalid'));
+		scheduleRows.appendChild(row);
+		bindScheduleRow(row);
+		refreshScheduleRowIndexes();
+	}
+
+	gradeSelect.addEventListener('change', refreshSubjectsForGrade);
+	subjectSelect.addEventListener('change', () => {
+		userSelectedTeacher = false;
+		refreshTeachersForSubject();
+	});
+	teacherSelect.addEventListener('change', () => {
+		userSelectedTeacher = Boolean(teacherSelect.value);
+	});
+	addScheduleRowButton.addEventListener('click', addScheduleRow);
+	scheduleRows.querySelectorAll('.schedule-entry').forEach(bindScheduleRow);
+	refreshScheduleRowIndexes();
+	refreshSubjectsForGrade();
+</script>
+</body>
+</html>

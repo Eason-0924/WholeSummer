@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${classRoom.displayName}">班級名稱</h1>
+				<span th:replace="~{fragments/layout :: help('查看班級詳細資料\n∙ 返回：回到班級管理頁\n∙ 編輯：變更班級資料\n∙ 刪除：將班級自資料庫中移除\n管理班級學生資料\n∙ 選擇學生：列出所有在學中學生\n∙ 新增學生：將所選學生加入班級（若學生與班級年級不相符將跳出提示）\n管理作業與測驗，查看完成狀況\n∙ 新增作業/測驗：跳轉至新增頁面')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/classes}">返回</a>
+			<a class="btn btn-outline-success" th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
+			<a class="btn btn-outline-primary" th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
+			<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+					method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
+				<button class="btn btn-outline-danger" type="submit">刪除</button>
+			</form>
+		</div>
+	</div>
+
+	<section class="bg-white border rounded p-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">狀態</div>
+				<div>
+					<span th:if="${classRoom.active}" class="badge text-bg-success">使用中</span>
+					<span th:unless="${classRoom.active}" class="badge text-bg-danger">已停用</span>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">年級</div>
+				<div th:text="${classRoom.grade ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">科目</div>
+				<div th:text="${classRoom.subjectName ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">班別</div>
+				<div th:text="${classRoom.classType ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">教師</div>
+				<div th:text="${classRoom.teacherName ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">上課時間</div>
+				<div th:text="${classRoom.scheduleText}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">學生數</div>
+				<div th:text="${studentCount}">0</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">建立時間</div>
+				<div th:text="${#temporals.format(classRoom.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">更新時間</div>
+				<div th:text="${#temporals.format(classRoom.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">說明</div>
+				<div class="border rounded p-3 bg-light" th:text="${classRoom.description ?: '-'}">-</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="bg-white border rounded p-4 mt-4">
+		<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+			<div>
+				<h2 class="h4 mb-1">班級學生</h2>
+			</div>
+		</div>
+
+		<form id="addStudentForm" class="row g-2 align-items-end mb-4"
+				th:action="@{/classes/{id}/students(id=${classRoom.id})}" method="post"
+				th:data-class-grade="${classRoom.grade}">
+			<div class="col-md-8">
+				<label for="studentId" class="form-label">加入學生</label>
+				<select id="studentId" name="studentId" class="form-select" required>
+					<option value="">請選擇學生</option>
+					<option th:each="student : ${availableStudents}" th:value="${student.id}"
+							th:data-grade="${student.grade}"
+							th:text="${student.displayName + ' - ' + (student.grade ?: '未填年級')}">學生姓名</option>
+				</select>
+			</div>
+			<div class="col-md-4">
+				<button class="btn btn-primary w-100" type="submit"
+						th:disabled="${#lists.isEmpty(availableStudents)}">加入班級</button>
+			</div>
+			<div th:if="${#lists.isEmpty(availableStudents)}" class="col-12 text-secondary small">
+				目前沒有可加入的使用中學生。
+			</div>
+		</form>
+
+		<div class="table-responsive attendance-table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生姓名</th>
+					<th>年級</th>
+					<th>學校</th>
+					<th>加入時間</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(classStudents)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無學生加入此班級</td>
+				</tr>
+				<tr th:each="classStudent : ${classStudents}">
+					<td>
+						<a th:href="@{/students/{id}(id=${classStudent.student.id})}"
+								th:text="${classStudent.student.displayName}">學生姓名</a>
+					</td>
+					<td th:text="${classStudent.student.grade ?: '-'}">-</td>
+					<td th:text="${classStudent.student.school ?: '-'}">-</td>
+					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+					<td class="text-end">
+						<form th:action="@{/classes/{id}/students/{classStudentId}/remove(id=${classRoom.id}, classStudentId=${classStudent.id})}"
+								method="post" onsubmit="return confirm('確定要刪除這筆班級學生紀錄嗎？');">
+							<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+						</form>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+			<div class="d-flex align-items-center gap-2">
+				<h2 class="h5 mb-0">出缺席統計</h2>
+				<span class="badge text-bg-primary" th:text="${attendanceStats.totalCount}">0</span>
+			</div>
+			<a class="btn btn-sm btn-outline-success" th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
+		</div>
+		<div class="row g-3 mb-3">
+			<div class="col-md-3">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">平均出席率</div>
+					<div class="fs-5 fw-semibold"
+							th:text="${#numbers.formatDecimal(attendanceStats.presentRate, 1, 1) + '%'}">0.0%</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">缺席率</div>
+					<div class="fs-5 fw-semibold"
+							th:text="${#numbers.formatDecimal(attendanceStats.absentRate, 1, 1) + '%'}">0.0%</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">遲到率</div>
+					<div class="fs-5 fw-semibold"
+							th:text="${#numbers.formatDecimal(attendanceStats.lateRate, 1, 1) + '%'}">0.0%</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">請假次數</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.leaveCount}">0</div>
+				</div>
+			</div>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>日期</th>
+					<th th:each="classStudent : ${classStudents}"
+							th:text="${classStudent.student.displayName}">學生</th>
+					<th class="text-end">編輯</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(attendanceTableRows)}">
+					<td th:colspan="${#lists.size(classStudents) + 2}"
+							class="text-center text-secondary py-4">目前尚無出缺席紀錄</td>
+				</tr>
+				<tr th:each="attendanceRow : ${attendanceTableRows}">
+					<td th:text="${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:each="attendance : ${attendanceRow.attendances}">
+						<span th:if="${attendance == null}" class="text-secondary">-</span>
+						<span th:if="${attendance != null && (attendance.note == null || attendance.note.isBlank())}"
+								th:class="${attendance.status.name() == 'PRESENT' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'ABSENT' ? 'badge text-bg-danger' : 'badge text-bg-secondary'))}"
+								th:text="${attendance.status.displayName}">狀態</span>
+						<span th:if="${attendance != null && attendance.note != null && !attendance.note.isBlank()}"
+								class="attendance-note-wrapper" tabindex="0">
+							<span th:class="${attendance.status.name() == 'PRESENT' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'ABSENT' ? 'badge text-bg-danger' : 'badge text-bg-secondary'))}"
+									th:text="${attendance.status.displayName}">狀態</span>
+							<span class="attendance-note-popover" th:text="${attendance.note}">備註</span>
+						</span>
+					</td>
+					<td class="text-end">
+						<a class="btn btn-sm btn-primary"
+								th:href="@{/classes/{id}/attendance(id=${classRoom.id}, date=${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')})}">編輯</a>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+			<div class="d-flex align-items-center gap-2">
+				<h2 class="h5 mb-0">作業列表</h2>
+				<span class="badge text-bg-primary" th:text="${#lists.size(homeworks)}">0</span>
+			</div>
+			<a class="btn btn-sm btn-outline-primary"
+					th:href="@{/homeworks/new(classRoomId=${classRoom.id})}">新增作業</a>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>作業內容</th>
+					<th>發派日期</th>
+					<th>截止日期</th>
+					<th>完成率</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(homeworks)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無作業資料</td>
+				</tr>
+				<tr th:each="homework : ${homeworks}">
+					<td>
+						<a th:href="@{/homeworks/{id}(id=${homework.id})}" th:text="${homework.title}">作業</a>
+					</td>
+					<td th:text="${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#numbers.formatDecimal(homeworkCompletionRates[homework.id], 1, 1) + '%'}">0.0%</td>
+					<td class="text-end">
+						<a class="btn btn-sm btn-outline-success"
+								th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+			<div class="d-flex align-items-center gap-2">
+				<h2 class="h5 mb-0">測驗列表</h2>
+				<span class="badge text-bg-primary" th:text="${#lists.size(exams)}">0</span>
+			</div>
+			<a class="btn btn-sm btn-outline-primary"
+					th:href="@{/exams/new(classRoomId=${classRoom.id})}">新增測驗</a>
+		</div>
+		<div th:if="${#lists.isEmpty(exams)}" class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<tbody>
+				<tr>
+					<td class="text-center text-secondary py-4">目前尚無測驗資料</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+		<div th:if="${!#lists.isEmpty(scoredExams)}" class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<colgroup>
+					<col style="width: 14%;">
+					<col style="width: 28%;">
+					<col>
+					<col>
+					<col>
+					<col>
+					<col>
+				</colgroup>
+				<thead class="table-light">
+				<tr>
+					<th colspan="7">計分測驗</th>
+				</tr>
+				<tr>
+					<th>測驗日期</th>
+					<th>測驗名稱</th>
+					<th>滿分</th>
+					<th>平均</th>
+					<th>最高</th>
+					<th>最低</th>
+					<th>缺考</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:each="exam : ${scoredExams}" th:with="stats=${statsByExamId[exam.id]}">
+					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
+					</td>
+					<td th:text="${exam.fullScore}">100</td>
+					<td th:text="${stats.average == null ? '-' : #numbers.formatDecimal(stats.average, 1, 1)}">-</td>
+					<td th:text="${stats.highest == null ? '-' : stats.highest}">-</td>
+					<td th:text="${stats.lowest == null ? '-' : stats.lowest}">-</td>
+					<td th:text="${stats.absentCount}">0</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+		<div th:if="${!#lists.isEmpty(practiceExams)}"
+				th:class="${#lists.isEmpty(scoredExams)} ? 'table-responsive bg-white border rounded' : 'table-responsive bg-white border rounded mt-3'">
+			<table class="table table-hover align-middle mb-0">
+				<colgroup>
+					<col style="width: 14%;">
+					<col style="width: 28%;">
+					<col>
+				</colgroup>
+				<thead class="table-light">
+				<tr>
+					<th colspan="3">課堂練習</th>
+				</tr>
+				<tr>
+					<th>測驗日期</th>
+					<th>練習名稱</th>
+					<th>完成</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:each="exam : ${practiceExams}" th:with="stats=${statsByExamId[exam.id]}">
+					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
+					</td>
+					<td th:text="${stats.completedCount + ' / ' + stats.totalCount}">0 / 0</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const addStudentForm = document.getElementById('addStudentForm');
+	const studentSelect = document.getElementById('studentId');
+
+	if (addStudentForm && studentSelect) {
+		addStudentForm.addEventListener('submit', (event) => {
+			const classGrade = addStudentForm.dataset.classGrade || '';
+			const selectedOption = studentSelect.selectedOptions[0];
+			const studentGrade = selectedOption ? selectedOption.dataset.grade || '' : '';
+
+			if (classGrade && studentGrade && classGrade !== studentGrade) {
+				const confirmed = confirm(`學生年級為「${studentGrade}」，班級年級為「${classGrade}」，確定要加入嗎？`);
+				if (!confirmed) {
+					event.preventDefault();
+				}
+			}
+		});
+	}
+</script>
+</body>
+</html>

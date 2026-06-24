@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">測驗管理</h1>
+				<span th:replace="~{fragments/layout :: help('管理測驗資料\n∙ 新增測驗：加入新的測驗\n∙ 分數登記：登記學生分數\n∙ 編輯：變更測驗資料\n∙ 刪除：將測驗自資料庫中移除')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-primary" th:href="@{/exams/new}">新增測驗</a>
+		</div>
+	</div>
+
+	<section class="table-responsive bg-white border rounded">
+		<table class="table table-hover align-middle mb-0">
+			<thead class="table-light">
+			<tr>
+				<th>測驗日期</th>
+				<th>測驗名稱</th>
+				<th>班級</th>
+				<th>科目</th>
+				<th>滿分</th>
+				<th class="text-end">操作</th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr th:if="${#lists.isEmpty(exams)}">
+				<td colspan="6" class="text-center text-secondary py-4">目前尚無測驗資料</td>
+			</tr>
+			<tr th:each="exam : ${exams}">
+				<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+				<td>
+					<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗名稱</a>
+				</td>
+				<td th:text="${exam.classRoom.displayName}">班級</td>
+				<td th:text="${exam.subject.name}">科目</td>
+				<td th:text="${exam.fullScore == 0 ? '不計分' : exam.fullScore}">100</td>
+				<td class="text-end">
+					<div class="d-inline-flex gap-2">
+						<a class="btn btn-sm btn-outline-success" th:href="@{/exams/{id}/scores(id=${exam.id})}">分數登記</a>
+						<a class="btn btn-sm btn-outline-primary" th:href="@{/exams/{id}/edit(id=${exam.id})}">編輯</a>
+						<form th:action="@{/exams/{id}/delete(id=${exam.id})}"
+								method="post" onsubmit="return confirm('確定要永久刪除這場測驗嗎？');">
+							<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+						</form>
+					</div>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

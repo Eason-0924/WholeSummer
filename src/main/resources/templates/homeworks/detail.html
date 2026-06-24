@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${homework.title}">作業內容</h1>
+				<span th:replace="~{fragments/layout :: help('查看作業詳細資料\n∙ 顯示作業完成率\n∙ 顯示各學生的完成狀態\n進入登記頁更新完成狀態。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/homeworks}">返回</a>
+			<a class="btn btn-outline-success" th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
+			<a class="btn btn-outline-primary" th:href="@{/homeworks/{id}/edit(id=${homework.id})}">編輯</a>
+			<form th:action="@{/homeworks/{id}/delete(id=${homework.id})}"
+					method="post" onsubmit="return confirm('確定要刪除這份作業嗎？');">
+				<button class="btn btn-outline-danger" type="submit">刪除</button>
+			</form>
+		</div>
+	</div>
+
+	<section class="bg-white border rounded p-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">班級</div>
+				<div>
+					<a th:href="@{/classes/{id}(id=${homework.classRoom.id})}"
+							th:text="${homework.classRoom.displayName}">班級</a>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">科目</div>
+				<div th:text="${homework.subject.name}">科目</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">發派日期</div>
+				<div th:text="${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">2026-01-01</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">截止日期</div>
+				<div th:text="${#temporals.format(homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">建立時間</div>
+				<div th:text="${#temporals.format(homework.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">更新時間</div>
+				<div th:text="${#temporals.format(homework.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">備註</div>
+				<div class="border rounded p-3 bg-light" th:text="${homework.description ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">完成率</div>
+				<div th:text="${#numbers.formatDecimal(completionRate, 1, 1) + '%'}">0.0%</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">學生完成狀態</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(records)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生姓名</th>
+					<th>年級</th>
+					<th>完成狀態</th>
+					<th>提交時間</th>
+					<th>教師備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(records)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無學生作業紀錄</td>
+				</tr>
+				<tr th:each="record : ${records}">
+					<td>
+						<a th:href="@{/students/{id}(id=${record.student.id})}" th:text="${record.student.displayName}">學生</a>
+					</td>
+					<td th:text="${record.student.grade ?: '-'}">-</td>
+					<td>
+						<span th:class="${record.status.name() == 'NOT_SUBMITTED' ? 'badge text-bg-danger' : 'badge text-bg-success'}"
+								th:text="${record.status.displayName}">狀態</span>
+					</td>
+					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+					<td th:text="${record.teacherComment ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

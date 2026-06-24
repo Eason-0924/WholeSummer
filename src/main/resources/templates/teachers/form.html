@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">教師表單</h1>
+				<span th:replace="~{fragments/layout :: help('請填寫教師基本資料。教師資料可被科目、班級與後續點名出勤功能引用。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/teachers}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${teacherForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<label for="name" class="form-label">姓名 <span class="text-danger">*</span></label>
+				<input type="text" id="name" class="form-control" th:field="*{name}"
+						th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{name}">請輸入教師姓名</div>
+			</div>
+			<div class="col-md-6">
+				<label for="nickname" class="form-label">暱稱</label>
+				<input type="text" id="nickname" class="form-control" th:field="*{nickname}"
+						th:classappend="${#fields.hasErrors('nickname')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{nickname}">暱稱格式錯誤</div>
+			</div>
+			<div class="col-md-6">
+				<label for="phone" class="form-label">電話</label>
+				<input type="text" id="phone" class="form-control" th:field="*{phone}"
+						th:classappend="${#fields.hasErrors('phone')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{phone}">電話格式錯誤</div>
+			</div>
+			<div class="col-md-6">
+				<label for="email" class="form-label">Email</label>
+				<input type="email" id="email" class="form-control" th:field="*{email}"
+						th:classappend="${#fields.hasErrors('email')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{email}">Email 格式錯誤</div>
+			</div>
+			<div class="col-md-6">
+				<label for="hireDate" class="form-label">到職日</label>
+				<input type="date" id="hireDate" class="form-control" th:field="*{hireDate}">
+			</div>
+			<div class="col-md-6" th:if="${currentTeacherIsDirector and (teacher == null or teacher.id != currentTeacherId)}">
+				<label for="position" class="form-label">職位</label>
+				<select id="position" class="form-select" th:field="*{position}">
+					<option th:each="position : ${positionOptions}" th:value="${position}"
+							th:text="${position.displayName}">教師</option>
+				</select>
+			</div>
+			<div class="col-md-6" th:unless="${currentTeacherIsDirector and (teacher == null or teacher.id != currentTeacherId)}">
+				<label class="form-label">職位</label>
+				<input class="form-control" type="text" th:value="*{position.displayName}" disabled>
+				<input type="hidden" th:field="*{position}">
+				<div class="form-text" th:if="${teacher != null and teacher.id == currentTeacherId}">
+					主任不可在自己的資料頁變更職位。
+				</div>
+			</div>
+			<div class="col-12">
+				<label for="note" class="form-label">備註</label>
+				<textarea id="note" rows="4" class="form-control" th:field="*{note}"
+						th:classappend="${#fields.hasErrors('note')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{note}">備註格式錯誤</div>
+			</div>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/teachers}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

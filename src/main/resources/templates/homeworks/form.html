@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">作業表單</h1>
+				<span th:replace="~{fragments/layout :: help('請填寫作業資料\n∙ 選擇班級後，系統將自動帶入該班級科目\n∙ 儲存後會為班級學生建立繳交紀錄。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/homeworks}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${homeworkForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<label for="classRoomId" class="form-label">班級 <span class="text-danger">*</span></label>
+				<select id="classRoomId" class="form-select" th:field="*{classRoomId}"
+						th:classappend="${#fields.hasErrors('classRoomId')} ? 'is-invalid'">
+					<option value="">請選擇班級</option>
+					<option th:each="classRoom : ${classOptions}" th:value="${classRoom.id}"
+							th:text="${classRoom.displayName}"
+							th:data-subject="${classRoom.subjectName}"
+							th:data-weekdays="${classRoom.scheduleWeekdayData}">班級</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{classRoomId}">請選擇班級</div>
+				<div th:if="${#lists.isEmpty(classOptions)}" class="form-text text-danger">
+					請先新增並啟用班級。
+				</div>
+			</div>
+			<div class="col-md-6">
+				<label for="subjectName" class="form-label">科目</label>
+				<input type="text" id="subjectName" class="form-control" value="請先選擇班級" readonly>
+			</div>
+			<div class="col-12">
+				<label for="title" class="form-label">作業內容 <span class="text-danger">*</span></label>
+				<input type="text" id="title" class="form-control" th:field="*{title}"
+						th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{title}">請輸入作業內容</div>
+			</div>
+			<div class="col-md-6">
+				<label for="assignedDate" class="form-label">發派日期 <span class="text-danger">*</span></label>
+				<input type="date" id="assignedDate" class="form-control" th:field="*{assignedDate}"
+						th:classappend="${#fields.hasErrors('assignedDate')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{assignedDate}">請選擇發派日期</div>
+			</div>
+			<div class="col-md-6">
+				<div class="d-flex justify-content-between align-items-center gap-2">
+					<label for="dueDate" class="form-label">截止日期 <span class="text-danger">*</span></label>
+					<div class="form-check mb-2">
+						<input class="form-check-input" type="checkbox" id="useNextClassDate">
+						<label class="form-check-label small" for="useNextClassDate">下次上課日</label>
+					</div>
+				</div>
+				<input type="date" id="dueDate" class="form-control" th:field="*{dueDate}"
+						th:classappend="${#fields.hasErrors('dueDate') || #fields.hasErrors('dueDateValid')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{dueDate}">請選擇截止日期</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('dueDateValid')}"
+						th:errors="*{dueDateValid}">截止日期不可早於發派日期</div>
+			</div>
+			<div class="col-12">
+				<label for="description" class="form-label">備註</label>
+				<textarea id="description" rows="5" class="form-control" th:field="*{description}"
+						th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{description}">備註過長</div>
+			</div>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/homeworks}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const classRoomSelect = document.getElementById('classRoomId');
+	const subjectNameInput = document.getElementById('subjectName');
+	const dueDateInput = document.getElementById('dueDate');
+	const useNextClassDateCheckbox = document.getElementById('useNextClassDate');
+	const weekdayIndexes = {
+		'星期日': 0,
+		'星期一': 1,
+		'星期二': 2,
+		'星期三': 3,
+		'星期四': 4,
+		'星期五': 5,
+		'星期六': 6
+	};
+
+	function refreshSubjectName() {
+		const option = classRoomSelect.selectedOptions[0];
+		subjectNameInput.value = option && option.value ? option.dataset.subject || '-' : '請先選擇班級';
+	}
+
+	function formatDate(date) {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	function findNextClassDate(weekdaysText) {
+		const weekdays = weekdaysText.split(',').filter(Boolean);
+		if (weekdays.length === 0) {
+			return '';
+		}
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		let nearestDate = null;
+		weekdays.forEach((weekday) => {
+			const targetWeekday = weekdayIndexes[weekday];
+			if (targetWeekday === undefined) {
+				return;
+			}
+			const candidate = new Date(today);
+			const daysToAdd = (targetWeekday - today.getDay() + 7) % 7;
+			candidate.setDate(candidate.getDate() + daysToAdd);
+			if (!nearestDate || candidate < nearestDate) {
+				nearestDate = candidate;
+			}
+		});
+		return nearestDate ? formatDate(nearestDate) : '';
+	}
+
+	function refreshNextClassDate() {
+		if (!useNextClassDateCheckbox.checked) {
+			dueDateInput.readOnly = false;
+			dueDateInput.classList.remove('bg-light');
+			return;
+		}
+		const option = classRoomSelect.selectedOptions[0];
+		const nextClassDate = option ? findNextClassDate(option.dataset.weekdays || '') : '';
+		if (nextClassDate) {
+			dueDateInput.value = nextClassDate;
+		}
+		dueDateInput.readOnly = true;
+		dueDateInput.classList.add('bg-light');
+	}
+
+	classRoomSelect.addEventListener('change', refreshSubjectName);
+	classRoomSelect.addEventListener('change', refreshNextClassDate);
+	useNextClassDateCheckbox.addEventListener('change', refreshNextClassDate);
+	refreshSubjectName();
+	refreshNextClassDate();
+</script>
+</body>
+</html>

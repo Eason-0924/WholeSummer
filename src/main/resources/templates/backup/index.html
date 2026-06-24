@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+<div th:fragment="content" id="database-backup" class="pt-2">
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line mb-1">
+			<h1 class="h3 mb-0">資料庫備份</h1>
+			<span th:replace="~{fragments/layout :: help('建立、下載與刪除本機 MySQL 備份。\n主任可將系統還原至既有備份，或匯入目前版本的 WholeSummer SQL。\n每次還原前都會自動建立安全備份。')}"></span>
+		</div>
+		<form th:action="@{/backup}" method="post">
+			<button class="btn btn-primary" type="submit">立即備份</button>
+		</form>
+	</div>
+
+	<section class="bg-white border rounded p-4 mb-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">最近成功備份時間</div>
+				<div th:text="${latestBackup == null ? '尚無成功備份' : #temporals.format(latestBackup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">備份提醒天數</div>
+				<div th:text="${backupReminderDays + ' 天'}">7 天</div>
+			</div>
+		</div>
+	</section>
+
+	<section th:if="${currentTeacherIsDirector}" class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-1">匯入初始資料庫</h2>
+		<p class="text-secondary small mb-3">
+			選擇由目前版本 WholeSummer 產生的 SQL 備份。匯入會覆蓋現有資料，完成後所有使用者都必須重新登入。
+		</p>
+		<form th:action="@{/backup/import}" method="post" enctype="multipart/form-data"
+				class="row g-3"
+				onsubmit="return confirm('匯入會覆蓋目前資料庫。系統會先建立安全備份，確定繼續嗎？');">
+			<div class="col-md-6">
+				<label for="sqlFile" class="form-label">初始資料庫 SQL</label>
+				<input id="sqlFile" class="form-control" type="file" name="sqlFile"
+						accept=".sql,text/plain" required>
+			</div>
+			<div class="col-md-4">
+				<label for="importPassword" class="form-label">目前登入密碼</label>
+				<input id="importPassword" class="form-control" type="password"
+						name="currentPassword" autocomplete="current-password" required>
+			</div>
+			<div class="col-md-2 d-flex align-items-end">
+				<button class="btn btn-danger w-100" type="submit">匯入資料庫</button>
+			</div>
+		</form>
+	</section>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">備份紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(backups)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>檔名</th>
+					<th>建立時間</th>
+					<th>檔案大小</th>
+					<th>狀態</th>
+					<th>備註</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(backups)}">
+					<td colspan="6" class="text-center text-secondary py-4">目前尚無備份紀錄</td>
+				</tr>
+				<tr th:each="backup : ${backups}">
+					<td th:text="${backup.fileName}">backup.sql</td>
+					<td th:text="${#temporals.format(backup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01</td>
+					<td th:text="${backup.fileSizeText}">-</td>
+					<td>
+						<span th:class="${backup.status.name() == 'SUCCESS' ? 'badge text-bg-success' : 'badge text-bg-danger'}"
+								th:text="${backup.status.displayName}">成功</span>
+					</td>
+					<td th:text="${backup.note ?: '-'}">-</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a th:if="${backup.status.name() == 'SUCCESS'}" class="btn btn-sm btn-outline-primary"
+									th:href="@{/backup/{id}/download(id=${backup.id})}">下載</a>
+							<button th:if="${currentTeacherIsDirector and backup.status.name() == 'SUCCESS'}"
+									class="btn btn-sm btn-outline-warning" type="button"
+									data-bs-toggle="modal"
+									th:data-bs-target="${'#restoreBackupModal' + backup.id}">還原</button>
+							<form th:action="@{/backup/{id}/delete(id=${backup.id})}" method="post"
+									onsubmit="return confirm('確定要刪除這個備份紀錄與檔案嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<th:block th:if="${currentTeacherIsDirector}" th:each="backup : ${backups}">
+		<div th:if="${backup.status.name() == 'SUCCESS'}" class="modal fade"
+				th:id="${'restoreBackupModal' + backup.id}" tabindex="-1" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<form th:action="@{/backup/{id}/restore(id=${backup.id})}" method="post">
+						<div class="modal-header">
+							<h2 class="modal-title fs-5">還原資料庫</h2>
+							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+						</div>
+						<div class="modal-body">
+							<p>系統將還原至：</p>
+							<div class="border rounded p-3 mb-3">
+								<div class="fw-semibold" th:text="${backup.fileName}">backup.sql</div>
+								<div class="text-secondary small"
+										th:text="${#temporals.format(backup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">時間</div>
+							</div>
+							<div class="alert alert-warning small">
+								目前資料將被覆蓋。系統會先自動建立一份還原前安全備份。
+							</div>
+							<label class="form-label" th:for="${'restorePassword' + backup.id}">目前登入密碼</label>
+							<input class="form-control" type="password" name="currentPassword"
+									th:id="${'restorePassword' + backup.id}" autocomplete="current-password" required>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+							<button type="submit" class="btn btn-danger"
+									onclick="return confirm('這是最後確認：確定覆蓋目前資料庫嗎？');">確認還原</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</th:block>
+</div>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

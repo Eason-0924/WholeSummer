@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${teacher.displayName}">教師姓名</h1>
+				<span th:replace="~{fragments/layout :: help('查看教師資料、授課班級、授課科目與出勤紀錄。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/teachers}">返回</a>
+			<a class="btn btn-outline-success" th:href="@{/teachers/attendance}">出勤</a>
+			<a class="btn btn-outline-primary" th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
+			<form th:if="${teacher.status.name() == 'ACTIVE'}" th:action="@{/teachers/{id}/left(id=${teacher.id})}"
+					method="post" onsubmit="return confirm('確定要將這位教師設為已離職嗎？');">
+				<button class="btn btn-outline-danger" type="submit">離職</button>
+			</form>
+			<form th:if="${teacher.status.name() == 'LEFT'}" th:action="@{/teachers/{id}/reinstate(id=${teacher.id})}"
+					method="post">
+				<button class="btn btn-outline-success" type="submit">復職</button>
+			</form>
+			<form th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
+					method="post" onsubmit="return confirm('確定要永久刪除這位教師嗎？班級與科目中的教師關聯會一併移除。');">
+				<button class="btn btn-outline-danger" type="submit">刪除</button>
+			</form>
+		</div>
+	</div>
+
+	<section class="bg-white border rounded p-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">姓名</div>
+				<div th:text="${teacher.name}">教師姓名</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">暱稱</div>
+				<div th:text="${teacher.nickname ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">電話</div>
+				<div th:text="${teacher.phone ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">Email</div>
+				<div th:text="${teacher.email ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">到職日</div>
+				<div th:text="${teacher.hireDate == null ? '-' : #temporals.format(teacher.hireDate, 'yyyy-MM-dd')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">職位</div>
+				<div th:text="${teacher.position.displayName}">教師</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">狀態</div>
+				<div>
+					<span th:if="${teacher.status.name() == 'ACTIVE'}" class="badge text-bg-success"
+							th:text="${teacher.status.displayName}">任教中</span>
+					<span th:if="${teacher.status.name() == 'LEFT'}" class="badge text-bg-danger"
+							th:text="${teacher.status.displayName}">已離職</span>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">建立時間</div>
+				<div th:text="${#temporals.format(teacher.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">更新時間</div>
+				<div th:text="${#temporals.format(teacher.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">備註</div>
+				<div class="border rounded p-3 bg-light" th:text="${teacher.note ?: '-'}">-</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">授課班級</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(classRooms)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>班級名稱</th>
+					<th>上課時間</th>
+					<th>狀態</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(classRooms)}">
+					<td colspan="3" class="text-center text-secondary py-4">目前尚無授課班級</td>
+				</tr>
+				<tr th:each="classRoom : ${classRooms}">
+					<td>
+						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級</a>
+					</td>
+					<td th:text="${classRoom.scheduleText}">-</td>
+					<td>
+						<span th:if="${classRoom.active}" class="badge text-bg-success">開課中</span>
+						<span th:unless="${classRoom.active}" class="badge text-bg-danger">已結束</span>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">授課科目</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(subjects)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>科目名稱</th>
+					<th>適用年級</th>
+					<th>狀態</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(subjects)}">
+					<td colspan="3" class="text-center text-secondary py-4">目前尚無授課科目</td>
+				</tr>
+				<tr th:each="subject : ${subjects}">
+					<td th:text="${subject.name}">科目</td>
+					<td th:text="${subject.gradeLevelDisplay}">國一</td>
+					<td>
+						<span th:if="${subject.active}" class="badge text-bg-success">使用中</span>
+						<span th:unless="${subject.active}" class="badge text-bg-danger">已停用</span>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">出勤紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(attendances)}">0</span>
+		</div>
+		<div class="row g-3 mb-3">
+			<div class="col">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">本月出勤天數</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.workingDays}">0</div>
+				</div>
+			</div>
+			<div class="col">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">遲到天數</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.lateDays}">0</div>
+				</div>
+			</div>
+			<div class="col">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">請假天數</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.leaveDays}">0</div>
+				</div>
+			</div>
+			<div class="col">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">缺勤天數</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.absentDays}">0</div>
+				</div>
+			</div>
+			<div class="col">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">平均工時</div>
+					<div class="fs-5 fw-semibold" th:text="${attendanceStats.averageWorkHoursText}">-</div>
+				</div>
+			</div>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>日期</th>
+					<th>上班時間</th>
+					<th>下班時間</th>
+					<th>當日課程</th>
+					<th>工時</th>
+					<th>狀態</th>
+					<th>備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(attendances)}">
+					<td colspan="7" class="text-center text-secondary py-4">目前尚無出勤紀錄</td>
+				</tr>
+				<tr th:each="attendance : ${attendances}">
+					<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
+					<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
+					<td th:text="${attendance.scheduledTimeText}">當日無課程</td>
+					<td th:text="${attendance.workHoursText}">-</td>
+					<td>
+						<span th:class="${attendance.status.name() == 'WORKING' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'LEAVE' ? 'badge text-bg-info text-dark' : 'badge text-bg-danger'))}"
+								th:text="${attendance.status.displayName}">出勤</span>
+					</td>
+					<td th:text="${attendance.note ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

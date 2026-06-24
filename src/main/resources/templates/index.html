@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<style>
+		.upcoming-homework-scroll {
+			display: flex;
+			gap: 1rem;
+			overflow-x: auto;
+			padding-bottom: 0.5rem;
+			scroll-snap-type: x proximity;
+		}
+		.upcoming-homework-card {
+			flex: 0 0 280px;
+			scroll-snap-align: start;
+		}
+		.upcoming-homework-students {
+			max-height: 120px;
+			overflow-y: auto;
+		}
+	</style>
+	<section class="bg-white border rounded p-4 mb-4">
+		<div>
+			<div class="page-title-line mb-2">
+				<h1 class="h3 mb-0">補習班管理後台</h1>
+			</div>
+		</div>
+	</section>
+
+	<section class="row g-3">
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/students}">
+				<div class="card-body">
+					<h2 class="h5">學生管理</h2>
+					<p class="text-secondary mb-0">新增、編輯與停用學生資料。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/classes}">
+				<div class="card-body">
+					<h2 class="h5">班級管理</h2>
+					<p class="text-secondary mb-0">建立班級並管理班級學生。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/subjects}">
+				<div class="card-body">
+					<h2 class="h5">科目管理</h2>
+					<p class="text-secondary mb-0">維護數學、英文等科目。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/exams}">
+				<div class="card-body">
+					<h2 class="h5">測驗與分數</h2>
+					<p class="text-secondary mb-0">建立測驗並登記學生成績。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/homeworks}">
+				<div class="card-body">
+					<h2 class="h5">作業管理</h2>
+					<p class="text-secondary mb-0">建立作業並追蹤學生繳交狀態。</p>
+				</div>
+			</a>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">即將到期作業</h2>
+			<span id="upcomingHomeworkCount" class="badge text-bg-primary">0</span>
+		</div>
+		<div id="upcomingHomeworkEmpty" class="bg-white border rounded text-center text-secondary py-4 d-none">
+			目前沒有即將到期且未完成的作業。
+		</div>
+		<div class="upcoming-homework-scroll">
+			<a class="card text-decoration-none text-dark upcoming-homework-card"
+					th:each="summary : ${upcomingHomeworkSummaries}"
+					th:href="@{/homeworks/{id}(id=${summary.homework.id})}"
+					th:attr="data-due-date=${summary.homework.dueDate}">
+				<div class="card-body">
+					<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+						<h3 class="h6 mb-0" th:text="${summary.homework.title}">作業內容</h3>
+						<span class="badge text-bg-warning text-dark"
+								th:text="${#temporals.format(summary.homework.dueDate, 'MM/dd')}">07/01</span>
+					</div>
+					<div class="small text-secondary mb-2" th:text="${summary.homework.classRoom.displayName}">班級</div>
+					<div class="small fw-semibold mb-1">未完成學生</div>
+					<div class="upcoming-homework-students">
+						<span class="badge text-bg-danger me-1 mb-1"
+								th:each="record : ${summary.notSubmittedRecords}"
+								th:text="${record.student.displayName}">學生</span>
+					</div>
+				</div>
+			</a>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const upcomingHomeworkCards = Array.from(document.querySelectorAll('.upcoming-homework-card'));
+	const upcomingHomeworkCount = document.getElementById('upcomingHomeworkCount');
+	const upcomingHomeworkEmpty = document.getElementById('upcomingHomeworkEmpty');
+
+	function filterUpcomingHomeworkCards() {
+		const reminderDays = Number(localStorage.getItem('wholeSummerOverdueReminderDays') || 3);
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		let visibleCount = 0;
+
+		upcomingHomeworkCards.forEach((card) => {
+			const dueDate = new Date(`${card.dataset.dueDate}T00:00:00`);
+			const daysUntilDue = Math.round((dueDate - today) / 86400000);
+			const visible = daysUntilDue >= 0 && daysUntilDue <= reminderDays;
+			card.classList.toggle('d-none', !visible);
+			if (visible) {
+				visibleCount++;
+			}
+		});
+
+		if (upcomingHomeworkEmpty) {
+			upcomingHomeworkEmpty.classList.toggle('d-none', visibleCount > 0);
+		}
+		if (upcomingHomeworkCount) {
+			upcomingHomeworkCount.textContent = visibleCount;
+		}
+	}
+
+	filterUpcomingHomeworkCards();
+</script>
+</body>
+</html>

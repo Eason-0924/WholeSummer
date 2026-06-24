@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${student.chineseName}">學生姓名</h1>
+				<span th:replace="~{fragments/layout :: help('查看學生詳細資料、最近作業與成績紀錄\n∙ 返回：回到學生管理頁\n∙ 編輯：變更學生資料\n∙ 刪除：將學生自資料庫中移除。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/students}">返回</a>
+			<a class="btn btn-outline-primary" th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
+			<form th:action="@{/students/{id}/delete(id=${student.id})}"
+					method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
+				<button class="btn btn-outline-danger" type="submit">刪除</button>
+			</form>
+		</div>
+	</div>
+
+	<section class="bg-white border rounded p-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">中文名</div>
+				<div th:text="${student.chineseName ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">英文名</div>
+				<div th:text="${student.englishName ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">狀態</div>
+				<div>
+					<span th:if="${student.active}" class="badge text-bg-success">使用中</span>
+					<span th:unless="${student.active}" class="badge text-bg-danger">已停用</span>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">性別</div>
+				<div th:text="${student.gender ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">學校</div>
+				<div th:text="${student.school ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">年級</div>
+				<div th:text="${student.grade ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">電話</div>
+				<div th:text="${student.phone ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">建立時間</div>
+				<div th:text="${#temporals.format(student.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">備註</div>
+				<div class="border rounded p-3 bg-light" th:text="${student.note ?: '-'}">-</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">出缺席紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(attendances)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>日期</th>
+					<th>班級</th>
+					<th>狀態</th>
+					<th>備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(attendances)}">
+					<td colspan="4" class="text-center text-secondary py-4">目前尚無出缺席紀錄</td>
+				</tr>
+				<tr th:each="attendance : ${attendances}">
+					<td th:text="${#temporals.format(attendance.attendanceDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<a th:href="@{/classes/{id}(id=${attendance.classRoom.id})}"
+								th:text="${attendance.classRoom.displayName}">班級</a>
+					</td>
+					<td>
+						<span th:class="${attendance.status.name() == 'PRESENT' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'ABSENT' ? 'badge text-bg-danger' : 'badge text-bg-secondary'))}"
+								th:text="${attendance.status.displayName}">狀態</span>
+					</td>
+					<td th:text="${attendance.note ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">最近作業</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(homeworkRecords)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>作業內容</th>
+					<th>班級</th>
+					<th>截止日期</th>
+					<th>完成狀態</th>
+					<th>提交時間</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(homeworkRecords)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前尚無作業紀錄</td>
+				</tr>
+				<tr th:each="record : ${homeworkRecords}">
+					<td>
+						<a th:href="@{/homeworks/{id}(id=${record.homework.id})}" th:text="${record.homework.title}">作業</a>
+					</td>
+					<td th:text="${record.homework.classRoom.displayName}">班級</td>
+					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<span th:class="${record.status.name() == 'NOT_SUBMITTED' ? 'badge text-bg-danger' : 'badge text-bg-success'}"
+								th:text="${record.status.displayName}">狀態</span>
+					</td>
+					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">成績紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(scores)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>測驗日期</th>
+					<th>測驗名稱</th>
+					<th>班級</th>
+					<th>科目</th>
+					<th>成績</th>
+					<th>備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(scores)}">
+					<td colspan="6" class="text-center text-secondary py-4">目前尚無成績紀錄</td>
+				</tr>
+				<tr th:each="score : ${scores}">
+					<td th:text="${#temporals.format(score.exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<a th:href="@{/exams/{id}(id=${score.exam.id})}" th:text="${score.exam.name}">測驗名稱</a>
+					</td>
+					<td th:text="${score.exam.classRoom.displayName}">班級</td>
+					<td th:text="${score.exam.subject.name}">科目</td>
+					<td>
+						<span th:if="${score.exam.fullScore == 0}" th:text="${score.score == 1 ? '完成' : '未完成'}">完成</span>
+						<span th:if="${score.exam.fullScore > 0 && score.score == 0}" class="text-danger">缺考</span>
+						<span th:if="${score.exam.fullScore > 0 && score.score != 0}" th:text="${score.score}">100</span>
+					</td>
+					<td th:text="${score.comment ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

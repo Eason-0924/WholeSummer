@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${exam.name}">測驗名稱</h1>
+				<span th:replace="~{fragments/layout :: help('查看測驗詳細資訊\n分數統計與學生分數\n∙ 顯示平均、最高、最低分數與缺考人數\n∙ 課堂測驗顯示完成人數\n進入分數登記更新成績或完成狀態')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/exams}">返回</a>
+			<a class="btn btn-outline-success" th:href="@{/exams/{id}/scores(id=${exam.id})}">分數登記</a>
+			<a class="btn btn-outline-primary" th:href="@{/exams/{id}/edit(id=${exam.id})}">編輯</a>
+			<form th:action="@{/exams/{id}/delete(id=${exam.id})}"
+					method="post" onsubmit="return confirm('確定要永久刪除這場測驗嗎？');">
+				<button class="btn btn-outline-danger" type="submit">刪除</button>
+			</form>
+		</div>
+	</div>
+
+	<section class="bg-white border rounded p-4">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<div class="text-secondary small">班級</div>
+				<div>
+					<a th:href="@{/classes/{id}(id=${exam.classRoom.id})}" th:text="${exam.classRoom.displayName}">班級</a>
+				</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">科目</div>
+				<div th:text="${exam.subject.name}">科目</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">測驗日期</div>
+				<div th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">滿分</div>
+				<div th:text="${exam.fullScore == 0 ? '不計分' : exam.fullScore}">100</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">建立時間</div>
+				<div th:text="${#temporals.format(exam.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">更新時間</div>
+				<div th:text="${#temporals.format(exam.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">說明</div>
+				<div class="border rounded p-3 bg-light" th:text="${exam.description ?: '-'}">-</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="bg-white border rounded p-4 mt-4">
+		<div class="row g-3">
+			<div class="col-md-3">
+				<div class="text-secondary small">平均</div>
+				<div th:text="${exam.fullScore == 0 || scoreStats.average == null ? '-' : #numbers.formatDecimal(scoreStats.average, 1, 1)}">-</div>
+			</div>
+			<div class="col-md-3">
+				<div class="text-secondary small">最高分</div>
+				<div th:text="${exam.fullScore == 0 || scoreStats.highest == null ? '-' : scoreStats.highest}">-</div>
+			</div>
+			<div class="col-md-3">
+				<div class="text-secondary small">最低分</div>
+				<div th:text="${exam.fullScore == 0 || scoreStats.lowest == null ? '-' : scoreStats.lowest}">-</div>
+			</div>
+			<div class="col-md-3">
+				<div class="text-secondary small" th:text="${exam.fullScore == 0 ? '完成' : '缺考'}">缺考</div>
+				<div th:text="${exam.fullScore == 0 ? scoreStats.completedCount + ' / ' + scoreStats.totalCount : scoreStats.absentCount}">0</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">已登記分數</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(scores)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生姓名</th>
+					<th>年級</th>
+					<th th:text="${exam.fullScore == 0 ? '完成狀態' : '分數'}">分數</th>
+					<th>備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(scores)}">
+					<td colspan="4" class="text-center text-secondary py-4">目前尚未登記分數</td>
+				</tr>
+				<tr th:each="score : ${scores}">
+					<td>
+						<a th:href="@{/students/{id}(id=${score.student.id})}" th:text="${score.student.displayName}">學生</a>
+					</td>
+					<td th:text="${score.student.grade ?: '-'}">-</td>
+					<td>
+						<span th:if="${exam.fullScore == 0}" th:text="${score.score == 1 ? '完成' : '未完成'}">完成</span>
+						<span th:if="${exam.fullScore > 0 && score.score == 0}" class="text-danger">缺考</span>
+						<span th:if="${exam.fullScore > 0 && score.score != 0}" th:text="${score.score}">100</span>
+					</td>
+					<td th:text="${score.comment ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

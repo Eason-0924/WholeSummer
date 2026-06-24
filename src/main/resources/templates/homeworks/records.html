@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">作業完成登記</h1>
+				<span th:replace="~{fragments/layout :: help('可逐位學生選擇未繳交、已繳交、逾期補交或免交\n也可使用上方按鈕批次快速設定。')}"></span>
+			</div>
+			<p class="text-secondary mb-0">
+				<span th:text="${homework.title}">作業內容</span>
+				<span>｜</span>
+				<span th:text="${homework.classRoom.displayName}">班級</span>
+			</p>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/homeworks/{id}(id=${homework.id})}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4"
+			th:action="@{/homeworks/{id}/records(id=${homework.id})}" th:object="${recordForm}" method="post">
+		<div class="d-flex flex-wrap gap-2 mb-3">
+			<button class="btn btn-sm btn-outline-success" type="button" data-bulk-status="SUBMITTED">全部已繳交</button>
+			<button class="btn btn-sm btn-outline-secondary" type="button" data-bulk-status="NOT_SUBMITTED">全部未繳交</button>
+			<button class="btn btn-sm btn-outline-warning" type="button" data-bulk-status="LATE">全部逾期補交</button>
+			<button class="btn btn-sm btn-outline-primary" type="button" data-bulk-status="EXCUSED">全部免交</button>
+		</div>
+		<div class="table-responsive">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生姓名</th>
+					<th>年級</th>
+					<th style="min-width: 160px;">完成狀態</th>
+					<th>教師備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(recordForm.entries)}">
+					<td colspan="4" class="text-center text-secondary py-4">目前尚無學生作業紀錄</td>
+				</tr>
+				<tr th:each="entry, stat : *{entries}">
+					<td>
+						<input type="hidden" th:field="*{entries[__${stat.index}__].recordId}">
+						<input type="hidden" th:field="*{entries[__${stat.index}__].studentId}">
+						<input type="hidden" th:field="*{entries[__${stat.index}__].studentName}">
+						<span th:text="${entry.studentName}">學生</span>
+					</td>
+					<td>
+						<input type="hidden" th:field="*{entries[__${stat.index}__].studentGrade}">
+						<span th:text="${entry.studentGrade ?: '-'}">-</span>
+					</td>
+					<td>
+						<select class="form-select form-select-sm" th:field="*{entries[__${stat.index}__].status}">
+							<option th:each="status : ${statusOptions}" th:value="${status}"
+									th:text="${status.displayName}">狀態</option>
+						</select>
+					</td>
+					<td>
+						<input type="text" class="form-control form-control-sm"
+								th:field="*{entries[__${stat.index}__].teacherComment}"
+								placeholder="可留空">
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/homeworks/{id}(id=${homework.id})}">取消</a>
+			<button class="btn btn-primary" type="submit" th:disabled="${#lists.isEmpty(recordForm.entries)}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	document.querySelectorAll('[data-bulk-status]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const status = button.dataset.bulkStatus;
+			document.querySelectorAll('select[name$=".status"]').forEach((select) => {
+				select.value = status;
+			});
+		});
+	});
+</script>
+</body>
+</html>

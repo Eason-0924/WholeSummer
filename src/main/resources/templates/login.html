@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<main class="container py-5">
+	<div class="row justify-content-center">
+		<div class="col-sm-10 col-md-7 col-lg-5">
+			<section class="bg-white border rounded p-4 shadow-sm">
+				<div class="mb-4 text-center">
+					<h1 class="h3 mb-2" th:text="${systemName}">霍爾夏天補習班 Whole Summer</h1>
+					<div class="text-secondary">教師登入</div>
+				</div>
+
+				<div th:if="${message}" class="alert alert-success" th:text="${message}">註冊完成</div>
+				<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">密碼不正確</div>
+
+				<form th:action="@{/login}" method="post">
+					<input type="hidden" name="redirect" th:value="${redirect}">
+					<div class="mb-3">
+						<label class="form-label" for="username">帳號</label>
+						<input id="username" class="form-control" type="text" name="username"
+								th:value="${username}" autocomplete="username" autofocus required>
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="password">密碼</label>
+						<input id="password" class="form-control" type="password" name="password" autocomplete="current-password"
+								required>
+					</div>
+					<button class="btn btn-primary w-100" type="submit">登入</button>
+				</form>
+
+				<div class="d-flex justify-content-between align-items-center mt-3">
+					<span class="text-secondary small">尚未建立教師帳號？</span>
+					<a th:href="@{/register}" class="btn btn-sm btn-outline-primary">教師註冊</a>
+				</div>
+			</section>
+		</div>
+	</div>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

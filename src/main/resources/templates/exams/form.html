@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">測驗表單</h1>
+				<span th:replace="~{fragments/layout :: help('請填寫測驗資訊。\n選擇班級後將自動帶入科目。\n∙ 滿分填 0 代表此次測驗課堂練習（不計分），登記分數改用完成勾選。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/exams}">返回</a>
+		</div>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${examForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<label for="classRoomId" class="form-label">班級 <span class="text-danger">*</span></label>
+				<select id="classRoomId" class="form-select" th:field="*{classRoomId}"
+						th:classappend="${#fields.hasErrors('classRoomId')} ? 'is-invalid'">
+					<option value="">請選擇</option>
+					<option th:each="classRoom : ${classRoomOptions}" th:value="${classRoom.id}"
+							th:text="${classRoom.displayName}"
+							th:data-subject-id="${classRoom.subject?.id}"
+							th:data-subject-name="${classRoom.subjectName}">班級</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{classRoomId}">請選擇班級</div>
+				<div th:if="${#lists.isEmpty(classRoomOptions)}" class="form-text text-danger">
+					請先建立開課中班級。
+				</div>
+			</div>
+			<div class="col-md-6">
+				<label for="subjectName" class="form-label">科目</label>
+				<input type="text" id="subjectName" class="form-control" value="請先選擇班級" readonly>
+				<input type="hidden" id="subjectId" th:field="*{subjectId}">
+			</div>
+			<div class="col-md-6">
+				<label for="name" class="form-label">測驗名稱 <span class="text-danger">*</span></label>
+				<input type="text" id="name" class="form-control" th:field="*{name}"
+						th:classappend="${#fields.hasErrors('name')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{name}">請輸入測驗名稱</div>
+			</div>
+			<div class="col-md-4">
+				<label for="examDate" class="form-label">測驗日期 <span class="text-danger">*</span></label>
+				<input type="hidden" id="examDate" th:field="*{examDate}">
+				<div class="row g-2">
+					<div class="col-4">
+						<select id="examYear" class="form-select" aria-label="測驗年份"></select>
+					</div>
+					<div class="col-4">
+						<select id="examMonth" class="form-select" aria-label="測驗月份"></select>
+					</div>
+					<div class="col-4">
+						<select id="examDay" class="form-select" aria-label="測驗日期"></select>
+					</div>
+				</div>
+				<div class="invalid-feedback" th:errors="*{examDate}">請選擇測驗日期</div>
+			</div>
+			<div class="col-md-2">
+				<label for="fullScore" class="form-label">滿分 <span class="text-danger">*</span></label>
+				<input type="number" id="fullScore" min="0" class="form-control" th:field="*{fullScore}"
+						th:classappend="${#fields.hasErrors('fullScore')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{fullScore}">請輸入滿分</div>
+				<div id="practiceExamMessage" class="form-text text-primary d-none">此測驗為練習，不計分。</div>
+			</div>
+			<div class="col-12">
+				<label for="description" class="form-label">說明</label>
+				<textarea id="description" rows="4" class="form-control" th:field="*{description}"
+						th:classappend="${#fields.hasErrors('description')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{description}">說明格式錯誤</div>
+			</div>
+		</div>
+
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/exams}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const classRoomSelect = document.getElementById('classRoomId');
+	const subjectSelect = document.getElementById('subjectId');
+	const subjectNameInput = document.getElementById('subjectName');
+	const fullScoreInput = document.getElementById('fullScore');
+	const practiceExamMessage = document.getElementById('practiceExamMessage');
+	const examDateInput = document.getElementById('examDate');
+	const examYearSelect = document.getElementById('examYear');
+	const examMonthSelect = document.getElementById('examMonth');
+	const examDaySelect = document.getElementById('examDay');
+
+	function syncSubjectFromClassRoom() {
+		const selectedOption = classRoomSelect.selectedOptions[0];
+		const subjectId = selectedOption ? selectedOption.dataset.subjectId || '' : '';
+		const subjectName = selectedOption ? selectedOption.dataset.subjectName || '' : '';
+		subjectSelect.value = subjectId;
+		subjectNameInput.value = subjectName || '請先選擇班級';
+	}
+
+	classRoomSelect.addEventListener('change', syncSubjectFromClassRoom);
+	syncSubjectFromClassRoom();
+
+	function updatePracticeExamMessage() {
+		practiceExamMessage.classList.toggle('d-none', fullScoreInput.value !== '0');
+	}
+
+	fullScoreInput.addEventListener('input', updatePracticeExamMessage);
+	updatePracticeExamMessage();
+
+	function pad2(value) {
+		return String(value).padStart(2, '0');
+	}
+
+	function appendDateOption(select, value, label) {
+		const option = document.createElement('option');
+		option.value = value;
+		option.textContent = label;
+		select.appendChild(option);
+	}
+
+	function daysInMonth(year, month) {
+		return new Date(year, month, 0).getDate();
+	}
+
+	function updateHiddenExamDate() {
+		examDateInput.value = `${examYearSelect.value}-${pad2(examMonthSelect.value)}-${pad2(examDaySelect.value)}`;
+	}
+
+	function refreshDays() {
+		const selectedDay = Number(examDaySelect.value || 1);
+		const maxDay = daysInMonth(Number(examYearSelect.value), Number(examMonthSelect.value));
+		examDaySelect.innerHTML = '';
+		for (let day = 1; day <= maxDay; day += 1) {
+			appendDateOption(examDaySelect, day, `${day} 日`);
+		}
+		examDaySelect.value = Math.min(selectedDay, maxDay);
+		updateHiddenExamDate();
+	}
+
+	function initializeDateSelectors() {
+		const today = new Date();
+		const existingValue = examDateInput.value;
+		const selectedDate = existingValue ? new Date(`${existingValue}T00:00:00`) : today;
+		const selectedYear = selectedDate.getFullYear();
+		const currentYear = today.getFullYear();
+		const startYear = Math.min(selectedYear, currentYear - 5);
+		const endYear = Math.max(selectedYear, currentYear + 5);
+
+		for (let year = startYear; year <= endYear; year += 1) {
+			appendDateOption(examYearSelect, year, `${year} 年`);
+		}
+		for (let month = 1; month <= 12; month += 1) {
+			appendDateOption(examMonthSelect, month, `${month} 月`);
+		}
+
+		examYearSelect.value = selectedYear;
+		examMonthSelect.value = selectedDate.getMonth() + 1;
+		refreshDays();
+		examDaySelect.value = selectedDate.getDate();
+		updateHiddenExamDate();
+	}
+
+	examYearSelect.addEventListener('change', refreshDays);
+	examMonthSelect.addEventListener('change', refreshDays);
+	examDaySelect.addEventListener('change', updateHiddenExamDate);
+	initializeDateSelectors();
+</script>
+</body>
+</html>

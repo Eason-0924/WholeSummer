@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line mb-1">
+			<h1 class="h3 mb-0">教師出勤</h1>
+			<span th:replace="~{fragments/layout :: help('登記教師上班、下班、請假與缺勤。\n∙ 上班打卡：依第一堂課開始時間自動判斷出勤或遲到\n∙ 工時：加總當日課程時段，重疊課程不重複計算，課間休息不計入\n∙ 手動登記：可補登指定日期與時間')}"></span>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/teachers}">返回教師</a>
+	</div>
+
+	<form id="attendanceDateForm" class="row g-2 align-items-end mb-4" method="get"
+			th:action="@{/teachers/attendance}">
+		<div class="col-md-4 col-lg-3">
+			<label for="attendanceDatePicker" class="form-label">出勤日期</label>
+			<input id="attendanceDatePicker" name="date" class="form-control" type="date"
+					th:value="${#temporals.format(attendanceDate, 'yyyy-MM-dd')}">
+		</div>
+	</form>
+
+	<section class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-3">快速打卡</h2>
+		<form class="row g-2 align-items-end">
+			<div class="col-md-5">
+				<label for="quickTeacherId" class="form-label">教師</label>
+				<select id="quickTeacherId" class="form-select" name="teacherId" required>
+					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
+							th:text="${teacher.displayName}">教師</option>
+				</select>
+			</div>
+			<div class="col-md-7 d-flex flex-wrap gap-2">
+				<button class="btn btn-success" type="submit"
+						formmethod="post" th:formaction="@{/teachers/attendance/clock-in}">上班打卡</button>
+				<button class="btn btn-primary" type="submit"
+						formmethod="post" th:formaction="@{/teachers/attendance/clock-out}">下班打卡</button>
+				<button class="btn btn-outline-warning" type="submit"
+						formmethod="post" th:formaction="@{/teachers/attendance/leave}">請假</button>
+				<button class="btn btn-outline-danger" type="submit"
+						formmethod="post" th:formaction="@{/teachers/attendance/absent}">缺勤</button>
+			</div>
+		</form>
+	</section>
+
+	<section class="bg-white border rounded p-4 mb-4">
+		<h2 class="h5 mb-3">手動登記</h2>
+		<form class="row g-3" th:action="@{/teachers/attendance}" th:object="${attendanceForm}" method="post">
+			<div class="col-md-4">
+				<label for="teacherId" class="form-label">教師</label>
+				<select id="teacherId" class="form-select" th:field="*{teacherId}" required>
+					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
+							th:text="${teacher.displayName}">教師</option>
+				</select>
+			</div>
+			<div class="col-md-4">
+				<label for="date" class="form-label">日期</label>
+				<input id="date" class="form-control" type="date" th:field="*{date}" required>
+			</div>
+			<div class="col-md-4">
+				<label for="status" class="form-label">狀態</label>
+				<select id="status" class="form-select" th:field="*{status}">
+					<option th:each="status : ${statusOptions}" th:value="${status}"
+							th:text="${status.displayName}">出勤</option>
+				</select>
+			</div>
+			<div class="col-md-4">
+				<label for="clockInTime" class="form-label">上班時間</label>
+				<input id="clockInTime" class="form-control" type="time" th:field="*{clockInTime}">
+			</div>
+			<div class="col-md-4">
+				<label for="clockOutTime" class="form-label">下班時間</label>
+				<input id="clockOutTime" class="form-control" type="time" th:field="*{clockOutTime}">
+			</div>
+			<div class="col-md-4">
+				<label for="note" class="form-label">備註</label>
+				<input id="note" class="form-control" type="text" th:field="*{note}">
+			</div>
+			<div class="col-12">
+				<button class="btn btn-primary" type="submit">儲存出勤</button>
+			</div>
+		</form>
+	</section>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">當日出勤紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(attendances)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>教師</th>
+					<th>上班時間</th>
+					<th>下班時間</th>
+					<th>當日課程</th>
+					<th>工時</th>
+					<th>狀態</th>
+					<th>備註</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(attendances)}">
+					<td colspan="7" class="text-center text-secondary py-4">目前尚無出勤紀錄</td>
+				</tr>
+				<tr th:each="attendance : ${attendances}">
+					<td>
+						<a th:href="@{/teachers/{id}(id=${attendance.teacher.id})}"
+								th:text="${attendance.teacher.displayName}">教師</a>
+					</td>
+					<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
+					<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
+					<td th:text="${attendance.scheduledTimeText}">當日無課程</td>
+					<td th:text="${attendance.workHoursText}">-</td>
+					<td>
+						<span th:class="${attendance.status.name() == 'WORKING' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'LEAVE' ? 'badge text-bg-info text-dark' : 'badge text-bg-danger'))}"
+								th:text="${attendance.status.displayName}">出勤</span>
+					</td>
+					<td th:text="${attendance.note ?: '-'}">-</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	const attendanceDatePicker = document.getElementById('attendanceDatePicker');
+	const attendanceDateForm = document.getElementById('attendanceDateForm');
+	if (attendanceDatePicker && attendanceDateForm) {
+		attendanceDatePicker.addEventListener('change', () => attendanceDateForm.submit());
+	}
+</script>
+</body>
+</html>

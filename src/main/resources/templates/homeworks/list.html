@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0">作業管理</h1>
+				<span th:replace="~{fragments/layout :: help('查看作業資料\n∙ 新增作業：加入新派發作業\n∙ 登記：紀錄學生作業完成狀態\n∙ 編輯：變更作業資料\n∙ 刪除：將作業自資料庫中刪除\n學生完成率排行\n∙ 顯示作業完成率最高/最低學生\n追蹤逾期未完成作業')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-primary" th:href="@{/homeworks/new}">新增作業</a>
+		</div>
+	</div>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">作業列表</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(homeworks)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>作業內容</th>
+					<th>班級</th>
+					<th>科目</th>
+					<th>發派日期</th>
+					<th>截止日期</th>
+					<th>完成率</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(homeworks)}">
+					<td colspan="7" class="text-center text-secondary py-4">目前尚無作業資料</td>
+				</tr>
+				<tr th:each="homework : ${homeworks}">
+					<td>
+						<a th:href="@{/homeworks/{id}(id=${homework.id})}" th:text="${homework.title}">作業內容</a>
+					</td>
+					<td>
+						<a th:href="@{/classes/{id}(id=${homework.classRoom.id})}"
+								th:text="${homework.classRoom.displayName}">班級</a>
+					</td>
+					<td th:text="${homework.subject.name}">科目</td>
+					<td th:text="${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#numbers.formatDecimal(completionRates[homework.id], 1, 1) + '%'}">0.0%</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a class="btn btn-sm btn-outline-success"
+									th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
+							<a class="btn btn-sm btn-outline-primary"
+									th:href="@{/homeworks/{id}/edit(id=${homework.id})}">編輯</a>
+							<form th:action="@{/homeworks/{id}/delete(id=${homework.id})}"
+									method="post" onsubmit="return confirm('確定要刪除這份作業嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">學生作業完成率排行</h2>
+			<span class="badge text-bg-primary"
+					th:text="${#lists.size(topStudentCompletionRates) + #lists.size(lowestStudentCompletionRates)}">0</span>
+		</div>
+		<div class="row g-3">
+			<div class="col-lg-6">
+				<div class="table-responsive bg-white border rounded">
+					<table class="table table-hover align-middle mb-0">
+						<thead class="table-light">
+						<tr>
+							<th colspan="5">完成率最高</th>
+						</tr>
+						<tr>
+							<th>學生</th>
+							<th>年級</th>
+							<th>已完成</th>
+							<th>總作業</th>
+							<th>完成率</th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr th:if="${#lists.isEmpty(topStudentCompletionRates)}">
+							<td colspan="5" class="text-center text-secondary py-4">目前尚無學生排行資料</td>
+						</tr>
+						<tr th:each="rate : ${topStudentCompletionRates}">
+							<td>
+								<a th:href="@{/students/{id}(id=${rate.studentId()})}" th:text="${rate.studentName()}">學生</a>
+							</td>
+							<td th:text="${rate.grade() ?: '-'}">-</td>
+							<td th:text="${rate.completedCount()}">0</td>
+							<td th:text="${rate.totalCount()}">0</td>
+							<td th:text="${#numbers.formatDecimal(rate.completionRate(), 1, 1) + '%'}">0.0%</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<div class="col-lg-6">
+				<div class="table-responsive bg-white border rounded">
+					<table class="table table-hover align-middle mb-0">
+						<thead class="table-light">
+						<tr>
+							<th colspan="5">完成率最低</th>
+						</tr>
+						<tr>
+							<th>學生</th>
+							<th>年級</th>
+							<th>已完成</th>
+							<th>總作業</th>
+							<th>完成率</th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr th:if="${#lists.isEmpty(lowestStudentCompletionRates)}">
+							<td colspan="5" class="text-center text-secondary py-4">目前尚無學生排行資料</td>
+						</tr>
+						<tr th:each="rate : ${lowestStudentCompletionRates}">
+							<td>
+								<a th:href="@{/students/{id}(id=${rate.studentId()})}" th:text="${rate.studentName()}">學生</a>
+							</td>
+							<td th:text="${rate.grade() ?: '-'}">-</td>
+							<td th:text="${rate.completedCount()}">0</td>
+							<td th:text="${rate.totalCount()}">0</td>
+							<td th:text="${#numbers.formatDecimal(rate.completionRate(), 1, 1) + '%'}">0.0%</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="mt-4">
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">逾期未完成作業</h2>
+			<span class="badge text-bg-danger" th:text="${#lists.size(overdueRecords)}">0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生姓名</th>
+					<th>班級</th>
+					<th>作業內容</th>
+					<th>截止日期</th>
+					<th>逾期天數</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(overdueRecords)}">
+					<td colspan="5" class="text-center text-secondary py-4">目前沒有逾期未完成作業</td>
+				</tr>
+				<tr th:each="record : ${overdueRecords}">
+					<td>
+						<a th:href="@{/students/{id}(id=${record.student.id})}" th:text="${record.student.displayName}">學生</a>
+					</td>
+					<td>
+						<a th:href="@{/classes/{id}(id=${record.homework.classRoom.id})}"
+								th:text="${record.homework.classRoom.displayName}">班級</a>
+					</td>
+					<td>
+						<a th:href="@{/homeworks/{id}(id=${record.homework.id})}" th:text="${record.homework.title}">作業</a>
+					</td>
+					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${overdueDaysByRecordId[record.id]}">1</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>
