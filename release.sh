@@ -39,6 +39,8 @@ refresh_version_state() {
 update_project_version() {
   NEW_VERSION="$1"
   ./mvnw -q versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
+  sed -i.bak -E "s/^run-name: Release .*/run-name: Release $NEW_VERSION/" .github/workflows/build-windows.yml
+  rm -f .github/workflows/build-windows.yml.bak
 }
 
 refresh_version_state
@@ -137,7 +139,7 @@ echo
 
 git add .
 
-COMMIT_MESSAGE="Release $TAG"
+COMMIT_MESSAGE="Release $VERSION"
 RELEASE_NOTES=""
 
 if git diff --cached --quiet; then
