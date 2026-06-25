@@ -6,42 +6,27 @@
 
 <main class="container py-4">
 	<style>
-		.upcoming-homework-scroll {
+		.notification-scroll {
 			display: flex;
 			gap: 1rem;
 			overflow-x: auto;
-			padding-bottom: 0.5rem;
+			padding: 0.25rem 0.1rem 0.75rem;
 			scroll-snap-type: x proximity;
 		}
-		.upcoming-homework-card {
-			flex: 0 0 280px;
+		.notification-card {
+			border-left: 0.35rem solid;
+			flex: 0 0 300px;
 			scroll-snap-align: start;
 		}
-		.upcoming-homework-students {
-			max-height: 120px;
-			overflow-y: auto;
-		}
+		.notification-homework { border-left-color: #f0ad00; }
+		.notification-exam { border-left-color: #0d6efd; }
+		.notification-tuition { border-left-color: #dc3545; }
+		.notification-update { border-left-color: #6f42c1; }
+		.notification-birthday { border-left-color: #d63384; }
 	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}">已完成</div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
 
-	<section th:if="${availableUpdate != null}"
-			class="alert alert-warning border-warning d-flex flex-wrap justify-content-between align-items-center gap-3">
-		<div>
-			<div class="fw-semibold"
-					th:text="${'WholeSummer ' + availableUpdate.latestVersion + ' 已可更新'}">發現新版本</div>
-			<div class="small"
-					th:text="${'目前版本：' + availableUpdate.currentVersion}">目前版本</div>
-		</div>
-		<div class="d-flex gap-2">
-			<form th:action="@{/updates/ignore}" method="post">
-				<button class="btn btn-sm btn-outline-secondary" type="submit">稍後再說</button>
-			</form>
-			<form th:action="@{/updates/install}" method="post">
-				<button class="btn btn-sm btn-primary" type="submit">立即更新</button>
-			</form>
-		</div>
-	</section>
 	<div th:if="${updateChecking}" id="updateCheckingNotice" class="alert alert-info py-2">
 		正在背景檢查 WholeSummer 更新。
 	</div>
@@ -95,34 +80,60 @@
 				</div>
 			</a>
 		</div>
+		<div th:if="${teacherPermissions.manageTuition}" class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/tuition}">
+				<div class="card-body">
+					<h2 class="h5">學費管理</h2>
+					<p class="text-secondary mb-0">記錄學生應繳費用與繳費狀況。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/salary}">
+				<div class="card-body">
+					<h2 class="h5">薪資查詢</h2>
+					<p class="text-secondary mb-0">查看當月累積工時與薪資。</p>
+				</div>
+			</a>
+		</div>
+		<div class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/settings}">
+				<div class="card-body">
+					<h2 class="h5">系統設定</h2>
+					<p class="text-secondary mb-0">調整畫面模式、個人密碼與可用系統選項。</p>
+				</div>
+			</a>
+		</div>
 	</section>
 
 	<section class="mt-4">
 		<div class="d-flex align-items-center gap-2 mb-2">
-			<h2 class="h5 mb-0">即將到期作業</h2>
-			<span id="upcomingHomeworkCount" class="badge text-bg-primary">0</span>
+			<h2 class="h5 mb-0">通知</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(notifications)}">0</span>
 		</div>
-		<div id="upcomingHomeworkEmpty" class="bg-white border rounded text-center text-secondary py-4 d-none">
-			目前沒有即將到期且未完成的作業。
+		<div th:if="${#lists.isEmpty(notifications)}"
+				class="bg-white border rounded text-center text-secondary py-4">
+			目前沒有通知。
 		</div>
-		<div class="upcoming-homework-scroll">
-			<a class="card text-decoration-none text-dark upcoming-homework-card"
-					th:each="summary : ${upcomingHomeworkSummaries}"
-					th:href="@{/homeworks/{id}(id=${summary.homework.id})}"
-					th:attr="data-due-date=${summary.homework.dueDate}">
+		<div th:unless="${#lists.isEmpty(notifications)}" class="notification-scroll">
+			<a class="card text-decoration-none text-dark notification-card"
+					th:each="notification : ${notifications}"
+					th:classappend="${'notification-' + notification.type}"
+					th:href="${notification.link}">
 				<div class="card-body">
 					<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-						<h3 class="h6 mb-0" th:text="${summary.homework.title}">作業內容</h3>
-						<span class="badge text-bg-warning text-dark"
-								th:text="${#temporals.format(summary.homework.dueDate, 'MM/dd')}">07/01</span>
+						<span class="badge"
+								th:classappend="${notification.type == 'homework' ? 'text-bg-warning' :
+										(notification.type == 'exam' ? 'text-bg-primary' :
+										(notification.type == 'tuition' ? 'text-bg-danger' :
+										(notification.type == 'update' ? 'text-bg-info' : 'text-bg-success')))}"
+								th:text="${notification.typeLabel}">通知</span>
+						<span class="small text-secondary"
+								th:text="${#temporals.format(notification.date, 'yyyy-MM-dd')}">2026-01-01</span>
 					</div>
-					<div class="small text-secondary mb-2" th:text="${summary.homework.classRoom.displayName}">班級</div>
-					<div class="small fw-semibold mb-1">未完成學生</div>
-					<div class="upcoming-homework-students">
-						<span class="badge text-bg-danger me-1 mb-1"
-								th:each="record : ${summary.notSubmittedRecords}"
-								th:text="${record.student.displayName}">學生</span>
-					</div>
+					<h3 class="h6 mb-2" th:text="${notification.title}">通知標題</h3>
+					<div class="small text-secondary mb-2" th:text="${notification.detail}">詳細資訊</div>
+					<div class="small" th:text="${notification.supplementary}">補充資訊</div>
 				</div>
 			</a>
 		</div>
@@ -135,35 +146,6 @@
 		window.setTimeout(() => window.location.reload(), 3000);
 	}
 
-	const upcomingHomeworkCards = Array.from(document.querySelectorAll('.upcoming-homework-card'));
-	const upcomingHomeworkCount = document.getElementById('upcomingHomeworkCount');
-	const upcomingHomeworkEmpty = document.getElementById('upcomingHomeworkEmpty');
-
-	function filterUpcomingHomeworkCards() {
-		const reminderDays = Number(localStorage.getItem('wholeSummerOverdueReminderDays') || 3);
-		const today = new Date();
-		today.setHours(0, 0, 0, 0);
-		let visibleCount = 0;
-
-		upcomingHomeworkCards.forEach((card) => {
-			const dueDate = new Date(`${card.dataset.dueDate}T00:00:00`);
-			const daysUntilDue = Math.round((dueDate - today) / 86400000);
-			const visible = daysUntilDue >= 0 && daysUntilDue <= reminderDays;
-			card.classList.toggle('d-none', !visible);
-			if (visible) {
-				visibleCount++;
-			}
-		});
-
-		if (upcomingHomeworkEmpty) {
-			upcomingHomeworkEmpty.classList.toggle('d-none', visibleCount > 0);
-		}
-		if (upcomingHomeworkCount) {
-			upcomingHomeworkCount.textContent = visibleCount;
-		}
-	}
-
-	filterUpcomingHomeworkCards();
 </script>
 </body>
 </html>

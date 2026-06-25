@@ -1,5 +1,6 @@
 package com.example.cramschool.controller;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.dto.TeacherSalarySummary;
 import com.example.cramschool.service.TeacherAccountService;
+import com.example.cramschool.service.TeacherAttendanceService;
 import com.example.cramschool.service.TeacherSalaryService;
 
 import jakarta.servlet.http.HttpSession;
@@ -25,11 +27,14 @@ public class SalaryController {
 
 	private final TeacherSalaryService teacherSalaryService;
 	private final TeacherAccountService teacherAccountService;
+	private final TeacherAttendanceService teacherAttendanceService;
 
 	public SalaryController(TeacherSalaryService teacherSalaryService,
-			TeacherAccountService teacherAccountService) {
+			TeacherAccountService teacherAccountService,
+			TeacherAttendanceService teacherAttendanceService) {
 		this.teacherSalaryService = teacherSalaryService;
 		this.teacherAccountService = teacherAccountService;
+		this.teacherAttendanceService = teacherAttendanceService;
 	}
 
 	@GetMapping
@@ -37,7 +42,7 @@ public class SalaryController {
 			@RequestParam(required = false) Integer month,
 			HttpSession session, Model model) {
 		YearMonth targetMonth = parseMonth(year, month);
-		boolean director = isDirector(session);
+		boolean director = isActualDirector(session);
 		Long currentTeacherId = currentTeacherId(session);
 		List<TeacherSalarySummary> summaries = director
 				? teacherSalaryService.calculateAll(targetMonth)
@@ -59,8 +64,8 @@ public class SalaryController {
 			@RequestParam(required = false) Integer month,
 			HttpSession session,
 			RedirectAttributes redirectAttributes) {
-		if (!isDirector(session)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以設定教師時薪");
+		if (!isActualDirector(session)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有管理全體薪資的權限");
 			return redirectToMonth(year, month);
 		}
 		try {
@@ -73,7 +78,27 @@ public class SalaryController {
 		return redirectToMonth(year, month);
 	}
 
-	private boolean isDirector(HttpSession session) {
+	@PostMapping("/attendance/{attendanceId}/adjust")
+	public String adjustAttendance(@PathVariable Long attendanceId,
+			@RequestParam(required = false) String manualRemark,
+			@RequestParam BigDecimal manualHours,
+			@RequestParam Integer year,
+			@RequestParam Integer month,
+			HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		try {
+			var attendance = teacherAttendanceService.updateManualAdjustment(
+					attendanceId, manualRemark, manualHours,
+					currentTeacherId(session), isActualDirector(session));
+			teacherSalaryService.calculate(attendance.getTeacher().getId(), parseMonth(year, month));
+			redirectAttributes.addFlashAttribute("message", "已更新打卡紀錄並重新計算薪資");
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return redirectToMonth(year, month);
+	}
+
+	private boolean isActualDirector(HttpSession session) {
 		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
 		return accountId instanceof Long id && teacherAccountService.isDirector(id);
 	}

@@ -19,8 +19,10 @@ import com.example.cramschool.controller.AuthController;
 import com.example.cramschool.dto.DatabaseRestoreResult;
 import com.example.cramschool.entity.BackupRecord;
 import com.example.cramschool.entity.BackupStatus;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.service.BackupService;
 import com.example.cramschool.service.TeacherAccountService;
+import com.example.cramschool.service.TeacherPermissionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -30,10 +32,13 @@ public class BackupController {
 
 	private final BackupService backupService;
 	private final TeacherAccountService teacherAccountService;
+	private final TeacherPermissionService teacherPermissionService;
 
-	public BackupController(BackupService backupService, TeacherAccountService teacherAccountService) {
+	public BackupController(BackupService backupService, TeacherAccountService teacherAccountService,
+			TeacherPermissionService teacherPermissionService) {
 		this.backupService = backupService;
 		this.teacherAccountService = teacherAccountService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@GetMapping
@@ -42,7 +47,11 @@ public class BackupController {
 	}
 
 	@PostMapping
-	public String create(RedirectAttributes redirectAttributes) {
+	public String create(HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!isDirector(session)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有建立資料庫備份的權限");
+			return "redirect:/settings";
+		}
 		BackupRecord record = backupService.createBackup();
 		if (record.getStatus() == BackupStatus.SUCCESS) {
 			redirectAttributes.addFlashAttribute("message", "已建立備份：" + record.getFileName());
@@ -53,7 +62,10 @@ public class BackupController {
 	}
 
 	@GetMapping("/{id}/download")
-	public ResponseEntity<FileSystemResource> download(@PathVariable Long id) {
+	public ResponseEntity<FileSystemResource> download(@PathVariable Long id, HttpSession session) {
+		if (!isDirector(session)) {
+			return ResponseEntity.status(403).build();
+		}
 		Path path = backupService.backupPath(id);
 		FileSystemResource resource = new FileSystemResource(path);
 		return ResponseEntity.ok()
@@ -63,7 +75,11 @@ public class BackupController {
 	}
 
 	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String delete(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!isDirector(session)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有刪除資料庫備份的權限");
+			return "redirect:/settings";
+		}
 		try {
 			backupService.deleteBackup(id);
 			redirectAttributes.addFlashAttribute("message", "已刪除備份");
@@ -105,8 +121,8 @@ public class BackupController {
 	private boolean canRestore(HttpSession session, String password,
 			RedirectAttributes redirectAttributes) {
 		Long accountId = (Long) session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-		if (!teacherAccountService.isDirector(accountId)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以還原或匯入資料庫");
+		if (!isDirector(session)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有還原或匯入資料庫的權限");
 			return false;
 		}
 		if (!teacherAccountService.matchesPassword(accountId, password)) {
@@ -114,6 +130,12 @@ public class BackupController {
 			return false;
 		}
 		return true;
+	}
+
+	private boolean isDirector(HttpSession session) {
+		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
+		return teacherId instanceof Long id
+				&& teacherPermissionService.hasPermission(id, TeacherPermissionType.DATABASE_BACKUP);
 	}
 
 	private String handleRestoreResult(DatabaseRestoreResult result, HttpSession session,

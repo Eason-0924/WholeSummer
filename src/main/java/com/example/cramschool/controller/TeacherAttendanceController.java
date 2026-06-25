@@ -14,10 +14,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.entity.TeacherAttendanceStatus;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.TeacherAttendanceForm;
 import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.service.TeacherAttendanceService;
 import com.example.cramschool.service.TeacherService;
+import com.example.cramschool.service.TeacherPermissionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -28,12 +30,15 @@ public class TeacherAttendanceController {
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherService teacherService;
 	private final TeacherAccountService teacherAccountService;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public TeacherAttendanceController(TeacherAttendanceService teacherAttendanceService,
-			TeacherService teacherService, TeacherAccountService teacherAccountService) {
+			TeacherService teacherService, TeacherAccountService teacherAccountService,
+			TeacherPermissionService teacherPermissionService) {
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherService = teacherService;
 		this.teacherAccountService = teacherAccountService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@ModelAttribute
@@ -68,7 +73,7 @@ public class TeacherAttendanceController {
 			HttpSession session,
 			RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以手動登記教師出勤");
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有手動登記所有教師出勤的權限");
 			return "redirect:/teachers/attendance";
 		}
 		try {
@@ -121,8 +126,8 @@ public class TeacherAttendanceController {
 	}
 
 	private boolean isDirector(HttpSession session) {
-		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-		return accountId instanceof Long id && teacherAccountService.isDirector(id);
+		return teacherPermissionService.hasPermission(
+				currentTeacherId(session), TeacherPermissionType.MANAGE_ALL_ATTENDANCE);
 	}
 
 	private Long currentTeacherId(HttpSession session) {

@@ -31,24 +31,30 @@
 						th:classappend="${#fields.hasErrors('nickname')} ? 'is-invalid'">
 				<div class="invalid-feedback" th:errors="*{nickname}">暱稱格式錯誤</div>
 			</div>
-			<div class="col-md-6">
+			<div class="col-md-6"
+					th:if="${teacher == null or teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId}">
 				<label for="phone" class="form-label">電話</label>
 				<input type="text" id="phone" class="form-control" th:field="*{phone}"
 						th:classappend="${#fields.hasErrors('phone')} ? 'is-invalid'">
 				<div class="invalid-feedback" th:errors="*{phone}">電話格式錯誤</div>
 			</div>
-			<div class="col-md-6">
+			<div class="col-md-6"
+					th:if="${teacher == null or teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId}">
 				<label for="email" class="form-label">Email</label>
 				<input type="email" id="email" class="form-control" th:field="*{email}"
 						th:classappend="${#fields.hasErrors('email')} ? 'is-invalid'">
 				<div class="invalid-feedback" th:errors="*{email}">Email 格式錯誤</div>
+			</div>
+			<div class="col-12"
+					th:if="${teacher != null and teacher.id != currentTeacherId and !teacherPermissions.teacherSensitiveView}">
+				<div class="alert alert-secondary mb-0">電話與 Email 已隱藏，儲存時會保留原資料。</div>
 			</div>
 			<div class="col-md-6">
 				<label for="hireDate" class="form-label">到職日</label>
 				<input type="date" id="hireDate" class="form-control" th:field="*{hireDate}">
 			</div>
 			<div class="col-md-6"
-					th:if="${teacher == null or (currentTeacherIsDirector and teacher.id != currentTeacherId)}">
+					th:if="${teacherPermissions.manageTeacherPosition and (teacher == null or teacher.id != currentTeacherId)}">
 				<label for="position" class="form-label">職位</label>
 				<select id="position" class="form-select" th:field="*{position}">
 					<option th:each="position : ${positionOptions}" th:value="${position}"
@@ -56,7 +62,7 @@
 				</select>
 			</div>
 			<div class="col-md-6"
-					th:unless="${teacher == null or (currentTeacherIsDirector and teacher.id != currentTeacherId)}">
+					th:unless="${teacherPermissions.manageTeacherPosition and (teacher == null or teacher.id != currentTeacherId)}">
 				<label class="form-label">職位</label>
 				<input class="form-control" type="text" th:value="*{position.displayName}" disabled>
 				<input type="hidden" th:field="*{position}">

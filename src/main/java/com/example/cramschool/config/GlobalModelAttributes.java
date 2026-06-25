@@ -4,8 +4,11 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
 
 import com.example.cramschool.controller.AuthController;
+import com.example.cramschool.dto.TeacherPermissionView;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.service.SystemSettingService;
 import com.example.cramschool.service.TeacherAccountService;
+import com.example.cramschool.service.TeacherPermissionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -14,11 +17,13 @@ public class GlobalModelAttributes {
 
 	private final SystemSettingService systemSettingService;
 	private final TeacherAccountService teacherAccountService;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public GlobalModelAttributes(SystemSettingService systemSettingService,
-			TeacherAccountService teacherAccountService) {
+			TeacherAccountService teacherAccountService, TeacherPermissionService teacherPermissionService) {
 		this.systemSettingService = systemSettingService;
 		this.teacherAccountService = teacherAccountService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@ModelAttribute("systemName")
@@ -52,5 +57,14 @@ public class GlobalModelAttributes {
 	public Long currentTeacherId(HttpSession session) {
 		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
 		return teacherId instanceof Long id ? id : null;
+	}
+
+	@ModelAttribute("teacherPermissions")
+	public TeacherPermissionView teacherPermissions(HttpSession session) {
+		Long teacherId = currentTeacherId(session);
+		var granted = teacherId == null
+				? java.util.Set.<TeacherPermissionType>of()
+				: teacherPermissionService.findGrantedPermissions(teacherId);
+		return new TeacherPermissionView(granted);
 	}
 }

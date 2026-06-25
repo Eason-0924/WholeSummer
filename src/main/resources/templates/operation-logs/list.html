@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line">
+			<h1 class="h3 mb-0">操作紀錄</h1>
+			<span class="badge text-bg-primary" th:text="${#lists.size(operationLogs)}">0</span>
+			<span th:replace="~{fragments/layout :: help('顯示最近 500 筆資料異動紀錄。\n紀錄包含操作時間、教師、操作項目、路徑與結果，不保存登入帳號、密碼或表單內容。')}"></span>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/settings}">返回設定</a>
+	</div>
+
+	<div class="table-responsive bg-white border rounded">
+		<table class="table table-hover align-middle mb-0">
+			<thead class="table-light">
+			<tr>
+				<th>時間</th>
+				<th>教師</th>
+				<th>操作</th>
+				<th>路徑</th>
+				<th>結果</th>
+			</tr>
+			</thead>
+			<tbody>
+			<tr th:if="${#lists.isEmpty(operationLogs)}">
+				<td colspan="5" class="text-center text-secondary py-4">目前尚無操作紀錄</td>
+			</tr>
+			<tr th:each="log : ${operationLogs}">
+				<td th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01 12:00:00</td>
+				<td th:text="${log.actorName}">教師</td>
+				<td th:text="${log.action}">更新資料</td>
+				<td><code th:text="${log.requestPath}">/students</code></td>
+				<td>
+					<span th:class="${log.result == '成功' ? 'badge text-bg-success' : 'badge text-bg-danger'}"
+							th:text="${log.result}">成功</span>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+	</div>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

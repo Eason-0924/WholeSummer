@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line">
+			<h1 class="h3 mb-0" th:text="${pageTitle}">學費紀錄</h1>
+			<span th:replace="~{fragments/layout :: help('記錄學生應繳與已繳金額。\n∙ 已繳金額為 0：未繳費\n∙ 已繳金額小於應繳金額：部分繳費\n∙ 已繳金額等於應繳金額：已繳清')}"></span>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/tuition}">返回</a>
+	</div>
+
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}"
+			th:object="${tuitionRecordForm}" method="post">
+		<div class="row g-3">
+			<div class="col-md-6">
+				<label for="studentId" class="form-label">學生 <span class="text-danger">*</span></label>
+				<select id="studentId" class="form-select" th:field="*{studentId}"
+						th:classappend="${#fields.hasErrors('studentId')} ? 'is-invalid'">
+					<option value="">請選擇學生</option>
+					<option th:each="student : ${studentOptions}" th:value="${student.id}"
+							th:text="${student.displayName + '－' + (student.grade ?: '未填年級')}">學生</option>
+				</select>
+				<div class="invalid-feedback" th:errors="*{studentId}">請選擇學生</div>
+			</div>
+			<div class="col-md-6">
+				<label for="title" class="form-label">費用名稱 <span class="text-danger">*</span></label>
+				<input id="title" class="form-control" type="text" th:field="*{title}"
+						placeholder="例如：2026 年 7 月學費"
+						th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{title}">請輸入費用名稱</div>
+			</div>
+			<div class="col-md-4">
+				<label for="amountDue" class="form-label">應繳金額 <span class="text-danger">*</span></label>
+				<div class="input-group">
+					<span class="input-group-text">NT$</span>
+					<input id="amountDue" class="form-control" type="number" min="0" step="1"
+							th:field="*{amountDue}"
+							th:classappend="${#fields.hasErrors('amountDue') || #fields.hasErrors('paidAmountValid')} ? 'is-invalid'">
+				</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('amountDue')}"
+						th:errors="*{amountDue}">金額錯誤</div>
+			</div>
+			<div class="col-md-4">
+				<label for="amountPaid" class="form-label">已繳金額 <span class="text-danger">*</span></label>
+				<div class="input-group">
+					<span class="input-group-text">NT$</span>
+					<input id="amountPaid" class="form-control" type="number" min="0" step="1"
+							th:field="*{amountPaid}"
+							th:classappend="${#fields.hasErrors('amountPaid') || #fields.hasErrors('paidAmountValid')} ? 'is-invalid'">
+				</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('amountPaid')}"
+						th:errors="*{amountPaid}">金額錯誤</div>
+				<div class="text-danger small mt-1" th:if="${#fields.hasErrors('paidAmountValid')}"
+						th:errors="*{paidAmountValid}">已繳金額不可超過應繳金額</div>
+			</div>
+			<div class="col-md-4">
+				<label for="dueDate" class="form-label">繳費期限 <span class="text-danger">*</span></label>
+				<input id="dueDate" class="form-control" type="date" th:field="*{dueDate}"
+						th:classappend="${#fields.hasErrors('dueDate')} ? 'is-invalid'">
+				<div class="invalid-feedback" th:errors="*{dueDate}">請選擇繳費期限</div>
+			</div>
+			<div class="col-md-4">
+				<label for="paidDate" class="form-label">繳費日期</label>
+				<input id="paidDate" class="form-control" type="date" th:field="*{paidDate}">
+				<div class="form-text">有繳費金額但未填日期時，系統會帶入今日。</div>
+			</div>
+			<div class="col-12">
+				<label for="note" class="form-label">備註</label>
+				<textarea id="note" class="form-control" rows="4" th:field="*{note}"
+						th:classappend="${#fields.hasErrors('note')} ? 'is-invalid'"></textarea>
+				<div class="invalid-feedback" th:errors="*{note}">備註過長</div>
+			</div>
+		</div>
+		<div class="d-flex justify-content-end gap-2 mt-4">
+			<a class="btn btn-outline-secondary" th:href="@{/tuition}">取消</a>
+			<button class="btn btn-primary" type="submit" th:text="${submitLabel}">儲存</button>
+		</div>
+	</form>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

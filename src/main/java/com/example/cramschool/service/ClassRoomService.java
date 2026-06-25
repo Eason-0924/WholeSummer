@@ -12,6 +12,7 @@ import com.example.cramschool.config.SchoolOptions;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.Teacher;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.ClassRoomForm;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.ClassRoomRepository;
@@ -36,11 +37,13 @@ public class ClassRoomService {
 	private final HomeworkRepository homeworkRepository;
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public ClassRoomService(ClassRoomRepository classRoomRepository, SubjectRepository subjectRepository,
 			TeacherRepository teacherRepository, ClassStudentRepository classStudentRepository,
 			ExamRepository examRepository, ScoreRepository scoreRepository, HomeworkRepository homeworkRepository,
-			HomeworkRecordRepository homeworkRecordRepository, StudentAttendanceRepository studentAttendanceRepository) {
+			HomeworkRecordRepository homeworkRecordRepository, StudentAttendanceRepository studentAttendanceRepository,
+			TeacherPermissionService teacherPermissionService) {
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
 		this.teacherRepository = teacherRepository;
@@ -50,6 +53,7 @@ public class ClassRoomService {
 		this.homeworkRepository = homeworkRepository;
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@Transactional(readOnly = true)
@@ -90,7 +94,9 @@ public class ClassRoomService {
 		return counts;
 	}
 
-	public ClassRoom create(ClassRoomForm form) {
+	public ClassRoom create(ClassRoomForm form, Long currentTeacherId) {
+		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.CLASS_CREATE,
+				"權限不足，無法新增班級");
 		ClassRoom classRoom = new ClassRoom();
 		form.applyTo(classRoom);
 		classRoom.setSubject(findSubject(form.getSubjectId()));
@@ -100,7 +106,8 @@ public class ClassRoomService {
 		return classRoomRepository.save(classRoom);
 	}
 
-	public ClassRoom update(Long id, ClassRoomForm form) {
+	public ClassRoom update(Long id, ClassRoomForm form, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		ClassRoom classRoom = findById(id);
 		form.applyTo(classRoom);
 		classRoom.setSubject(findSubject(form.getSubjectId()));
@@ -109,19 +116,22 @@ public class ClassRoomService {
 		return classRoomRepository.save(classRoom);
 	}
 
-	public void deactivate(Long id) {
+	public void deactivate(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		ClassRoom classRoom = findById(id);
 		classRoom.setActive(false);
 		classRoomRepository.save(classRoom);
 	}
 
-	public void activate(Long id) {
+	public void activate(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		ClassRoom classRoom = findById(id);
 		classRoom.setActive(true);
 		classRoomRepository.save(classRoom);
 	}
 
-	public void delete(Long id) {
+	public void delete(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		ClassRoom classRoom = findById(id);
 		examRepository.findByClassRoomIdOrderByExamDateDescIdDesc(id)
 				.forEach(exam -> scoreRepository.deleteByExamId(exam.getId()));
@@ -133,6 +143,11 @@ public class ClassRoomService {
 		classRoomRepository.delete(classRoom);
 	}
 
+	private void requireUpdatePermission(Long currentTeacherId) {
+		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.CLASS_UPDATE,
+				"權限不足，無法變更班級資料");
+	}
+
 	private List<ClassRoom> sortByGradeThenDisplayName(List<ClassRoom> classRooms) {
 		return classRooms.stream()
 				.sorted(Comparator.comparingInt((ClassRoom classRoom) -> gradeOrder(classRoom.getGrade()))
@@ -141,8 +156,8 @@ public class ClassRoomService {
 	}
 
 	private int gradeOrder(String grade) {
-		int index = SchoolOptions.GRADES.indexOf(grade);
-		return index >= 0 ? index : SchoolOptions.GRADES.size();
+		int index = SchoolOptions.CLASS_GRADES.indexOf(grade);
+		return index >= 0 ? index : SchoolOptions.CLASS_GRADES.size();
 	}
 
 	private Subject findSubject(Long subjectId) {

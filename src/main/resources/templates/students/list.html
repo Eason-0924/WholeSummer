@@ -6,6 +6,7 @@
 
 <main class="container py-4">
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
@@ -15,7 +16,8 @@
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
-			<a class="btn btn-primary" th:href="@{/students/new}">新增學生</a>
+			<a th:if="${teacherPermissions.studentCreate}" class="btn btn-primary"
+					th:href="@{/students/new}">新增學生</a>
 		</div>
 	</div>
 
@@ -33,13 +35,14 @@
 					<th>性別</th>
 					<th>學校</th>
 					<th>年級</th>
+					<th class="mobile-secondary-column tablet-hidden-column">生日</th>
 					<th>電話</th>
 					<th class="text-end">操作</th>
 				</tr>
 				</thead>
 				<tbody>
 				<tr th:if="${#lists.isEmpty(activeStudents)}">
-					<td colspan="7" class="text-center text-secondary py-4">目前尚無在學中學生</td>
+					<td colspan="8" class="text-center text-secondary py-4">目前尚無在學中學生</td>
 				</tr>
 				<tr th:each="student : ${activeStudents}">
 					<td>
@@ -49,9 +52,11 @@
 					<td th:text="${student.gender ?: '-'}">-</td>
 					<td th:text="${student.school ?: '-'}">-</td>
 					<td th:text="${student.grade ?: '-'}">-</td>
-					<td th:text="${student.phone ?: '-'}">-</td>
+					<td class="mobile-secondary-column tablet-hidden-column"
+							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</td>
+					<td th:text="${teacherPermissions.studentSensitiveView ? (student.phone ?: '-') : '無權限查看'}">-</td>
 					<td class="text-end">
-						<div class="d-inline-flex gap-2">
+						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
 									th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
 							<form th:action="@{/students/{id}/deactivate(id=${student.id})}"
@@ -84,13 +89,14 @@
 					<th>性別</th>
 					<th>學校</th>
 					<th>年級</th>
+					<th class="mobile-secondary-column tablet-hidden-column">生日</th>
 					<th>電話</th>
 					<th class="text-end">操作</th>
 				</tr>
 				</thead>
 				<tbody>
 				<tr th:if="${#lists.isEmpty(inactiveStudents)}">
-					<td colspan="7" class="text-center text-secondary py-4">目前尚無已畢業學生</td>
+					<td colspan="8" class="text-center text-secondary py-4">目前尚無已畢業學生</td>
 				</tr>
 				<tr th:each="student : ${inactiveStudents}">
 					<td>
@@ -100,9 +106,11 @@
 					<td th:text="${student.gender ?: '-'}">-</td>
 					<td th:text="${student.school ?: '-'}">-</td>
 					<td th:text="${student.grade ?: '-'}">-</td>
-					<td th:text="${student.phone ?: '-'}">-</td>
+					<td class="mobile-secondary-column tablet-hidden-column"
+							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</td>
+					<td th:text="${teacherPermissions.studentSensitiveView ? (student.phone ?: '-') : '無權限查看'}">-</td>
 					<td class="text-end">
-						<div class="d-inline-flex gap-2">
+						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
 									th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
 							<form th:action="@{/students/{id}/activate(id=${student.id})}"

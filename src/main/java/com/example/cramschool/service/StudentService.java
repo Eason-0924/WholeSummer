@@ -8,12 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.config.SchoolOptions;
 import com.example.cramschool.entity.Student;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.StudentForm;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.HomeworkRecordRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
+import com.example.cramschool.repository.TuitionRecordRepository;
 
 @Service
 @Transactional
@@ -24,15 +26,21 @@ public class StudentService {
 	private final ScoreRepository scoreRepository;
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
+	private final TuitionRecordRepository tuitionRecordRepository;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public StudentService(StudentRepository studentRepository, ClassStudentRepository classStudentRepository,
 			ScoreRepository scoreRepository, HomeworkRecordRepository homeworkRecordRepository,
-			StudentAttendanceRepository studentAttendanceRepository) {
+			StudentAttendanceRepository studentAttendanceRepository,
+			TuitionRecordRepository tuitionRecordRepository,
+			TeacherPermissionService teacherPermissionService) {
 		this.studentRepository = studentRepository;
 		this.classStudentRepository = classStudentRepository;
 		this.scoreRepository = scoreRepository;
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
+		this.tuitionRecordRepository = tuitionRecordRepository;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@Transactional(readOnly = true)
@@ -56,38 +64,59 @@ public class StudentService {
 				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
 	}
 
-	public Student create(StudentForm form) {
+	public Student create(StudentForm form, Long currentTeacherId) {
+		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.STUDENT_CREATE,
+				"權限不足，無法新增學生");
 		Student student = new Student();
 		form.applyTo(student);
 		student.setActive(true);
 		return studentRepository.save(student);
 	}
 
-	public Student update(Long id, StudentForm form) {
+	public Student update(Long id, StudentForm form, Long currentTeacherId) {
+		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.STUDENT_UPDATE,
+				"權限不足，無法變更學生資料");
 		Student student = findById(id);
+		boolean canViewSensitive = teacherPermissionService.hasPermission(
+				currentTeacherId, TeacherPermissionType.STUDENT_SENSITIVE_VIEW);
+		var birthday = student.getBirthday();
+		var phone = student.getPhone();
 		form.applyTo(student);
+		if (!canViewSensitive) {
+			student.setBirthday(birthday);
+			student.setPhone(phone);
+		}
 		return studentRepository.save(student);
 	}
 
-	public void deactivate(Long id) {
+	public void deactivate(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		Student student = findById(id);
 		student.setActive(false);
 		studentRepository.save(student);
 	}
 
-	public void activate(Long id) {
+	public void activate(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		Student student = findById(id);
 		student.setActive(true);
 		studentRepository.save(student);
 	}
 
-	public void delete(Long id) {
+	public void delete(Long id, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
 		Student student = findById(id);
 		classStudentRepository.deleteByStudentId(id);
 		scoreRepository.deleteByStudentId(id);
 		homeworkRecordRepository.deleteByStudentId(id);
 		studentAttendanceRepository.deleteByStudentId(id);
+		tuitionRecordRepository.deleteByStudentId(id);
 		studentRepository.delete(student);
+	}
+
+	private void requireUpdatePermission(Long currentTeacherId) {
+		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.STUDENT_UPDATE,
+				"權限不足，無法變更學生資料");
 	}
 
 	private List<Student> sortByGradeThenName(List<Student> students) {
@@ -98,7 +127,7 @@ public class StudentService {
 	}
 
 	private int gradeOrder(String grade) {
-		int index = SchoolOptions.GRADES.indexOf(grade);
-		return index >= 0 ? index : SchoolOptions.GRADES.size();
+		int index = SchoolOptions.STUDENT_GRADES.indexOf(grade);
+		return index >= 0 ? index : SchoolOptions.STUDENT_GRADES.size();
 	}
 }

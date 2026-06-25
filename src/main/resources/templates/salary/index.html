@@ -65,6 +65,42 @@
 				</div>
 			</div>
 		</div>
+		<div class="mt-4">
+			<div class="d-flex align-items-center gap-2 mb-2">
+				<h3 class="h5 mb-0">我的打卡紀錄</h3>
+				<span class="badge text-bg-primary"
+						th:text="${#lists.size(summary.attendanceRecords)}">0</span>
+			</div>
+			<div class="table-responsive bg-white border rounded">
+				<table class="table table-hover align-middle mb-0">
+					<thead class="table-light">
+					<tr>
+						<th>日期</th>
+						<th>上班</th>
+						<th>下班</th>
+						<th>對應課程</th>
+						<th>課程時間</th>
+						<th>計入時數</th>
+						<th>備註</th>
+					</tr>
+					</thead>
+					<tbody>
+					<tr th:if="${#lists.isEmpty(summary.attendanceRecords)}">
+						<td colspan="7" class="text-center text-secondary py-4">本月尚無打卡紀錄</td>
+					</tr>
+					<tr th:each="attendance : ${summary.attendanceRecords}">
+						<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+						<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
+						<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
+						<td th:text="${attendance.matchedCourseName ?: '-'}">-</td>
+						<td th:text="${attendance.matchedCourseTimeText ?: '-'}">-</td>
+						<td th:text="${attendance.countedHoursText}">0 小時</td>
+						<td th:text="${attendance.manualRemark ?: (attendance.note ?: '-')}">-</td>
+					</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
 	</section>
 
 	<section th:if="${salaryDirectorView}">
@@ -86,11 +122,16 @@
 				</tr>
 				</thead>
 				<tbody>
-				<tr th:each="summary : ${salarySummaries}">
+				<th:block th:each="summary : ${salarySummaries}">
+				<tr role="button" data-bs-toggle="collapse"
+						th:data-bs-target="${'#salaryAttendance_' + summary.teacher.id}"
+						th:aria-controls="${'salaryAttendance_' + summary.teacher.id}"
+						aria-expanded="false">
 					<td>
-						<span th:text="${summary.teacher.displayName}">教師名稱</span>
+						<span class="fw-semibold" th:text="${summary.teacher.displayName}">教師名稱</span>
 						<span th:if="${summary.teacher.status.name() == 'LEFT'}"
 								class="badge text-bg-danger ms-1">已離職</span>
+						<span class="text-secondary small ms-2">展開／收合</span>
 					</td>
 					<td th:text="${summary.workHoursText}">0 小時 0 分</td>
 					<td th:text="${'NT$ ' + summary.hourlyRate}">NT$ 0</td>
@@ -98,7 +139,8 @@
 							th:text="${'NT$ ' + #numbers.formatDecimal(summary.salary, 1, 2)}">NT$ 0.00</td>
 					<td class="text-end">
 						<form class="d-inline-flex justify-content-end gap-2"
-								th:action="@{/salary/{id}/hourly-rate(id=${summary.teacher.id})}" method="post">
+								th:action="@{/salary/{id}/hourly-rate(id=${summary.teacher.id})}"
+								method="post" onclick="event.stopPropagation();">
 							<input type="hidden" name="year" th:value="${selectedYear}">
 							<input type="hidden" name="month" th:value="${selectedMonth}">
 							<input class="form-control form-control-sm" style="width: 130px;" type="number"
@@ -109,6 +151,75 @@
 						</form>
 					</td>
 				</tr>
+				<tr class="collapse" th:id="${'salaryAttendance_' + summary.teacher.id}">
+					<td colspan="5" class="p-0">
+						<div class="p-3 bg-body-tertiary">
+							<div class="table-responsive border rounded bg-white">
+								<table class="table table-sm align-middle mb-0">
+									<thead class="table-light">
+									<tr>
+										<th>日期</th>
+										<th>上班</th>
+										<th>下班</th>
+										<th>對應課程</th>
+										<th>課程時間</th>
+										<th>計入時數</th>
+										<th>備註／人工時數</th>
+									</tr>
+									</thead>
+									<tbody>
+									<tr th:if="${#lists.isEmpty(summary.attendanceRecords)}">
+										<td colspan="7" class="text-center text-secondary py-3">本月尚無打卡紀錄</td>
+									</tr>
+									<tr th:each="attendance : ${summary.attendanceRecords}">
+										<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+										<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
+										<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
+										<td th:text="${attendance.matchedCourseName ?: '-'}">-</td>
+										<td th:text="${attendance.matchedCourseTimeText ?: '-'}">-</td>
+										<td th:text="${attendance.countedHoursText}">0 小時</td>
+										<td>
+											<div th:if="${attendance.hasMatchedCourse()}"
+													th:text="${attendance.note ?: '-'}">-</div>
+											<form th:unless="${attendance.hasMatchedCourse()}"
+													class="d-flex flex-nowrap align-items-center gap-2"
+													style="min-width: 500px;"
+													th:action="@{/salary/attendance/{id}/adjust(id=${attendance.id})}"
+													method="post" onclick="event.stopPropagation();">
+												<input type="hidden" name="year" th:value="${selectedYear}">
+												<input type="hidden" name="month" th:value="${selectedMonth}">
+												<div class="d-flex flex-nowrap align-items-center gap-2 flex-grow-1">
+													<label class="form-label small mb-0 text-nowrap"
+															th:for="${'manualRemark_' + attendance.id}">備註</label>
+													<input class="form-control form-control-sm"
+															style="min-width: 150px;"
+															th:id="${'manualRemark_' + attendance.id}"
+															name="manualRemark" maxlength="255"
+															th:value="${attendance.manualRemark}"
+															placeholder="例如：加課">
+												</div>
+												<div class="d-flex flex-nowrap align-items-center gap-2 flex-shrink-0">
+													<label class="form-label small mb-0 text-nowrap"
+															th:for="${'manualHours_' + attendance.id}">上課時數</label>
+													<input class="form-control form-control-sm"
+															style="width: 110px;"
+															th:id="${'manualHours_' + attendance.id}"
+															name="manualHours" type="number"
+															min="0" max="24" step="0.01"
+															th:value="${attendance.manualHours}" required>
+												</div>
+												<button class="btn btn-sm btn-outline-primary"
+														type="submit">儲存調整</button>
+											</form>
+										</td>
+									</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</td>
+				</tr>
+				</th:block>
 				<tr th:if="${#lists.isEmpty(salarySummaries)}">
 					<td colspan="5"
 							class="text-center text-secondary py-4">目前沒有教師薪資資料</td>

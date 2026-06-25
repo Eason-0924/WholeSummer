@@ -13,12 +13,13 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.servlet.http.HttpSession;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherPosition;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.TeacherForm;
 import com.example.cramschool.service.ClassRoomService;
 import com.example.cramschool.service.SubjectService;
 import com.example.cramschool.service.TeacherAttendanceService;
-import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.service.TeacherService;
+import com.example.cramschool.service.TeacherPermissionService;
 
 import jakarta.validation.Valid;
 
@@ -30,16 +31,16 @@ public class TeacherController {
 	private final ClassRoomService classRoomService;
 	private final SubjectService subjectService;
 	private final TeacherAttendanceService teacherAttendanceService;
-	private final TeacherAccountService teacherAccountService;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public TeacherController(TeacherService teacherService, ClassRoomService classRoomService,
 			SubjectService subjectService, TeacherAttendanceService teacherAttendanceService,
-			TeacherAccountService teacherAccountService) {
+			TeacherPermissionService teacherPermissionService) {
 		this.teacherService = teacherService;
 		this.classRoomService = classRoomService;
 		this.subjectService = subjectService;
 		this.teacherAttendanceService = teacherAttendanceService;
-		this.teacherAccountService = teacherAccountService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@ModelAttribute
@@ -57,7 +58,11 @@ public class TeacherController {
 	}
 
 	@GetMapping("/new")
-	public String newForm(Model model) {
+	public String newForm(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CREATE_TEACHER)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有新增教師的權限");
+			return "redirect:/teachers";
+		}
 		model.addAttribute("pageTitle", "新增教師");
 		model.addAttribute("teacherForm", new TeacherForm());
 		model.addAttribute("formAction", "/teachers");
@@ -69,6 +74,13 @@ public class TeacherController {
 	public String create(@Valid @ModelAttribute("teacherForm") TeacherForm teacherForm,
 			BindingResult bindingResult, Model model, HttpSession session,
 			RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CREATE_TEACHER)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有新增教師的權限");
+			return "redirect:/teachers";
+		}
+		if (!hasPermission(session, TeacherPermissionType.MANAGE_TEACHER_POSITION)) {
+			teacherForm.setPosition(TeacherPosition.TEACHER);
+		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "新增教師");
 			model.addAttribute("formAction", "/teachers");
@@ -76,7 +88,7 @@ public class TeacherController {
 			return "teachers/form";
 		}
 
-		Teacher teacher = teacherService.create(teacherForm);
+		Teacher teacher = teacherService.create(teacherForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已新增教師：" + teacher.getDisplayName());
 		return "redirect:/teachers/" + teacher.getId();
 	}
@@ -94,7 +106,13 @@ public class TeacherController {
 	}
 
 	@GetMapping("/{id}/edit")
-	public String editForm(@PathVariable Long id, Model model) {
+	public String editForm(@PathVariable Long id, HttpSession session, Model model,
+			RedirectAttributes redirectAttributes) {
+		if (!id.equals(currentTeacherId(session))
+				&& !hasPermission(session, TeacherPermissionType.TEACHER_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更教師資料");
+			return "redirect:/teachers/" + id;
+		}
 		Teacher teacher = teacherService.findById(id);
 		model.addAttribute("pageTitle", "編輯教師");
 		model.addAttribute("teacher", teacher);
@@ -109,6 +127,11 @@ public class TeacherController {
 			@Valid @ModelAttribute("teacherForm") TeacherForm teacherForm,
 			BindingResult bindingResult, Model model, HttpSession session,
 			RedirectAttributes redirectAttributes) {
+		if (!id.equals(currentTeacherId(session))
+				&& !hasPermission(session, TeacherPermissionType.TEACHER_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更教師資料");
+			return "redirect:/teachers/" + id;
+		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯教師");
 			model.addAttribute("teacher", teacherService.findById(id));
@@ -119,11 +142,12 @@ public class TeacherController {
 
 		Teacher existingTeacher = teacherService.findById(id);
 		Long currentTeacherId = (Long) session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
-		if (!isDirector(session) || id.equals(currentTeacherId)) {
+		if (!hasPermission(session, TeacherPermissionType.MANAGE_TEACHER_POSITION)
+				|| id.equals(currentTeacherId)) {
 			teacherForm.setPosition(existingTeacher.getPosition());
 		}
 		try {
-			Teacher teacher = teacherService.update(id, teacherForm);
+			Teacher teacher = teacherService.update(id, teacherForm, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已更新教師：" + teacher.getDisplayName());
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
@@ -131,16 +155,24 @@ public class TeacherController {
 		return "redirect:/teachers/" + id;
 	}
 
-	private boolean isDirector(HttpSession session) {
-		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-		return accountId instanceof Long id && teacherAccountService.isDirector(id);
+	private boolean hasPermission(HttpSession session, TeacherPermissionType permissionType) {
+		return teacherPermissionService.hasPermission(currentTeacherId(session), permissionType);
+	}
+
+	private Long currentTeacherId(HttpSession session) {
+		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
+		return teacherId instanceof Long id ? id : null;
 	}
 
 	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String delete(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.TEACHER_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更教師資料");
+			return "redirect:/teachers";
+		}
 		Teacher teacher = teacherService.findById(id);
 		try {
-			teacherService.delete(id);
+			teacherService.delete(id, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已刪除教師：" + teacher.getDisplayName());
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
@@ -149,10 +181,14 @@ public class TeacherController {
 	}
 
 	@PostMapping("/{id}/left")
-	public String markLeft(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String markLeft(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.TEACHER_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更教師資料");
+			return "redirect:/teachers";
+		}
 		Teacher teacher = teacherService.findById(id);
 		try {
-			teacherService.markLeft(id);
+			teacherService.markLeft(id, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已設定教師離職：" + teacher.getDisplayName());
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
@@ -161,9 +197,13 @@ public class TeacherController {
 	}
 
 	@PostMapping("/{id}/reinstate")
-	public String reinstate(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String reinstate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.TEACHER_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更教師資料");
+			return "redirect:/teachers";
+		}
 		Teacher teacher = teacherService.findById(id);
-		teacherService.reinstate(id);
+		teacherService.reinstate(id, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已復職教師：" + teacher.getDisplayName());
 		return "redirect:/teachers";
 	}

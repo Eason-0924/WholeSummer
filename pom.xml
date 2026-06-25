@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.1.0</version> <!-- Enter system version before release -->
+	<version>1.1.1</version> <!-- Enter system version before release -->
 	<name>霍爾夏天補習班 Whole Summer</name>
 	<description>Cram school management system</description>
 	<properties>
@@ -38,6 +38,18 @@
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-mysql</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

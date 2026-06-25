@@ -26,6 +26,9 @@ public final class ExternalConfigInitializer {
 			}
 		}
 		ExternalConfigMigration.migrate(configFile);
+		if (!GraphicsEnvironment.isHeadless()) {
+			ReportMailSetupDialog.promptIfRequired(configFile);
+		}
 		System.setProperty("spring.config.additional-location",
 				ExternalConfigPaths.configDirectory().toUri().toString());
 		return true;

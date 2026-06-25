@@ -9,10 +9,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.dto.AvailableUpdate;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.service.PowerShellUpdateInstaller;
 import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.service.UpdateCoordinator;
 import com.example.cramschool.service.UpdateDownloader;
+import com.example.cramschool.service.TeacherPermissionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -24,19 +26,22 @@ public class UpdateController {
 	private final UpdateDownloader updateDownloader;
 	private final PowerShellUpdateInstaller updateInstaller;
 	private final TeacherAccountService teacherAccountService;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public UpdateController(UpdateCoordinator updateCoordinator, UpdateDownloader updateDownloader,
-			PowerShellUpdateInstaller updateInstaller, TeacherAccountService teacherAccountService) {
+			PowerShellUpdateInstaller updateInstaller, TeacherAccountService teacherAccountService,
+			TeacherPermissionService teacherPermissionService) {
 		this.updateCoordinator = updateCoordinator;
 		this.updateDownloader = updateDownloader;
 		this.updateInstaller = updateInstaller;
 		this.teacherAccountService = teacherAccountService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@PostMapping("/check")
 	public String check(HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以檢查系統更新");
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有檢查系統更新的權限");
 			return "redirect:/";
 		}
 		var update = updateCoordinator.checkNow();
@@ -54,7 +59,7 @@ public class UpdateController {
 	@PostMapping("/ignore")
 	public String ignore(HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以管理系統更新");
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有管理系統更新的權限");
 			return "redirect:/";
 		}
 		updateCoordinator.ignoreCurrentUpdate();
@@ -66,7 +71,7 @@ public class UpdateController {
 	public String install(HttpSession session, Model model,
 			RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
-			redirectAttributes.addFlashAttribute("errorMessage", "只有主任可以安裝系統更新");
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有安裝系統更新的權限");
 			return "redirect:/";
 		}
 		try {
@@ -85,7 +90,8 @@ public class UpdateController {
 	}
 
 	private boolean isDirector(HttpSession session) {
-		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-		return accountId instanceof Long id && teacherAccountService.isDirector(id);
+		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
+		return teacherId instanceof Long id
+				&& teacherPermissionService.hasPermission(id, TeacherPermissionType.SYSTEM_UPDATE);
 	}
 }

@@ -6,18 +6,22 @@
 
 <main class="container py-4">
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0" th:text="${student.chineseName}">學生姓名</h1>
+				<span th:if="${student.active}" class="badge text-bg-success">使用中</span>
+				<span th:unless="${student.active}" class="badge text-bg-danger">已停用</span>
 				<span th:replace="~{fragments/layout :: help('查看學生詳細資料、最近作業與成績紀錄\n∙ 返回：回到學生管理頁\n∙ 編輯：變更學生資料\n∙ 刪除：將學生自資料庫中移除。')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/students}">返回</a>
-			<a class="btn btn-outline-primary" th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
-			<form th:action="@{/students/{id}/delete(id=${student.id})}"
+			<a th:if="${teacherPermissions.studentUpdate}" class="btn btn-outline-primary"
+					th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
+			<form th:if="${teacherPermissions.studentUpdate}" th:action="@{/students/{id}/delete(id=${student.id})}"
 					method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
 				<button class="btn btn-outline-danger" type="submit">刪除</button>
 			</form>
@@ -35,15 +39,12 @@
 				<div th:text="${student.englishName ?: '-'}">-</div>
 			</div>
 			<div class="col-md-6">
-				<div class="text-secondary small">狀態</div>
-				<div>
-					<span th:if="${student.active}" class="badge text-bg-success">使用中</span>
-					<span th:unless="${student.active}" class="badge text-bg-danger">已停用</span>
-				</div>
-			</div>
-			<div class="col-md-6">
 				<div class="text-secondary small">性別</div>
 				<div th:text="${student.gender ?: '-'}">-</div>
+			</div>
+			<div class="col-md-6">
+				<div class="text-secondary small">生日</div>
+				<div th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">學校</div>
@@ -55,7 +56,7 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">電話</div>
-				<div th:text="${student.phone ?: '-'}">-</div>
+				<div th:text="${teacherPermissions.studentSensitiveView ? (student.phone ?: '-') : '無權限查看'}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
@@ -65,6 +66,90 @@
 				<div class="text-secondary small">備註</div>
 				<div class="border rounded p-3 bg-light" th:text="${student.note ?: '-'}">-</div>
 			</div>
+		</div>
+	</section>
+
+	<section th:if="${teacherPermissions.manageTuition}" class="mt-4">
+		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+			<div class="d-flex align-items-center gap-2">
+				<h2 class="h5 mb-0">學費紀錄</h2>
+				<span class="badge text-bg-primary" th:text="${#lists.size(tuitionRecords)}">0</span>
+				<span th:if="${tuitionSummary.overdueCount > 0}" class="badge text-bg-danger"
+						th:text="${'逾期 ' + tuitionSummary.overdueCount}">逾期 0</span>
+			</div>
+			<a class="btn btn-sm btn-outline-primary mobile-section-action"
+					th:href="@{/tuition/new(studentId=${student.id})}">新增費用</a>
+		</div>
+		<div class="row g-3 mb-3">
+			<div class="col-md-4">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">應繳總額</div>
+					<div class="fs-5 fw-semibold"
+							th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalDue, 1, 'COMMA')}">NT$ 0</div>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">已繳總額</div>
+					<div class="fs-5 fw-semibold text-success"
+							th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalPaid, 1, 'COMMA')}">NT$ 0</div>
+				</div>
+			</div>
+			<div class="col-md-4">
+				<div class="bg-white border rounded p-3 h-100">
+					<div class="text-secondary small">未繳總額</div>
+					<div class="fs-5 fw-semibold text-danger"
+							th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalOutstanding, 1, 'COMMA')}">NT$ 0</div>
+				</div>
+			</div>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>費用名稱</th>
+					<th>應繳</th>
+					<th>已繳</th>
+					<th>期限</th>
+					<th>繳費日期</th>
+					<th>狀態</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(tuitionRecords)}">
+					<td colspan="7" class="text-center text-secondary py-4">目前尚無學費紀錄</td>
+				</tr>
+				<tr th:each="record : ${tuitionRecords}">
+					<td th:text="${record.title}">學費</td>
+					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountDue, 1, 'COMMA')}">NT$ 0</td>
+					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountPaid, 1, 'COMMA')}">NT$ 0</td>
+					<td th:text="${#temporals.format(record.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${record.paidDate == null ? '-' : #temporals.format(record.paidDate, 'yyyy-MM-dd')}">-</td>
+					<td>
+						<span th:if="${record.overdue}" class="badge text-bg-danger">逾期未繳</span>
+						<span th:unless="${record.overdue}"
+								th:class="${record.status.name() == 'PAID' ? 'badge text-bg-success' : (record.status.name() == 'PARTIALLY_PAID' ? 'badge text-bg-warning text-dark' : 'badge text-bg-secondary')}"
+								th:text="${record.status.displayName}">狀態</span>
+					</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a class="btn btn-sm btn-outline-primary"
+									th:href="@{/tuition/{id}/edit(id=${record.id})}">編輯</a>
+							<form th:if="${record.status.name() != 'PAID'}"
+									th:action="@{/tuition/{id}/paid(id=${record.id})}" method="post"
+									onsubmit="return confirm('確定已收到全部款項並設為已繳清嗎？');">
+								<button class="btn btn-sm btn-outline-success" type="submit">繳清</button>
+							</form>
+							<form th:action="@{/tuition/{id}/delete(id=${record.id})}" method="post"
+									onsubmit="return confirm('確定要刪除這筆學費紀錄嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
 		</div>
 	</section>
 

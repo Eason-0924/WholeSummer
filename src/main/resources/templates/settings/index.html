@@ -5,6 +5,39 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4">
+	<style>
+		.settings-fold {
+			overflow: hidden;
+		}
+		.settings-fold > summary {
+			align-items: center;
+			cursor: pointer;
+			display: flex;
+			font-size: 1.1rem;
+			font-weight: 600;
+			justify-content: space-between;
+			list-style: none;
+			padding: 1rem 1.25rem;
+		}
+		.settings-fold > summary::-webkit-details-marker {
+			display: none;
+		}
+		.settings-fold > summary::after {
+			content: "+";
+			font-size: 1.35rem;
+			font-weight: 400;
+			line-height: 1;
+		}
+		.settings-fold[open] > summary {
+			border-bottom: 1px solid var(--bs-border-color);
+		}
+		.settings-fold[open] > summary::after {
+			content: "−";
+		}
+		.settings-fold-content {
+			padding: 1.25rem;
+		}
+	</style>
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
 			<div class="page-title-line mb-1">
@@ -18,7 +51,8 @@
 	<div th:if="${message}" class="alert alert-success" th:text="${message}">已更新</div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
 
-	<section class="bg-white border rounded p-4 mb-4">
+	<section class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="畫面模式" data-settings-open>
 		<h2 class="h5 mb-3">畫面模式</h2>
 		<div class="btn-group" role="group" aria-label="畫面模式">
 			<input type="radio" class="btn-check" id="themeLight"
@@ -35,7 +69,8 @@
 		</div>
 	</section>
 
-	<section class="bg-white border rounded p-4 mb-4">
+	<section th:if="${teacherPermissions.generalSettings}" class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="一般設定">
 		<h2 class="h5 mb-3">一般設定</h2>
 		<form th:action="@{/settings/general}" method="post" class="row g-3">
 			<div class="col-md-6">
@@ -61,7 +96,8 @@
 		</form>
 	</section>
 
-	<section class="bg-white border rounded p-4 mb-4">
+	<section class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="個人登入密碼">
 		<h2 class="h5 mb-1">個人登入密碼</h2>
 		<div class="text-secondary small mb-3" th:text="${'目前登入：' + currentTeacherName}">目前登入：教師</div>
 		<form th:action="@{/settings/password}" method="post" class="row g-3">
@@ -87,9 +123,10 @@
 		</form>
 	</section>
 
-	<section th:if="${currentTeacherIsDirector}" class="bg-white border rounded p-4 mb-4">
+	<section th:if="${teacherPermissions.registrationCode}" class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="教師註冊安全碼">
 		<h2 class="h5 mb-1">教師註冊安全碼</h2>
-		<div class="text-secondary small mb-3">只有主任可以變更。新教師註冊時必須輸入此安全碼。</div>
+		<div class="text-secondary small mb-3">具此權限的教師可以變更。新教師註冊時必須輸入此安全碼。</div>
 		<form th:action="@{/settings/registration-code}" method="post" class="row g-3">
 			<div class="col-md-4">
 				<label for="currentRegistrationCode" class="form-label">目前安全碼</label>
@@ -112,7 +149,60 @@
 		</form>
 	</section>
 
-	<section id="bug-report" class="bg-white border rounded p-4 mb-4">
+	<section th:if="${currentTeacherIsDirector}" id="teacher-permissions"
+			class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="教師權限設定">
+		<h2 class="h5 mb-1">教師權限設定</h2>
+		<div class="text-secondary small mb-3">
+			主任固定擁有全部權限。教師預設可新增學生、班級，變更學生、班級資料及查看學生敏感資料；
+			輔導老師預設不授權，可再依工作需要個別設定，儲存後立即生效。
+		</div>
+		<div class="d-grid gap-3">
+			<form th:each="teacher : ${permissionTeachers}"
+					th:action="@{/settings/permissions/{id}(id=${teacher.id})}" method="post"
+					class="border rounded p-3">
+				<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+					<div>
+						<div class="fw-semibold" th:text="${teacher.displayName}">教師</div>
+						<div class="small text-secondary" th:text="${teacher.position.displayName}">職位</div>
+					</div>
+					<span th:if="${teacher.position.name() == 'DIRECTOR'}" class="badge text-bg-primary">
+						固定擁有全部權限
+					</span>
+					<button th:unless="${teacher.position.name() == 'DIRECTOR'}"
+							class="btn btn-sm btn-outline-primary" type="submit">儲存權限</button>
+				</div>
+				<div class="row g-2">
+					<div class="col-12 col-md-6 col-xl-4" th:each="permission : ${permissionTypes}">
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" name="permissions"
+									th:id="${'permission_' + teacher.id + '_' + permission.name()}"
+									th:value="${permission.name()}"
+									th:checked="${permissionGrants[teacher.id].contains(permission)}"
+									th:disabled="${teacher.position.name() == 'DIRECTOR'}">
+							<label class="form-check-label"
+									th:for="${'permission_' + teacher.id + '_' + permission.name()}"
+									th:text="${permission.displayName}">權限</label>
+						</div>
+					</div>
+				</div>
+			</form>
+		</div>
+	</section>
+
+	<section th:if="${currentTeacherIsDirector}" class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="操作紀錄">
+		<h2 class="h5 mb-1">操作紀錄</h2>
+		<div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+			<div class="text-secondary small">
+				查看各教師對學生、班級、測驗、作業、學費、設定及其他資料所進行的異動。
+			</div>
+			<a class="btn btn-outline-primary" th:href="@{/operation-logs}">查看操作紀錄</a>
+		</div>
+	</section>
+
+	<section id="bug-report" class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="問題與 Bug 回報">
 		<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
 			<div>
 				<h2 class="h5 mb-1">問題與 Bug 回報</h2>
@@ -217,8 +307,9 @@
 		</div>
 	</section>
 
-	<section th:if="${currentTeacherIsDirector}" id="system-update"
-			class="bg-white border rounded p-4 mb-4">
+	<section th:if="${teacherPermissions.systemUpdate}" id="system-update"
+			class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="系統更新">
 		<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
 			<div>
 				<h2 class="h5 mb-1">系統更新</h2>
@@ -266,7 +357,22 @@
 		</div>
 	</section>
 
-	<div th:replace="~{backup/index :: content}"></div>
+	<th:block th:if="${teacherPermissions.databaseBackup}">
+		<div th:replace="~{backup/index :: content}"></div>
+	</th:block>
+
+	<section th:if="${teacherPermissions.gradePromotion}" class="border border-danger rounded p-4 mt-4 mb-4"
+			data-settings-section data-settings-title="危險操作區域">
+		<div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+			<div>
+				<h2 class="h5 text-danger mb-1">危險操作區域</h2>
+				<div class="text-secondary small">
+					批次變更學生年級、畢業狀態與班級資料。執行前會分三個步驟逐項確認。
+				</div>
+			</div>
+			<a class="btn btn-outline-danger" th:href="@{/settings/grade-promotion(restart=true)}">一鍵升年級</a>
+		</div>
+	</section>
 
 	<div class="text-center text-secondary small py-3"
 			th:text="${'WholeSummer ' + appVersion}">WholeSummer 1.0.1</div>
@@ -274,5 +380,42 @@
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	document.querySelectorAll('[data-settings-section]').forEach(function (section) {
+		const details = document.createElement('details');
+		details.className = 'settings-fold bg-white border rounded mb-3';
+		if (section.classList.contains('border-danger')) {
+			details.classList.add('border-danger');
+		}
+		if (section.id) {
+			details.id = section.id;
+		}
+		details.open = section.hasAttribute('data-settings-open');
+
+		const summary = document.createElement('summary');
+		summary.textContent = section.dataset.settingsTitle;
+		const content = document.createElement('div');
+		content.className = 'settings-fold-content';
+		const repeatedHeading = section.querySelector('h1, h2');
+		if (repeatedHeading
+				&& repeatedHeading.textContent.trim() === section.dataset.settingsTitle) {
+			repeatedHeading.remove();
+		}
+
+		while (section.firstChild) {
+			content.appendChild(section.firstChild);
+		}
+		details.appendChild(summary);
+		details.appendChild(content);
+		section.replaceWith(details);
+	});
+
+	const requestedSection = window.location.hash
+			? document.querySelector(window.location.hash)
+			: null;
+	if (requestedSection instanceof HTMLDetailsElement) {
+		requestedSection.open = true;
+	}
+</script>
 </body>
 </html>

@@ -39,10 +39,6 @@ public class Teacher {
 	@Column(name = "hire_date")
 	private LocalDate hireDate;
 
-	@Column(name = "hourly_rate", nullable = false)
-	@ColumnDefault("0")
-	private Integer hourlyRate = 0;
-
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
 	@ColumnDefault("'TEACHER'")
@@ -126,14 +122,6 @@ public class Teacher {
 
 	public void setHireDate(LocalDate hireDate) {
 		this.hireDate = hireDate;
-	}
-
-	public Integer getHourlyRate() {
-		return hourlyRate == null ? 0 : hourlyRate;
-	}
-
-	public void setHourlyRate(Integer hourlyRate) {
-		this.hourlyRate = hourlyRate == null ? 0 : hourlyRate;
 	}
 
 	public TeacherPosition getPosition() {

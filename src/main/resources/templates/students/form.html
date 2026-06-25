@@ -42,6 +42,11 @@
 				</select>
 				<div class="invalid-feedback" th:errors="*{gender}">性別格式錯誤</div>
 			</div>
+			<div class="col-md-6"
+					th:if="${student == null or teacherPermissions.studentSensitiveView}">
+				<label for="birthday" class="form-label">生日</label>
+				<input type="date" id="birthday" class="form-control" th:field="*{birthday}">
+			</div>
 			<div class="col-md-6">
 				<label for="school" class="form-label">學校</label>
 				<input type="text" id="school" class="form-control" th:field="*{school}"
@@ -57,11 +62,15 @@
 				</select>
 				<div class="invalid-feedback" th:errors="*{grade}">年級格式錯誤</div>
 			</div>
-			<div class="col-md-6">
+			<div class="col-md-6"
+					th:if="${student == null or teacherPermissions.studentSensitiveView}">
 				<label for="phone" class="form-label">電話</label>
 				<input type="text" id="phone" class="form-control" th:field="*{phone}"
 						th:classappend="${#fields.hasErrors('phone')} ? 'is-invalid'">
 				<div class="invalid-feedback" th:errors="*{phone}">電話格式錯誤</div>
+			</div>
+			<div class="col-12" th:if="${student != null and !teacherPermissions.studentSensitiveView}">
+				<div class="alert alert-secondary mb-0">生日與電話已隱藏，儲存時會保留原資料。</div>
 			</div>
 			<div class="col-12">
 				<label for="note" class="form-label">備註</label>

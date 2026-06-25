@@ -1,6 +1,8 @@
 package com.example.cramschool.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
@@ -9,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.dto.TeacherAttendanceStats;
-import com.example.cramschool.dto.TeacherDailySchedule;
+import com.example.cramschool.dto.TeacherScheduleMatch;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAttendance;
 import com.example.cramschool.entity.TeacherAttendanceStatus;
@@ -35,6 +37,20 @@ public class TeacherAttendanceService {
 	@Transactional(readOnly = true)
 	public List<TeacherAttendance> findByTeacherId(Long teacherId) {
 		return teacherAttendanceRepository.findByTeacherIdOrderByDateDescIdDesc(teacherId);
+	}
+
+	public List<TeacherAttendance> findByTeacherIdAndMonth(Long teacherId, YearMonth month) {
+		YearMonth targetMonth = month == null ? YearMonth.now() : month;
+		List<TeacherAttendance> attendances = teacherAttendanceRepository.findByTeacherIdAndDateBetweenOrderByDateAsc(
+				teacherId, targetMonth.atDay(1), targetMonth.atEndOfMonth());
+		for (TeacherAttendance attendance : attendances) {
+			if (!attendance.hasMatchedCourse() && !attendance.isManualAdjusted()
+					&& (attendance.getStatus() == TeacherAttendanceStatus.WORKING
+							|| attendance.getStatus() == TeacherAttendanceStatus.LATE)) {
+				applySchedule(attendance, attendance.getStatus());
+			}
+		}
+		return teacherAttendanceRepository.saveAll(attendances);
 	}
 
 	@Transactional(readOnly = true)
@@ -120,6 +136,45 @@ public class TeacherAttendanceService {
 		teacherAttendanceRepository.deleteByTeacherId(teacherId);
 	}
 
+	public TeacherAttendance updateManualAdjustment(Long attendanceId, String manualRemark,
+			BigDecimal manualHours, Long currentTeacherId, boolean currentTeacherIsDirector) {
+		TeacherAttendance attendance = teacherAttendanceRepository.findById(attendanceId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到打卡紀錄"));
+		applyManualAdjustment(attendance, manualRemark, manualHours,
+				currentTeacherId, currentTeacherIsDirector);
+		return teacherAttendanceRepository.save(attendance);
+	}
+
+	void applyManualAdjustment(TeacherAttendance attendance, String manualRemark,
+			BigDecimal manualHours, Long currentTeacherId, boolean currentTeacherIsDirector) {
+		if (!currentTeacherIsDirector) {
+			throw new IllegalArgumentException("只有主任可以調整打卡紀錄");
+		}
+		if (attendance.hasMatchedCourse()) {
+			throw new IllegalArgumentException("已有對應課程的打卡紀錄不可手動調整");
+		}
+		if (manualHours == null) {
+			throw new IllegalArgumentException("請輸入上課時數");
+		}
+		if (manualHours.compareTo(BigDecimal.ZERO) < 0) {
+			throw new IllegalArgumentException("上課時數不可小於 0");
+		}
+		if (manualHours.compareTo(BigDecimal.valueOf(24)) > 0) {
+			throw new IllegalArgumentException("上課時數不可超過 24 小時");
+		}
+		String normalizedRemark = manualRemark == null ? null : manualRemark.trim();
+		if (normalizedRemark != null && normalizedRemark.length() > 255) {
+			throw new IllegalArgumentException("備註不可超過 255 個字");
+		}
+		attendance.setManualRemark(normalizedRemark == null || normalizedRemark.isBlank()
+				? null : normalizedRemark);
+		attendance.setManualHours(manualHours);
+		attendance.setManualAdjusted(true);
+		attendance.setAdjustedByTeacherId(currentTeacherId);
+		attendance.setAdjustedAt(LocalDateTime.now());
+		attendance.setWorkMinutes(0L);
+	}
+
 	private TeacherAttendanceForm todayForm(Long teacherId) {
 		TeacherAttendance existing = teacherAttendanceRepository.findByTeacherIdAndDate(teacherId, LocalDate.now())
 				.orElse(null);
@@ -137,15 +192,26 @@ public class TeacherAttendanceService {
 			attendance.setStatus(requestedStatus);
 			attendance.setWorkMinutes(0L);
 			attendance.setScheduledTimeText(null);
+			clearCourseMatch(attendance);
 			return;
 		}
 
-		TeacherDailySchedule schedule = teacherScheduleService.findDailySchedule(
-				attendance.getTeacher().getId(), attendance.getDate());
-		attendance.setWorkMinutes(schedule.getWorkMinutes());
-		attendance.setScheduledTimeText(schedule.getTimeRangeText());
-		LocalTime firstClassStart = schedule.getFirstStartTime();
-		attendance.setStatus(resolveWorkingStatus(attendance.getClockInTime(), firstClassStart));
+		TeacherScheduleMatch match = teacherScheduleService.findMatchedSchedule(
+				attendance.getTeacher().getId(), attendance.getDate(),
+				attendance.getClockInTime(), attendance.getClockOutTime());
+		attendance.setMatchedCourseId(match.firstScheduleId());
+		attendance.setMatchedCourseName(match.courseNames());
+		attendance.setMatchedCourseTimeText(match.timeRangeText());
+		attendance.setWorkMinutes(match.workMinutes());
+		attendance.setScheduledTimeText(match.timeRangeText());
+		attendance.setStatus(resolveWorkingStatus(
+				attendance.getClockInTime(), match.firstStartTime()));
+	}
+
+	private void clearCourseMatch(TeacherAttendance attendance) {
+		attendance.setMatchedCourseId(null);
+		attendance.setMatchedCourseName(null);
+		attendance.setMatchedCourseTimeText(null);
 	}
 
 	TeacherAttendanceStatus resolveWorkingStatus(LocalTime clockInTime, LocalTime firstClassStart) {

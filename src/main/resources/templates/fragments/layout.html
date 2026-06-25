@@ -646,6 +646,7 @@
 				<li class="nav-item"><a class="nav-link" th:href="@{/subjects}">科目</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/exams}">測驗</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/homeworks}">作業</a></li>
+				<li th:if="${teacherPermissions.manageTuition}" class="nav-item"><a class="nav-link" th:href="@{/tuition}">學費</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/salary}">薪資</a></li>
 				<li class="nav-item"><a class="nav-link settings-nav-link" th:href="@{/settings}" aria-label="設定">⚙</a></li>
 				<li class="nav-item d-flex align-items-center">

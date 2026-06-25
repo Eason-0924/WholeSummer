@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.cramschool.dto.TeacherSalarySummary;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherMonthlySalary;
-import com.example.cramschool.repository.TeacherAttendanceRepository;
 import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.repository.TeacherRepository;
 
@@ -19,14 +18,14 @@ import com.example.cramschool.repository.TeacherRepository;
 public class TeacherSalaryService {
 
 	private final TeacherRepository teacherRepository;
-	private final TeacherAttendanceRepository teacherAttendanceRepository;
+	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
 
 	public TeacherSalaryService(TeacherRepository teacherRepository,
-			TeacherAttendanceRepository teacherAttendanceRepository,
+			TeacherAttendanceService teacherAttendanceService,
 			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository) {
 		this.teacherRepository = teacherRepository;
-		this.teacherAttendanceRepository = teacherAttendanceRepository;
+		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherMonthlySalaryRepository = teacherMonthlySalaryRepository;
 	}
 
@@ -34,10 +33,8 @@ public class TeacherSalaryService {
 		Teacher teacher = teacherRepository.findById(teacherId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
 		YearMonth targetMonth = month == null ? YearMonth.now() : month;
-		long workMinutes = teacherAttendanceRepository
-				.findByTeacherIdAndDateBetweenOrderByDateAsc(
-						teacherId, targetMonth.atDay(1), targetMonth.atEndOfMonth())
-				.stream()
+		var attendanceRecords = teacherAttendanceService.findByTeacherIdAndMonth(teacherId, targetMonth);
+		long workMinutes = attendanceRecords.stream()
 				.mapToLong(attendance -> attendance.getWorkMinutes())
 				.sum();
 		TeacherMonthlySalary monthlySalary = teacherMonthlySalaryRepository
@@ -50,7 +47,7 @@ public class TeacherSalaryService {
 			monthlySalary.setSalaryMonth(targetMonth.getMonthValue());
 		}
 		TeacherSalarySummary summary = new TeacherSalarySummary(
-				teacher, workMinutes, monthlySalary.getHourlyRate());
+				teacher, workMinutes, monthlySalary.getHourlyRate(), attendanceRecords);
 		monthlySalary.setWorkMinutes(workMinutes);
 		monthlySalary.setTotalSalary(summary.getSalary());
 		teacherMonthlySalaryRepository.save(monthlySalary);

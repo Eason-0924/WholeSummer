@@ -65,6 +65,7 @@
 		}
 	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
@@ -74,7 +75,8 @@
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
-			<a class="btn btn-primary" th:href="@{/classes/new}">新增班級</a>
+			<a th:if="${teacherPermissions.classCreate}" class="btn btn-primary"
+					th:href="@{/classes/new}">新增班級</a>
 		</div>
 	</div>
 
@@ -111,7 +113,7 @@
 					</td>
 					<td th:text="${classStudentCounts[classRoom.id]}">0</td>
 					<td class="text-end">
-						<div class="class-actions d-inline-flex gap-2">
+						<div th:if="${teacherPermissions.classUpdate}" class="class-actions d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
 									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
 							<form th:action="@{/classes/{id}/deactivate(id=${classRoom.id})}"
@@ -219,7 +221,7 @@
 					</td>
 					<td th:text="${classStudentCounts[classRoom.id]}">0</td>
 					<td class="text-end">
-						<div class="class-actions d-inline-flex gap-2">
+						<div th:if="${teacherPermissions.classUpdate}" class="class-actions d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
 									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
 							<form th:action="@{/classes/{id}/activate(id=${classRoom.id})}"

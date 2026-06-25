@@ -2,7 +2,6 @@ package com.example.cramschool.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -53,7 +52,7 @@ public class TeacherAccountService {
 		if (!systemSettingService.matchesRegistrationCode(form.getRegistrationCode())) {
 			throw new IllegalArgumentException("教師註冊安全碼不正確");
 		}
-		if (teacherAccountRepository.existsByUsernameIgnoreCase(username)) {
+		if (teacherAccountRepository.existsByUsernameCaseSensitive(username) != 0) {
 			throw new IllegalArgumentException("此帳號已被使用");
 		}
 		if (!form.getPassword().equals(form.getConfirmPassword())) {
@@ -97,7 +96,7 @@ public class TeacherAccountService {
 
 	public Optional<TeacherAccount> authenticate(String username, String password) {
 		Optional<TeacherAccount> accountOptional = teacherAccountRepository
-				.findByUsernameIgnoreCase(normalizeUsername(username));
+				.findByUsernameCaseSensitive(normalizeUsername(username));
 		if (accountOptional.isEmpty()) {
 			return Optional.empty();
 		}
@@ -167,6 +166,6 @@ public class TeacherAccountService {
 	}
 
 	private String normalizeUsername(String username) {
-		return username == null ? "" : username.trim().toLowerCase(Locale.ROOT);
+		return username == null ? "" : username.trim();
 	}
 }

@@ -1,6 +1,7 @@
 package com.example.cramschool.entity;
 
-import java.time.Duration;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -47,6 +48,30 @@ public class TeacherAttendance {
 	@Column(name = "scheduled_time_text", length = 500)
 	private String scheduledTimeText;
 
+	@Column(name = "matched_course_id")
+	private Long matchedCourseId;
+
+	@Column(name = "matched_course_name", length = 1000)
+	private String matchedCourseName;
+
+	@Column(name = "matched_course_time_text", length = 500)
+	private String matchedCourseTimeText;
+
+	@Column(name = "manual_remark", length = 255)
+	private String manualRemark;
+
+	@Column(name = "manual_hours", precision = 5, scale = 2)
+	private BigDecimal manualHours;
+
+	@Column(name = "manual_adjusted", nullable = false)
+	private boolean manualAdjusted;
+
+	@Column(name = "adjusted_by_teacher_id")
+	private Long adjustedByTeacherId;
+
+	@Column(name = "adjusted_at")
+	private LocalDateTime adjustedAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
 	private TeacherAttendanceStatus status = TeacherAttendanceStatus.WORKING;
@@ -84,13 +109,15 @@ public class TeacherAttendance {
 		if (status != TeacherAttendanceStatus.WORKING && status != TeacherAttendanceStatus.LATE) {
 			return 0;
 		}
-		if (workMinutes != null) {
+		if (matchedCourseId != null && workMinutes != null) {
 			return workMinutes;
 		}
-		if (clockInTime == null || clockOutTime == null || clockOutTime.isBefore(clockInTime)) {
-			return 0;
+		if (matchedCourseId == null && manualAdjusted && manualHours != null) {
+			return manualHours.multiply(BigDecimal.valueOf(60))
+					.setScale(0, RoundingMode.HALF_UP)
+					.longValue();
 		}
-		return Duration.between(clockInTime, clockOutTime).toMinutes();
+		return 0;
 	}
 
 	public Long getId() {
@@ -147,6 +174,79 @@ public class TeacherAttendance {
 
 	public void setScheduledTimeText(String scheduledTimeText) {
 		this.scheduledTimeText = scheduledTimeText;
+	}
+
+	public Long getMatchedCourseId() {
+		return matchedCourseId;
+	}
+
+	public void setMatchedCourseId(Long matchedCourseId) {
+		this.matchedCourseId = matchedCourseId;
+	}
+
+	public String getMatchedCourseName() {
+		return matchedCourseName;
+	}
+
+	public void setMatchedCourseName(String matchedCourseName) {
+		this.matchedCourseName = matchedCourseName;
+	}
+
+	public String getMatchedCourseTimeText() {
+		return matchedCourseTimeText;
+	}
+
+	public void setMatchedCourseTimeText(String matchedCourseTimeText) {
+		this.matchedCourseTimeText = matchedCourseTimeText;
+	}
+
+	public String getManualRemark() {
+		return manualRemark;
+	}
+
+	public void setManualRemark(String manualRemark) {
+		this.manualRemark = manualRemark;
+	}
+
+	public BigDecimal getManualHours() {
+		return manualHours;
+	}
+
+	public void setManualHours(BigDecimal manualHours) {
+		this.manualHours = manualHours;
+	}
+
+	public boolean isManualAdjusted() {
+		return manualAdjusted;
+	}
+
+	public void setManualAdjusted(boolean manualAdjusted) {
+		this.manualAdjusted = manualAdjusted;
+	}
+
+	public Long getAdjustedByTeacherId() {
+		return adjustedByTeacherId;
+	}
+
+	public void setAdjustedByTeacherId(Long adjustedByTeacherId) {
+		this.adjustedByTeacherId = adjustedByTeacherId;
+	}
+
+	public LocalDateTime getAdjustedAt() {
+		return adjustedAt;
+	}
+
+	public void setAdjustedAt(LocalDateTime adjustedAt) {
+		this.adjustedAt = adjustedAt;
+	}
+
+	public boolean hasMatchedCourse() {
+		return matchedCourseId != null;
+	}
+
+	public String getCountedHoursText() {
+		long minutes = getWorkMinutes();
+		return minutes == 0 ? "0 小時" : minutes / 60 + " 小時 " + minutes % 60 + " 分";
 	}
 
 	public TeacherAttendanceStatus getStatus() {

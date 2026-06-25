@@ -1,5 +1,6 @@
 package com.example.cramschool.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -27,6 +28,9 @@ public class Student {
 
 	@Column(length = 20)
 	private String gender;
+
+	@Column
+	private LocalDate birthday;
 
 	@Column(length = 100)
 	private String school;
@@ -107,6 +111,14 @@ public class Student {
 
 	public void setGender(String gender) {
 		this.gender = gender;
+	}
+
+	public LocalDate getBirthday() {
+		return birthday;
+	}
+
+	public void setBirthday(LocalDate birthday) {
+		this.birthday = birthday;
 	}
 
 	public String getSchool() {

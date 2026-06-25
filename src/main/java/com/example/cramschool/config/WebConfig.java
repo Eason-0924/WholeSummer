@@ -8,9 +8,11 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebConfig implements WebMvcConfigurer {
 
 	private final AuthInterceptor authInterceptor;
+	private final OperationLogInterceptor operationLogInterceptor;
 
-	public WebConfig(AuthInterceptor authInterceptor) {
+	public WebConfig(AuthInterceptor authInterceptor, OperationLogInterceptor operationLogInterceptor) {
 		this.authInterceptor = authInterceptor;
+		this.operationLogInterceptor = operationLogInterceptor;
 	}
 
 	@Override
@@ -20,6 +22,16 @@ public class WebConfig implements WebMvcConfigurer {
 				.excludePathPatterns(
 						"/login",
 						"/register",
+						"/error",
+						"/favicon.ico",
+						"/css/**",
+						"/js/**",
+						"/images/**",
+						"/webjars/**");
+		registry.addInterceptor(operationLogInterceptor)
+				.addPathPatterns("/**")
+				.excludePathPatterns(
+						"/logout",
 						"/error",
 						"/favicon.ico",
 						"/css/**",

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line">
+			<h1 class="h3 mb-0">學費管理</h1>
+			<span th:replace="~{fragments/layout :: help('管理學生個別應繳費用與繳費狀況。\n目前不使用學費方案，每筆費用需個別建立。')}"></span>
+		</div>
+		<a class="btn btn-primary" th:href="@{/tuition/new}">新增學費紀錄</a>
+	</div>
+
+	<section class="row g-3 mb-4">
+		<div class="col-12 col-md-4">
+			<div class="bg-white border rounded p-3 h-100">
+				<div class="text-secondary small">應繳總額</div>
+				<div class="fs-4 fw-semibold"
+						th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalDue, 1, 'COMMA')}">NT$ 0</div>
+			</div>
+		</div>
+		<div class="col-12 col-md-4">
+			<div class="bg-white border rounded p-3 h-100">
+				<div class="text-secondary small">已繳總額</div>
+				<div class="fs-4 fw-semibold text-success"
+						th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalPaid, 1, 'COMMA')}">NT$ 0</div>
+			</div>
+		</div>
+		<div class="col-12 col-md-4">
+			<div class="bg-white border rounded p-3 h-100">
+				<div class="text-secondary small">未繳總額</div>
+				<div class="fs-4 fw-semibold text-danger"
+						th:text="${'NT$ ' + #numbers.formatInteger(tuitionSummary.totalOutstanding, 1, 'COMMA')}">NT$ 0</div>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0">學費紀錄</h2>
+			<span class="badge text-bg-primary" th:text="${#lists.size(tuitionRecords)}">0</span>
+			<span th:if="${tuitionSummary.overdueCount > 0}" class="badge text-bg-danger"
+					th:text="${'逾期 ' + tuitionSummary.overdueCount}">逾期 0</span>
+		</div>
+		<div class="table-responsive bg-white border rounded">
+			<table class="table table-hover align-middle mb-0">
+				<thead class="table-light">
+				<tr>
+					<th>學生</th>
+					<th>費用名稱</th>
+					<th>應繳</th>
+					<th>已繳</th>
+					<th>未繳</th>
+					<th>期限</th>
+					<th>狀態</th>
+					<th class="text-end">操作</th>
+				</tr>
+				</thead>
+				<tbody>
+				<tr th:if="${#lists.isEmpty(tuitionRecords)}">
+					<td colspan="8" class="text-center text-secondary py-4">目前尚無學費紀錄</td>
+				</tr>
+				<tr th:each="record : ${tuitionRecords}">
+					<td>
+						<a th:href="@{/students/{id}(id=${record.student.id})}"
+								th:text="${record.student.displayName}">學生</a>
+					</td>
+					<td th:text="${record.title}">學費</td>
+					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountDue, 1, 'COMMA')}">NT$ 0</td>
+					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountPaid, 1, 'COMMA')}">NT$ 0</td>
+					<td th:text="${'NT$ ' + #numbers.formatInteger(record.outstandingAmount, 1, 'COMMA')}">NT$ 0</td>
+					<td th:text="${#temporals.format(record.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td>
+						<span th:if="${record.overdue}" class="badge text-bg-danger">逾期未繳</span>
+						<span th:unless="${record.overdue}"
+								th:class="${record.status.name() == 'PAID' ? 'badge text-bg-success' : (record.status.name() == 'PARTIALLY_PAID' ? 'badge text-bg-warning text-dark' : 'badge text-bg-secondary')}"
+								th:text="${record.status.displayName}">狀態</span>
+					</td>
+					<td class="text-end">
+						<div class="d-inline-flex gap-2">
+							<a class="btn btn-sm btn-outline-primary"
+									th:href="@{/tuition/{id}/edit(id=${record.id})}">編輯</a>
+							<form th:if="${record.status.name() != 'PAID'}"
+									th:action="@{/tuition/{id}/paid(id=${record.id})}" method="post"
+									onsubmit="return confirm('確定已收到全部款項並設為已繳清嗎？');">
+								<button class="btn btn-sm btn-outline-success" type="submit">繳清</button>
+							</form>
+							<form th:action="@{/tuition/{id}/delete(id=${record.id})}" method="post"
+									onsubmit="return confirm('確定要刪除這筆學費紀錄嗎？');">
+								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

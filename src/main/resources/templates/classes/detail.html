@@ -18,8 +18,10 @@
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/classes}">返回</a>
 			<a class="btn btn-outline-success" th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
-			<a class="btn btn-outline-primary" th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
-			<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+			<a th:if="${teacherPermissions.classUpdate}" class="btn btn-outline-primary"
+					th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
+			<form th:if="${teacherPermissions.classUpdate}"
+					th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
 					method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
 				<button class="btn btn-outline-danger" type="submit">刪除</button>
 			</form>
@@ -81,7 +83,8 @@
 			</div>
 		</div>
 
-		<form id="addStudentForm" class="row g-2 align-items-end mb-4"
+		<form th:if="${teacherPermissions.classUpdate}" id="addStudentForm"
+				class="row g-2 align-items-end mb-4"
 				th:action="@{/classes/{id}/students(id=${classRoom.id})}" method="post"
 				th:data-class-grade="${classRoom.grade}">
 			<div class="col-md-8">
@@ -126,7 +129,8 @@
 					<td th:text="${classStudent.student.school ?: '-'}">-</td>
 					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy-MM-dd HH:mm')}">-</td>
 					<td class="text-end">
-						<form th:action="@{/classes/{id}/students/{classStudentId}/remove(id=${classRoom.id}, classStudentId=${classStudent.id})}"
+						<form th:if="${teacherPermissions.classUpdate}"
+								th:action="@{/classes/{id}/students/{classStudentId}/remove(id=${classRoom.id}, classStudentId=${classStudent.id})}"
 								method="post" onsubmit="return confirm('確定要刪除這筆班級學生紀錄嗎？');">
 							<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 						</form>

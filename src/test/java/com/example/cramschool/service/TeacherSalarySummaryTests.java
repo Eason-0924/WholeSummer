@@ -14,9 +14,9 @@ class TeacherSalarySummaryTests {
 		Teacher teacher = new Teacher();
 
 		TeacherSalarySummary juneSummary = new TeacherSalarySummary(
-				teacher, 150, 600);
+				teacher, 150, 600, java.util.List.of());
 		TeacherSalarySummary julySummary = new TeacherSalarySummary(
-				teacher, 150, 800);
+				teacher, 150, 800, java.util.List.of());
 
 		assertThat(juneSummary.getSalary()).isEqualByComparingTo("1500.00");
 		assertThat(juneSummary.getHourlyRate()).isEqualTo(600);

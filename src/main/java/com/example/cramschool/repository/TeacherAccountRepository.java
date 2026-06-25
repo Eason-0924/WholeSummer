@@ -5,21 +5,27 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.entity.TeacherAccount;
 
 public interface TeacherAccountRepository extends JpaRepository<TeacherAccount, Long> {
 
-	@EntityGraph(attributePaths = "teacher")
-	Optional<TeacherAccount> findByUsernameIgnoreCase(String username);
+	@Query(value = "SELECT * FROM teacher_accounts WHERE BINARY username = :username", nativeQuery = true)
+	Optional<TeacherAccount> findByUsernameCaseSensitive(@Param("username") String username);
 
 	@EntityGraph(attributePaths = "teacher")
 	Optional<TeacherAccount> findByTeacherId(Long teacherId);
 
-	boolean existsByUsernameIgnoreCase(String username);
+	@Query(value = "SELECT EXISTS(SELECT 1 FROM teacher_accounts WHERE BINARY username = :username)",
+			nativeQuery = true)
+	int existsByUsernameCaseSensitive(@Param("username") String username);
 
 	boolean existsByTeacherId(Long teacherId);
 
+	@Transactional
 	void deleteByTeacherId(Long teacherId);
 
 	@Override

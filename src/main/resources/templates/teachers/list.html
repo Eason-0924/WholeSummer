@@ -17,7 +17,7 @@
 		</div>
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-success" th:href="@{/teachers/attendance}">教師出勤</a>
-			<a class="btn btn-primary" th:href="@{/teachers/new}">新增教師</a>
+			<a th:if="${teacherPermissions.createTeacher}" class="btn btn-primary" th:href="@{/teachers/new}">新增教師</a>
 		</div>
 	</div>
 
@@ -49,17 +49,22 @@
 					</td>
 					<td th:text="${teacher.nickname ?: '-'}">-</td>
 					<td th:text="${teacher.position.displayName}">教師</td>
-					<td th:text="${teacher.phone ?: '-'}">-</td>
-					<td th:text="${teacher.email ?: '-'}">-</td>
+					<td th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.phone ?: '-') : '無權限查看'}">-</td>
+					<td th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.email ?: '-') : '無權限查看'}">-</td>
 					<td th:text="${classCounts[teacher.id] ?: 0}">0</td>
 					<td class="text-end">
-						<div class="d-inline-flex gap-2">
-							<a class="btn btn-sm btn-outline-primary" th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
-							<form th:action="@{/teachers/{id}/left(id=${teacher.id})}"
+						<div th:if="${teacherPermissions.teacherUpdate or teacher.id == currentTeacherId}"
+								class="d-inline-flex gap-2">
+							<a th:if="${teacherPermissions.teacherUpdate or teacher.id == currentTeacherId}"
+									class="btn btn-sm btn-outline-primary"
+									th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
+							<form th:if="${teacherPermissions.teacherUpdate}"
+									th:action="@{/teachers/{id}/left(id=${teacher.id})}"
 									method="post" onsubmit="return confirm('確定要將這位教師設為已離職嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">離職</button>
 							</form>
-							<form th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
+							<form th:if="${teacherPermissions.teacherUpdate}"
+									th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這位教師嗎？班級與科目中的教師關聯會一併移除。');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
@@ -99,17 +104,22 @@
 					</td>
 					<td th:text="${teacher.nickname ?: '-'}">-</td>
 					<td th:text="${teacher.position.displayName}">教師</td>
-					<td th:text="${teacher.phone ?: '-'}">-</td>
-					<td th:text="${teacher.email ?: '-'}">-</td>
+					<td th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.phone ?: '-') : '無權限查看'}">-</td>
+					<td th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.email ?: '-') : '無權限查看'}">-</td>
 					<td th:text="${classCounts[teacher.id] ?: 0}">0</td>
 					<td class="text-end">
-						<div class="d-inline-flex gap-2">
-							<a class="btn btn-sm btn-outline-primary" th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
-							<form th:action="@{/teachers/{id}/reinstate(id=${teacher.id})}"
+						<div th:if="${teacherPermissions.teacherUpdate or teacher.id == currentTeacherId}"
+								class="d-inline-flex gap-2">
+							<a th:if="${teacherPermissions.teacherUpdate or teacher.id == currentTeacherId}"
+									class="btn btn-sm btn-outline-primary"
+									th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
+							<form th:if="${teacherPermissions.teacherUpdate}"
+									th:action="@{/teachers/{id}/reinstate(id=${teacher.id})}"
 									method="post">
 								<button class="btn btn-sm btn-outline-success" type="submit">復職</button>
 							</form>
-							<form th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
+							<form th:if="${teacherPermissions.teacherUpdate}"
+									th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這位教師嗎？班級與科目中的教師關聯會一併移除。');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>

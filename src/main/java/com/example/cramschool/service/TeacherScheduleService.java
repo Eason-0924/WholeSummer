@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.dto.TeacherDailySchedule;
 import com.example.cramschool.dto.TeacherDailySchedule.TimeRange;
+import com.example.cramschool.dto.TeacherScheduleMatch;
+import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.repository.ClassRoomRepository;
 
@@ -54,6 +56,54 @@ public class TeacherScheduleService {
 		return mergeTimeRanges(ranges);
 	}
 
+	public TeacherScheduleMatch findMatchedSchedule(Long teacherId, LocalDate date,
+			LocalTime clockInTime, LocalTime clockOutTime) {
+		if (teacherId == null || date == null || clockInTime == null || clockOutTime == null
+				|| !clockOutTime.isAfter(clockInTime)) {
+			return TeacherScheduleMatch.empty();
+		}
+		return matchSchedules(
+				classRoomRepository.findByTeacherIdAndActiveTrueOrderByGradeAscIdAsc(teacherId),
+				date, clockInTime, clockOutTime);
+	}
+
+	TeacherScheduleMatch matchSchedules(List<ClassRoom> classRooms, LocalDate date,
+			LocalTime clockInTime, LocalTime clockOutTime) {
+		if (date == null || clockInTime == null || clockOutTime == null
+				|| !clockOutTime.isAfter(clockInTime)) {
+			return TeacherScheduleMatch.empty();
+		}
+		String weekday = WEEKDAY_NAMES.get(date.getDayOfWeek());
+		List<MatchedClassSchedule> matchedSchedules = classRooms.stream()
+				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> weekday.equals(schedule.getWeekday()))
+						.filter(this::hasValidTimeRange)
+						.filter(schedule -> overlaps(
+								clockInTime, clockOutTime,
+								schedule.getStartTime(), schedule.getEndTime()))
+						.map(schedule -> new MatchedClassSchedule(classRoom, schedule)))
+				.sorted(Comparator.comparing(
+						matched -> matched.schedule().getStartTime()))
+				.toList();
+		if (matchedSchedules.isEmpty()) {
+			return TeacherScheduleMatch.empty();
+		}
+		TeacherDailySchedule mergedSchedule = mergeTimeRanges(matchedSchedules.stream()
+				.map(matched -> new TimeRange(
+						matched.schedule().getStartTime(), matched.schedule().getEndTime()))
+				.toList());
+		String courseNames = matchedSchedules.stream()
+				.map(matched -> matched.classRoom().getDisplayName())
+				.distinct()
+				.collect(java.util.stream.Collectors.joining("、"));
+		return new TeacherScheduleMatch(
+				matchedSchedules.getFirst().schedule().getId(),
+				courseNames,
+				mergedSchedule.getTimeRangeText(),
+				mergedSchedule.getWorkMinutes(),
+				mergedSchedule.getFirstStartTime());
+	}
+
 	TeacherDailySchedule mergeTimeRanges(List<TimeRange> ranges) {
 		if (ranges.isEmpty()) {
 			return TeacherDailySchedule.empty();
@@ -90,5 +140,13 @@ public class TeacherScheduleService {
 		return schedule.getStartTime() != null
 				&& schedule.getEndTime() != null
 				&& schedule.getEndTime().isAfter(schedule.getStartTime());
+	}
+
+	private boolean overlaps(LocalTime attendanceStart, LocalTime attendanceEnd,
+			LocalTime courseStart, LocalTime courseEnd) {
+		return attendanceStart.isBefore(courseEnd) && attendanceEnd.isAfter(courseStart);
+	}
+
+	private record MatchedClassSchedule(ClassRoom classRoom, ClassSchedule schedule) {
 	}
 }

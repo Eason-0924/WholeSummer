@@ -1,5 +1,9 @@
 package com.example.cramschool.form;
 
+import java.time.LocalDate;
+
+import org.springframework.format.annotation.DateTimeFormat;
+
 import com.example.cramschool.entity.Student;
 
 import jakarta.validation.constraints.NotBlank;
@@ -16,6 +20,9 @@ public class StudentForm {
 
 	@Size(max = 20, message = "性別不可超過 20 個字")
 	private String gender;
+
+	@DateTimeFormat(pattern = "yyyy-MM-dd")
+	private LocalDate birthday;
 
 	@Size(max = 100, message = "學校不可超過 100 個字")
 	private String school;
@@ -34,6 +41,7 @@ public class StudentForm {
 		form.setChineseName(student.getChineseName());
 		form.setEnglishName(student.getEnglishName());
 		form.setGender(student.getGender());
+		form.setBirthday(student.getBirthday());
 		form.setSchool(student.getSchool());
 		form.setGrade(student.getGrade());
 		form.setPhone(student.getPhone());
@@ -45,6 +53,7 @@ public class StudentForm {
 		student.setChineseName(chineseName);
 		student.setEnglishName(englishName);
 		student.setGender(gender);
+		student.setBirthday(birthday);
 		student.setSchool(school);
 		student.setGrade(grade);
 		student.setPhone(phone);
@@ -73,6 +82,14 @@ public class StudentForm {
 
 	public void setGender(String gender) {
 		this.gender = gender;
+	}
+
+	public LocalDate getBirthday() {
+		return birthday;
+	}
+
+	public void setBirthday(LocalDate birthday) {
+		this.birthday = birthday;
 	}
 
 	public String getSchool() {

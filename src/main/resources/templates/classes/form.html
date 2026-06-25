@@ -135,7 +135,8 @@
 			const grades = option.dataset.grades || '';
 			const isEmptyOption = option.value === '';
 			const supportsGrade = grades.split(',').includes(selectedGrade);
-			if (isEmptyOption || !selectedGrade || supportsGrade) {
+			const preservesCollegeClassSubject = selectedGrade === '大一' && option.value === currentSubjectId;
+			if (isEmptyOption || !selectedGrade || supportsGrade || preservesCollegeClassSubject) {
 				const clonedOption = option.cloneNode(true);
 				clonedOption.selected = clonedOption.value === currentSubjectId;
 				subjectSelect.appendChild(clonedOption);

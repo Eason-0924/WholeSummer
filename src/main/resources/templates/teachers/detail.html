@@ -18,16 +18,21 @@
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/teachers}">返回</a>
 			<a class="btn btn-outline-success" th:href="@{/teachers/attendance}">出勤</a>
-			<a class="btn btn-outline-primary" th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
-			<form th:if="${teacher.status.name() == 'ACTIVE'}" th:action="@{/teachers/{id}/left(id=${teacher.id})}"
+			<a th:if="${teacherPermissions.teacherUpdate or teacher.id == currentTeacherId}"
+					class="btn btn-outline-primary"
+					th:href="@{/teachers/{id}/edit(id=${teacher.id})}">編輯</a>
+			<form th:if="${teacherPermissions.teacherUpdate and teacher.status.name() == 'ACTIVE'}"
+					th:action="@{/teachers/{id}/left(id=${teacher.id})}"
 					method="post" onsubmit="return confirm('確定要將這位教師設為已離職嗎？');">
 				<button class="btn btn-outline-danger" type="submit">離職</button>
 			</form>
-			<form th:if="${teacher.status.name() == 'LEFT'}" th:action="@{/teachers/{id}/reinstate(id=${teacher.id})}"
+			<form th:if="${teacherPermissions.teacherUpdate and teacher.status.name() == 'LEFT'}"
+					th:action="@{/teachers/{id}/reinstate(id=${teacher.id})}"
 					method="post">
 				<button class="btn btn-outline-success" type="submit">復職</button>
 			</form>
-			<form th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
+			<form th:if="${teacherPermissions.teacherUpdate}"
+					th:action="@{/teachers/{id}/delete(id=${teacher.id})}"
 					method="post" onsubmit="return confirm('確定要永久刪除這位教師嗎？班級與科目中的教師關聯會一併移除。');">
 				<button class="btn btn-outline-danger" type="submit">刪除</button>
 			</form>
@@ -46,11 +51,11 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">電話</div>
-				<div th:text="${teacher.phone ?: '-'}">-</div>
+				<div th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.phone ?: '-') : '無權限查看'}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">Email</div>
-				<div th:text="${teacher.email ?: '-'}">-</div>
+				<div th:text="${teacherPermissions.teacherSensitiveView or teacher.id == currentTeacherId ? (teacher.email ?: '-') : '無權限查看'}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">到職日</div>

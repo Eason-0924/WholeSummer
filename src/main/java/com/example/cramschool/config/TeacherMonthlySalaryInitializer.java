@@ -36,7 +36,7 @@ public class TeacherMonthlySalaryInitializer implements ApplicationRunner {
 			monthlySalary.setTeacher(teacher);
 			monthlySalary.setSalaryYear(currentMonth.getYear());
 			monthlySalary.setSalaryMonth(currentMonth.getMonthValue());
-			monthlySalary.setHourlyRate(teacher.getHourlyRate());
+			monthlySalary.setHourlyRate(0);
 			teacherMonthlySalaryRepository.save(monthlySalary);
 		});
 	}

@@ -24,6 +24,7 @@ import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.entity.StudentAttendance;
+import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.ClassRoomForm;
 import com.example.cramschool.service.ClassStudentService;
 import com.example.cramschool.service.ClassRoomService;
@@ -32,7 +33,9 @@ import com.example.cramschool.service.HomeworkService;
 import com.example.cramschool.service.ScoreService;
 import com.example.cramschool.service.StudentAttendanceService;
 import com.example.cramschool.service.SubjectService;
+import com.example.cramschool.service.TeacherPermissionService;
 
+import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 
 @Controller
@@ -51,10 +54,12 @@ public class ClassRoomController {
 	private final ScoreService scoreService;
 	private final HomeworkService homeworkService;
 	private final StudentAttendanceService studentAttendanceService;
+	private final TeacherPermissionService teacherPermissionService;
 
 	public ClassRoomController(ClassRoomService classRoomService, ClassStudentService classStudentService,
 			SubjectService subjectService, ExamService examService, ScoreService scoreService,
-			HomeworkService homeworkService, StudentAttendanceService studentAttendanceService) {
+			HomeworkService homeworkService, StudentAttendanceService studentAttendanceService,
+			TeacherPermissionService teacherPermissionService) {
 		this.classRoomService = classRoomService;
 		this.classStudentService = classStudentService;
 		this.subjectService = subjectService;
@@ -62,11 +67,12 @@ public class ClassRoomController {
 		this.scoreService = scoreService;
 		this.homeworkService = homeworkService;
 		this.studentAttendanceService = studentAttendanceService;
+		this.teacherPermissionService = teacherPermissionService;
 	}
 
 	@ModelAttribute
 	public void addOptions(Model model) {
-		model.addAttribute("gradeOptions", SchoolOptions.GRADES);
+		model.addAttribute("gradeOptions", SchoolOptions.CLASS_GRADES);
 		model.addAttribute("weekdayOptions", SchoolOptions.WEEKDAYS);
 		model.addAttribute("subjectOptions", subjectService.findActiveSubjects());
 		model.addAttribute("teacherOptions", subjectService.findActiveTeachers());
@@ -97,7 +103,11 @@ public class ClassRoomController {
 	}
 
 	@GetMapping("/new")
-	public String newForm(Model model) {
+	public String newForm(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_CREATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法新增班級");
+			return "redirect:/classes";
+		}
 		model.addAttribute("pageTitle", "新增班級");
 		model.addAttribute("classRoomForm", ClassRoomForm.newForm());
 		model.addAttribute("formAction", "/classes");
@@ -107,7 +117,12 @@ public class ClassRoomController {
 
 	@PostMapping
 	public String create(@Valid @ModelAttribute("classRoomForm") ClassRoomForm classRoomForm,
-			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+			BindingResult bindingResult, Model model, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_CREATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法新增班級");
+			return "redirect:/classes";
+		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "新增班級");
 			model.addAttribute("formAction", "/classes");
@@ -115,7 +130,7 @@ public class ClassRoomController {
 			return "classes/form";
 		}
 
-		ClassRoom classRoom = classRoomService.create(classRoomForm);
+		ClassRoom classRoom = classRoomService.create(classRoomForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已新增班級：" + classRoom.getDisplayName());
 		return "redirect:/classes/" + classRoom.getId();
 	}
@@ -149,7 +164,12 @@ public class ClassRoomController {
 	}
 
 	@GetMapping("/{id}/edit")
-	public String editForm(@PathVariable Long id, Model model) {
+	public String editForm(@PathVariable Long id, HttpSession session, Model model,
+			RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes/" + id;
+		}
 		ClassRoom classRoom = classRoomService.findById(id);
 		model.addAttribute("pageTitle", "編輯班級");
 		model.addAttribute("classRoom", classRoom);
@@ -162,7 +182,12 @@ public class ClassRoomController {
 	@PostMapping("/{id}")
 	public String update(@PathVariable Long id,
 			@Valid @ModelAttribute("classRoomForm") ClassRoomForm classRoomForm,
-			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+			BindingResult bindingResult, Model model, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes/" + id;
+		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯班級");
 			model.addAttribute("classRoom", classRoomService.findById(id));
@@ -171,40 +196,56 @@ public class ClassRoomController {
 			return "classes/form";
 		}
 
-		ClassRoom classRoom = classRoomService.update(id, classRoomForm);
+		ClassRoom classRoom = classRoomService.update(id, classRoomForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已更新班級：" + classRoom.getDisplayName());
 		return "redirect:/classes/" + id;
 	}
 
 	@PostMapping("/{id}/deactivate")
-	public String deactivate(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String deactivate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes";
+		}
 		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.deactivate(id);
+		classRoomService.deactivate(id, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已停用班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
 	@PostMapping("/{id}/activate")
-	public String activate(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String activate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes";
+		}
 		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.activate(id);
+		classRoomService.activate(id, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已啟用班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
 	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String delete(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes";
+		}
 		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.delete(id);
+		classRoomService.delete(id, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已刪除班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
 	@PostMapping("/{id}/students")
 	public String addStudent(@PathVariable Long id, @RequestParam Long studentId,
-			RedirectAttributes redirectAttributes) {
+			HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes/" + id;
+		}
 		try {
-			classStudentService.addStudent(id, studentId);
+			classStudentService.addStudent(id, studentId, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已加入學生");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
@@ -214,9 +255,13 @@ public class ClassRoomController {
 
 	@PostMapping("/{id}/students/{classStudentId}/remove")
 	public String removeStudent(@PathVariable Long id, @PathVariable Long classStudentId,
-			RedirectAttributes redirectAttributes) {
+			HttpSession session, RedirectAttributes redirectAttributes) {
+		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
+			return "redirect:/classes/" + id;
+		}
 		try {
-			classStudentService.removeStudent(id, classStudentId);
+			classStudentService.removeStudent(id, classStudentId, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已刪除班級學生紀錄");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
@@ -307,6 +352,15 @@ public class ClassRoomController {
 
 	private boolean hasText(String value) {
 		return value != null && !value.trim().isEmpty();
+	}
+
+	private boolean hasPermission(HttpSession session, TeacherPermissionType permissionType) {
+		return teacherPermissionService.hasPermission(currentTeacherId(session), permissionType);
+	}
+
+	private Long currentTeacherId(HttpSession session) {
+		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
+		return teacherId instanceof Long id ? id : null;
 	}
 
 	private List<String> findVisibleScheduleWeekdays(Map<String, Map<String, List<ScheduledClass>>> scheduleGrid) {

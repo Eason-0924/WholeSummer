@@ -110,6 +110,28 @@ class AuthFlowTests {
 	}
 
 	@Test
+	void loginAccountAndPasswordAreCaseSensitive() throws Exception {
+		String mixedCaseUsername = "TeacherCase" + System.nanoTime();
+		String mixedCasePassword = "PasswordCase123";
+		createAccount(teacher, mixedCaseUsername, mixedCasePassword);
+
+		mockMvc.perform(post("/login")
+				.param("username", mixedCaseUsername)
+				.param("password", mixedCasePassword))
+				.andExpect(status().is3xxRedirection());
+
+		mockMvc.perform(post("/login")
+				.param("username", mixedCaseUsername.toLowerCase())
+				.param("password", mixedCasePassword))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(post("/login")
+				.param("username", mixedCaseUsername)
+				.param("password", mixedCasePassword.toLowerCase()))
+				.andExpect(status().isOk());
+	}
+
+	@Test
 	void onlyDirectorCanChangeTeacherPositionsAndRegistrationCode() throws Exception {
 		TeacherAccount regularAccount = createAccount(teacher, username, "teacher-password");
 		MockHttpSession regularSession = login(username, "teacher-password");
@@ -150,6 +172,22 @@ class AuthFlowTests {
 		mockMvc.perform(post("/updates/install").session(regularSession))
 				.andExpect(status().is3xxRedirection());
 
+		String regularSettingsHtml = mockMvc.perform(get("/settings").session(regularSession))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		assertThat(regularSettingsHtml)
+				.contains("畫面模式", "個人登入密碼", "問題與 Bug 回報")
+				.doesNotContain(
+						"data-settings-title=\"一般設定\"",
+						"data-settings-title=\"教師註冊安全碼\"",
+						"id=\"teacher-permissions\"",
+						"id=\"database-backup\"",
+						"data-settings-title=\"危險操作區域\"");
+		mockMvc.perform(get("/tuition").session(regularSession))
+				.andExpect(status().is3xxRedirection());
+		mockMvc.perform(get("/teachers/new").session(regularSession))
+				.andExpect(status().is3xxRedirection());
+
 		var regularSalaryResult = mockMvc.perform(get("/salary")
 				.param("year", "2026")
 				.param("month", "6")
@@ -171,6 +209,12 @@ class AuthFlowTests {
 		String directorUsername = "director-test-" + System.nanoTime();
 		createAccount(director, directorUsername, "director-password");
 		MockHttpSession directorSession = login(directorUsername, "director-password");
+
+		String directorSettingsHtml = mockMvc.perform(get("/settings").session(directorSession))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		assertThat(directorSettingsHtml)
+				.contains("一般設定", "教師註冊安全碼", "教師權限設定", "資料庫備份", "危險操作區域");
 
 		mockMvc.perform(post("/teachers/{id}", targetTeacher.getId())
 				.session(directorSession)

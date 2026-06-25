@@ -138,7 +138,8 @@ class PageSmokeTests {
 		if (!teacherRepository.findAll().isEmpty()) {
 			Long id = teacherRepository.findAll().getFirst().getId();
 			mockMvc.perform(get("/teachers/{id}", id).session(session)).andExpect(status().isOk());
-			mockMvc.perform(get("/teachers/{id}/edit", id).session(session)).andExpect(status().isOk());
+			mockMvc.perform(get("/teachers/{id}/edit", testTeacher.getId()).session(session))
+					.andExpect(status().isOk());
 		}
 		if (!classRoomRepository.findAll().isEmpty()) {
 			Long id = classRoomRepository.findAll().getFirst().getId();

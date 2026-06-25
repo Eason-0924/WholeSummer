@@ -5,7 +5,8 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4">
-<div th:fragment="content" id="database-backup" class="pt-2">
+<div th:fragment="content" id="database-backup" class="pt-2"
+		data-settings-section data-settings-title="資料庫備份">
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div class="page-title-line mb-1">
@@ -30,7 +31,7 @@
 		</div>
 	</section>
 
-	<section th:if="${currentTeacherIsDirector}" class="bg-white border rounded p-4 mb-4">
+	<section th:if="${teacherPermissions.databaseBackup}" class="bg-white border rounded p-4 mb-4">
 		<h2 class="h5 mb-1">匯入初始資料庫</h2>
 		<p class="text-secondary small mb-3">
 			選擇由目前版本 WholeSummer 產生的 SQL 備份。匯入會覆蓋現有資料，完成後所有使用者都必須重新登入。
@@ -91,7 +92,7 @@
 						<div class="d-inline-flex gap-2">
 							<a th:if="${backup.status.name() == 'SUCCESS'}" class="btn btn-sm btn-outline-primary"
 									th:href="@{/backup/{id}/download(id=${backup.id})}">下載</a>
-							<button th:if="${currentTeacherIsDirector and backup.status.name() == 'SUCCESS'}"
+							<button th:if="${teacherPermissions.databaseBackup and backup.status.name() == 'SUCCESS'}"
 									class="btn btn-sm btn-outline-warning" type="button"
 									data-bs-toggle="modal"
 									th:data-bs-target="${'#restoreBackupModal' + backup.id}">還原</button>
@@ -107,7 +108,7 @@
 		</div>
 	</section>
 
-	<th:block th:if="${currentTeacherIsDirector}" th:each="backup : ${backups}">
+	<th:block th:if="${teacherPermissions.databaseBackup}" th:each="backup : ${backups}">
 		<div th:if="${backup.status.name() == 'SUCCESS'}" class="modal fade"
 				th:id="${'restoreBackupModal' + backup.id}" tabindex="-1" aria-hidden="true">
 			<div class="modal-dialog">

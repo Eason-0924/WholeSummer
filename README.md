@@ -17,7 +17,41 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.1.0**
+目前版本：**1.1.1**
+
+## 1.1.1 更新內容-2
+
+- 導入 Flyway 統一管理資料庫結構與版本更新，Hibernate 改為只驗證 Entity 與資料表是否一致。
+- 新版程式啟動時會自動執行尚未套用的 migration，不會清空或覆蓋既有資料。
+- 新增完整資料庫初始結構、教師權限初始化、操作紀錄及後續欄位調整 migration。
+- 新增資料庫操作紀錄，保存資料異動時間、操作教師、動作、路徑與執行結果，並提供主任查看。
+- 登入帳號與密碼全面區分大小寫；帳號欄位改用 case-sensitive collation，登入查詢使用精確比對。
+- 主任薪資頁可展開或收合每位教師的當月打卡明細，一般教師只能查看自己的資料。
+- 打卡明細新增對應課程、課程時間、計入時數與備註。
+- 打卡工時依教師、日期及打卡時間與課表重疊結果自動配對，同時段多個班級不重複計算。
+- 無對應課程且未經主任調整的打卡紀錄暫不計入工時與薪資。
+- 主任可對無對應課程的紀錄補充備註與上課時數，儲存後立即重新計算當月累計工時與薪資。
+- 教師時薪完全改為按教師、年份及月份獨立保存，不再於教師主檔保留固定時薪。
+- 移除班級與科目的舊教師名稱字串，以及操作紀錄中已停用的帳號字串欄位。
+- 修正非授權教師可能看到設定頁受限區塊內容的問題。
+
+## 1.1.1 更新內容
+
+- 新增學生生日欄位，可於學生新增、編輯及詳細資料頁維護。
+- 首頁新增今日生日通知，顯示當天生日的在學學生。
+- 新增學生學費管理，可記錄應繳、已繳、未繳、繳費期限與逾期狀態。
+- 新增主任專用一鍵升年級流程，分階段處理學生年級、畢業狀態、班級升級及新班學生名單。
+- 國三學生升高一時必須輸入新學校，完成升級後同步更新學生年級與學校。
+- 高三學生執行一鍵升年級後自動設為已畢業。
+- 升級班級時保留原班歷史資料，並複製科目、教師、班別、說明及所有上課時段至新班。
+- 設定頁各功能改為可收合區塊，減少長頁面的視覺雜亂。
+- 新增教師個別權限設定，主任可分別授予一般設定、註冊安全碼、新增教師、職位管理、全體出勤、全體薪資、學費、系統更新、資料庫備份及一鍵升年級權限。
+- 主任固定擁有全部權限；其他教師的頁面入口與後端操作會依授權結果開放。
+- 首頁「即將到期作業」改為通知中心，以可橫向捲動的方塊顯示通知。
+- 通知中心整合作業到期、未來測驗、逾期學費、版本更新及學生生日，並以不同顏色區分種類。
+- 逾期學費通知只向具備學費管理權限的教師顯示，版本更新通知只向主任顯示。
+- 首頁新增薪資查詢與系統設定入口，學費入口則依教師權限顯示。
+- Windows 啟動時若未設定 Resend API Key 或開發者 Email，會顯示郵件設定視窗；收件 Email 預設帶入 `aassddlee0924@gmail.com`。
 
 ## 1.1.0 更新內容
 
@@ -36,10 +70,12 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 - **帳號與權限**
   - 教師註冊與個人帳號登入
+  - 登入帳號與密碼皆區分英文字母大小寫
   - 教師、輔導老師、主任三種職位
-  - 主任專屬設定、備份還原、職位及薪資管理權限
+  - 主任可為每位教師設定個別管理權限
+  - 頁面入口與後端操作依教師權限同步限制
 - **學生管理**
-  - 中文名、英文名與基本資料
+  - 中文名、英文名、生日與基本資料
   - 在學、畢業、復學及刪除
   - 個人成績、作業與出缺席紀錄
 - **教師管理**
@@ -60,14 +96,25 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 - **作業管理**
   - 班級作業建立及學生紀錄自動產生
   - 未繳交、已繳交、逾期補交、免交
-  - 下次上課日、自動截止日期與首頁到期提醒
+  - 下次上課日、自動截止日期與首頁通知
 - **薪資試算**
   - 每位教師、每月份獨立時薪
-  - 依當月累積工時計算薪資
+  - 依打卡紀錄所配對的實際課程時數計算薪資
+  - 無對應課程的紀錄由主任補充備註與時數後才納入計算
+  - 主任可展開或收合各教師的當月打卡明細
   - 教師只能查看本人薪資，主任可管理所有教師
+- **學費管理**
+  - 為學生建立個別應繳費用，不依賴學費方案
+  - 記錄應繳、已繳、未繳金額與繳費日期
+  - 自動判斷未繳、部分繳費、已繳清與逾期狀態
+  - 提供全校統計及學生詳細頁個人繳費紀錄
 - **系統管理**
   - 亮色、暗色及跟隨裝置模式
+  - 可收合設定區塊與教師個別權限設定
+  - 作業、測驗、學費、更新及生日通知中心
   - MySQL 備份、下載、還原及初始資料匯入
+  - Flyway 資料庫版本管理與自動升級
+  - 資料異動操作紀錄與主任查詢
   - 問題回報本機紀錄與 Resend Email 通知
   - Windows 外部設定檔與 GitHub Releases 更新
 
@@ -77,7 +124,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 | --- | --- |
 | 後端 | Java 25、Spring Boot 4.1 |
 | Web | Spring MVC、Thymeleaf、Bootstrap 5 |
-| 資料存取 | Spring Data JPA、Hibernate |
+| 資料存取 | Spring Data JPA、Hibernate、Flyway |
 | 資料庫 | MySQL |
 | 建置 | Maven Wrapper |
 | Windows 發布 | jpackage、GitHub Actions |
@@ -163,6 +210,14 @@ COLLATE utf8mb4_unicode_ci;
 spring.datasource.url=jdbc:mysql://localhost:3306/WholeSummer?serverTimezone=Asia/Taipei&characterEncoding=utf8&allowPublicKeyRetrieval=true
 spring.datasource.username=root
 spring.datasource.password=your_password
+
+spring.flyway.enabled=true
+spring.flyway.locations=classpath:db/migration
+spring.flyway.baseline-on-migrate=true
+spring.flyway.validate-on-migrate=true
+spring.flyway.clean-disabled=true
+
+spring.jpa.hibernate.ddl-auto=validate
 ```
 
 此檔案已列入 `.gitignore`，請勿將資料庫密碼提交至版本控制。
@@ -221,9 +276,47 @@ app.update.check-interval-hours=24
 
 新版啟動時只會補充缺少的設定，不會覆蓋既有資料庫連線資訊。
 
+## 資料庫版本管理
+
+WholeSummer 使用 Flyway 管理資料庫結構。Migration 位於：
+
+```text
+src/main/resources/db/migration
+```
+
+啟動時會自動檢查 `flyway_schema_history`，並依版本執行尚未套用的 migration。
+全新空資料庫會從 `V1__init_schema.sql` 建立完整結構；既有非空資料庫會以版本 1
+建立 baseline，再從版本 2 開始套用更新。Flyway 不會清空既有學生、教師、班級或其他資料。
+
+目前 migration：
+
+| 版本 | 用途 |
+| --- | --- |
+| V1 | 建立全新資料庫的完整初始結構 |
+| V2 | 對齊教師權限資料表與權限欄位 |
+| V3 | 依教師職位初始化全部權限項目 |
+| V4 | 建立資料異動操作紀錄表 |
+| V5 | 登入帳號改為區分大小寫，並加入打卡課程配對與人工工時欄位 |
+| V6 | 移除教師主檔固定時薪，改由每月薪資資料保存 |
+| V7 | 移除班級、科目與操作紀錄中的舊版字串欄位 |
+
+Flyway 使用規則：
+
+1. 已執行過的 `V` 開頭 migration 不可修改。
+2. 資料表需要調整時，新增下一個版本的 SQL。
+3. 檔名格式為 `V版本號__英文描述.sql`。
+4. SQL 應盡量採用 `IF NOT EXISTS` 或其他可安全套用的寫法。
+5. 正式資料庫禁止執行 `flyway clean`，專案也已設定 `spring.flyway.clean-disabled=true`。
+6. 開發環境重建資料庫前，必須先確認資料可以刪除。
+7. 更新 exe 或 JAR 不會覆蓋外部 `config/application.properties`，也不會刪除 MySQL 資料庫。
+
+若 migration 失敗，系統會停止啟動；Windows 版會顯示啟動錯誤視窗，詳細原因可在
+`%ProgramData%\WholeSummer\logs\wholesummer.log` 查看。不要用修改舊 SQL 的方式修正，
+應新增下一個 migration。
+
 ## 備份與還原
 
-主任可在設定頁最下方使用資料庫備份功能：
+主任或具備資料庫備份權限的教師，可在設定頁使用資料庫備份功能：
 
 - 建立 SQL 備份
 - 下載或刪除備份
@@ -241,7 +334,7 @@ app.mysql.bin-dir=C:/Program Files/MySQL/MySQL Server 9.0/bin
 Windows 安裝版會透過 GitHub Releases 檢查新版本：
 
 - 啟動後在背景檢查，24 小時內最多一次
-- 只有主任可查看及執行更新
+- 主任或具備系統更新權限的教師可查看及執行更新
 - 新版會先下載到外部 `update` 目錄
 - PowerShell updater 會等待主程式關閉、執行 installer，完成後重新啟動
 - 設定檔、資料與備份不會因更新被刪除
@@ -345,6 +438,7 @@ src/main/java/com/example/cramschool
 └─ service      業務邏輯、備份、薪資與更新
 
 src/main/resources
+├─ db/migration Flyway 資料庫版本 SQL
 ├─ templates    Thymeleaf 頁面
 └─ application.properties
 
@@ -358,7 +452,7 @@ src/main/resources
 - 不要提交 Resend API Key；若金鑰疑似外洩，應立即在 Resend Dashboard 刪除並重建。
 - 正式環境請變更預設教師註冊安全碼。
 - 資料庫帳號應限制在必要權限範圍。
-- 還原資料庫、調整教師職位、設定薪資與安裝更新僅限主任。
+- 主任固定擁有全部管理權限，其他教師依主任授予的個別權限操作。
 - 建議定期下載備份並保存到其他裝置。
 
 ## 授權

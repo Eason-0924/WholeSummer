@@ -121,13 +121,17 @@
 					</td>
 					<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
 					<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
-					<td th:text="${attendance.scheduledTimeText}">當日無課程</td>
-					<td th:text="${attendance.workHoursText}">-</td>
+					<td>
+						<div th:text="${attendance.matchedCourseName ?: '-'}">-</div>
+						<div class="small text-secondary"
+								th:text="${attendance.matchedCourseTimeText ?: '-'}">-</div>
+					</td>
+					<td th:text="${attendance.countedHoursText}">0 小時</td>
 					<td>
 						<span th:class="${attendance.status.name() == 'WORKING' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'LEAVE' ? 'badge text-bg-info text-dark' : 'badge text-bg-danger'))}"
 								th:text="${attendance.status.displayName}">出勤</span>
 					</td>
-					<td th:text="${attendance.note ?: '-'}">-</td>
+					<td th:text="${attendance.manualRemark ?: (attendance.note ?: '-')}">-</td>
 				</tr>
 				</tbody>
 			</table>
