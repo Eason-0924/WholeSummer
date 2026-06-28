@@ -31,6 +31,17 @@ public final class ExternalConfigPaths {
 		return Path.of(System.getProperty("user.home"), "WholeSummer").toAbsolutePath().normalize();
 	}
 
+	public static Path classDataDirectory() {
+		if (isWindows()) {
+			return Path.of("C:\\WholeSummer").toAbsolutePath().normalize();
+		}
+		return Path.of(System.getProperty("user.home"), "WholeSummer").toAbsolutePath().normalize();
+	}
+
+	private static boolean isWindows() {
+		return System.getProperty("os.name", "").toLowerCase().contains("win");
+	}
+
 	public static Path configDirectory() {
 		return baseDirectory().resolve("config");
 	}

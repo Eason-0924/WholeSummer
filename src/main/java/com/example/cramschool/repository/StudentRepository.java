@@ -1,6 +1,7 @@
 package com.example.cramschool.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -15,4 +16,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 	List<Student> findByActiveTrue();
 
 	List<Student> findByActiveFalse();
+
+	Optional<Student> findByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlugAndIdNot(String urlSlug, Long id);
 }

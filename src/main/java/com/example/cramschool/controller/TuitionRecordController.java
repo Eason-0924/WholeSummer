@@ -55,14 +55,15 @@ public class TuitionRecordController {
 	}
 
 	@GetMapping("/new")
-	public String newForm(@RequestParam(required = false) Long studentId, HttpSession session,
+	public String newForm(@RequestParam(required = false) String student,
+			@RequestParam(required = false) Long studentId, HttpSession session,
 			Model model, RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
 			return forbidden(redirectAttributes);
 		}
 		addStudentOptions(model);
 		model.addAttribute("pageTitle", "新增學費紀錄");
-		model.addAttribute("tuitionRecordForm", TuitionRecordForm.newForm(studentId));
+		model.addAttribute("tuitionRecordForm", TuitionRecordForm.newForm(resolveStudentId(student, studentId)));
 		model.addAttribute("formAction", "/tuition");
 		model.addAttribute("submitLabel", "新增");
 		return "tuition/form";
@@ -85,7 +86,7 @@ public class TuitionRecordController {
 		TuitionRecord record = tuitionRecordService.create(form);
 		redirectAttributes.addFlashAttribute("message",
 				"已新增 " + record.getStudent().getDisplayName() + " 的學費紀錄");
-		return "redirect:/students/" + record.getStudent().getId();
+		return "redirect:/students/" + record.getStudent().getUrlSlug();
 	}
 
 	@GetMapping("/{id}/edit")
@@ -122,7 +123,7 @@ public class TuitionRecordController {
 		}
 		TuitionRecord record = tuitionRecordService.update(id, form);
 		redirectAttributes.addFlashAttribute("message", "已更新學費紀錄");
-		return "redirect:/students/" + record.getStudent().getId();
+		return "redirect:/students/" + record.getStudent().getUrlSlug();
 	}
 
 	@PostMapping("/{id}/paid")
@@ -134,7 +135,7 @@ public class TuitionRecordController {
 		TuitionRecord record = tuitionRecordService.markPaid(id);
 		redirectAttributes.addFlashAttribute("message",
 				"已將 " + record.getTitle() + " 設為已繳清");
-		return "redirect:/students/" + record.getStudent().getId();
+		return "redirect:/students/" + record.getStudent().getUrlSlug();
 	}
 
 	@PostMapping("/{id}/delete")
@@ -144,14 +145,21 @@ public class TuitionRecordController {
 			return forbidden(redirectAttributes);
 		}
 		TuitionRecord record = tuitionRecordService.findById(id);
-		Long studentId = record.getStudent().getId();
+		String studentUrlSlug = record.getStudent().getUrlSlug();
 		tuitionRecordService.delete(id);
 		redirectAttributes.addFlashAttribute("message", "已刪除學費紀錄：" + record.getTitle());
-		return "redirect:/students/" + studentId;
+		return "redirect:/students/" + studentUrlSlug;
 	}
 
 	private void addStudentOptions(Model model) {
 		model.addAttribute("studentOptions", studentService.findAll());
+	}
+
+	private Long resolveStudentId(String studentSlug, Long studentId) {
+		if (studentSlug == null || studentSlug.isBlank()) {
+			return studentId;
+		}
+		return studentService.findByUrlSlugOrId(studentSlug).getId();
 	}
 
 	private boolean isDirector(HttpSession session) {

@@ -44,7 +44,7 @@
 				<td>
 					<span th:if="${#lists.isEmpty(activeClassesBySubject[subject.id])}" class="text-secondary">-</span>
 					<span th:each="classRoom, iterStat : ${activeClassesBySubject[subject.id]}">
-						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級</a><span th:if="${!iterStat.last}">、</span>
+						<a th:href="@{/classes/{slug}(slug=${classRoom.urlSlug})}" th:text="${classRoom.displayName}">班級</a><span th:if="${!iterStat.last}">、</span>
 					</span>
 				</td>
 				<td>
@@ -53,12 +53,12 @@
 				</td>
 				<td class="text-end">
 					<div class="d-inline-flex gap-2">
-						<a class="btn btn-sm btn-outline-primary" th:href="@{/subjects/{id}/edit(id=${subject.id})}">編輯</a>
-						<form th:if="${subject.active}" th:action="@{/subjects/{id}/deactivate(id=${subject.id})}"
+						<a class="btn btn-sm btn-outline-primary" th:href="@{/subjects/{slug}/edit(slug=${subject.urlSlug})}">編輯</a>
+						<form th:if="${subject.active}" th:action="@{/subjects/{slug}/deactivate(slug=${subject.urlSlug})}"
 								method="post" onsubmit="return confirm('確定要停用這個科目嗎？');">
 							<button class="btn btn-sm btn-outline-danger" type="submit">停用</button>
 						</form>
-						<form th:unless="${subject.active}" th:action="@{/subjects/{id}/activate(id=${subject.id})}"
+						<form th:unless="${subject.active}" th:action="@{/subjects/{slug}/activate(slug=${subject.urlSlug})}"
 								method="post">
 							<button class="btn btn-sm btn-outline-success" type="submit">啟用</button>
 						</form>

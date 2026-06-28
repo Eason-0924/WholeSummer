@@ -66,7 +66,7 @@
 				</tr>
 				<tr th:each="record : ${tuitionRecords}">
 					<td>
-						<a th:href="@{/students/{id}(id=${record.student.id})}"
+						<a th:href="@{/students/{slug}(slug=${record.student.urlSlug})}"
 								th:text="${record.student.displayName}">學生</a>
 					</td>
 					<td th:text="${record.title}">學費</td>

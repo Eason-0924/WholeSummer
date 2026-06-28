@@ -13,6 +13,9 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Long
 	@EntityGraph(attributePaths = "student")
 	List<ClassStudent> findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(Long classRoomId);
 
+	@EntityGraph(attributePaths = { "classRoom", "classRoom.teacher", "classRoom.schedules", "student" })
+	List<ClassStudent> findByStudentIdInAndActiveTrue(List<Long> studentIds);
+
 	Optional<ClassStudent> findByClassRoomIdAndStudentId(Long classRoomId, Long studentId);
 
 	boolean existsByClassRoomIdAndStudentIdAndActiveTrue(Long classRoomId, Long studentId);

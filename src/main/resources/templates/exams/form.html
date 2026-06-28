@@ -5,6 +5,8 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4">
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
 			<div class="page-title-line mb-1">
@@ -17,7 +19,8 @@
 		</div>
 	</div>
 
-	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${examForm}" method="post">
+	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${examForm}" method="post"
+			enctype="multipart/form-data">
 		<div class="row g-3">
 			<div class="col-md-6">
 				<label for="classRoomId" class="form-label">班級 <span class="text-danger">*</span></label>
@@ -67,6 +70,17 @@
 						th:classappend="${#fields.hasErrors('fullScore')} ? 'is-invalid'">
 				<div class="invalid-feedback" th:errors="*{fullScore}">請輸入滿分</div>
 				<div id="practiceExamMessage" class="form-text text-primary d-none">此測驗為練習，不計分。</div>
+			</div>
+			<div class="col-12">
+				<label for="paperFile" class="form-label">瀏覽選擇考卷檔案</label>
+				<input type="file" id="paperFile" name="paperFile" class="form-control">
+				<div class="form-text" th:if="*{paperFileName != null and !paperFileName.isBlank()}"
+						th:text="|目前檔案：${examForm.paperFileName}。重新選擇檔案會取代原檔。|">目前檔案</div>
+			</div>
+			<div class="col-12">
+				<label for="paperPageSelection" class="form-label">考卷頁數</label>
+				<input type="text" id="paperPageSelection" class="form-control" th:field="*{paperPageSelection}"
+						placeholder="例如：1-3、1,3,5、2-4,7">
 			</div>
 			<div class="col-12">
 				<label for="description" class="form-label">說明</label>

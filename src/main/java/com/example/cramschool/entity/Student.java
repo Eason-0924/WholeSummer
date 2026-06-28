@@ -26,6 +26,9 @@ public class Student {
 	@Column(name = "english_name", length = 100)
 	private String englishName;
 
+	@Column(name = "url_slug", length = 150, unique = true)
+	private String urlSlug;
+
 	@Column(length = 20)
 	private String gender;
 
@@ -103,6 +106,14 @@ public class Student {
 
 	public void setEnglishName(String englishName) {
 		this.englishName = englishName;
+	}
+
+	public String getUrlSlug() {
+		return urlSlug;
+	}
+
+	public void setUrlSlug(String urlSlug) {
+		this.urlSlug = urlSlug;
 	}
 
 	public String getGender() {

@@ -19,9 +19,11 @@ import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ExamRepository;
 import com.example.cramschool.repository.HomeworkRecordRepository;
 import com.example.cramschool.repository.HomeworkRepository;
+import com.example.cramschool.repository.MakeUpClassRequestRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.SubjectRepository;
+import com.example.cramschool.repository.TeacherLeaveRepository;
 import com.example.cramschool.repository.TeacherRepository;
 
 @Service
@@ -38,12 +40,18 @@ public class ClassRoomService {
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final TeacherPermissionService teacherPermissionService;
+	private final TeacherLeaveRepository teacherLeaveRepository;
+	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
+	private final ClassRoomUrlSlugService classRoomUrlSlugService;
 
 	public ClassRoomService(ClassRoomRepository classRoomRepository, SubjectRepository subjectRepository,
 			TeacherRepository teacherRepository, ClassStudentRepository classStudentRepository,
 			ExamRepository examRepository, ScoreRepository scoreRepository, HomeworkRepository homeworkRepository,
 			HomeworkRecordRepository homeworkRecordRepository, StudentAttendanceRepository studentAttendanceRepository,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService,
+			TeacherLeaveRepository teacherLeaveRepository,
+			MakeUpClassRequestRepository makeUpClassRequestRepository,
+			ClassRoomUrlSlugService classRoomUrlSlugService) {
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
 		this.teacherRepository = teacherRepository;
@@ -54,6 +62,9 @@ public class ClassRoomService {
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.teacherPermissionService = teacherPermissionService;
+		this.teacherLeaveRepository = teacherLeaveRepository;
+		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
+		this.classRoomUrlSlugService = classRoomUrlSlugService;
 	}
 
 	@Transactional(readOnly = true)
@@ -74,6 +85,13 @@ public class ClassRoomService {
 	@Transactional(readOnly = true)
 	public ClassRoom findById(Long id) {
 		return classRoomRepository.findById(id)
+				.orElseThrow(() -> new IllegalArgumentException("找不到班級資料"));
+	}
+
+	@Transactional(readOnly = true)
+	public ClassRoom findByUrlSlugOrId(String urlSlugOrId) {
+		return classRoomRepository.findByUrlSlug(urlSlugOrId)
+				.or(() -> parseId(urlSlugOrId).flatMap(classRoomRepository::findById))
 				.orElseThrow(() -> new IllegalArgumentException("找不到班級資料"));
 	}
 
@@ -103,7 +121,9 @@ public class ClassRoomService {
 		classRoom.setTeacher(findTeacher(form.getTeacherId()));
 		applySchedules(classRoom, form);
 		classRoom.setActive(true);
-		return classRoomRepository.save(classRoom);
+		ClassRoom savedClassRoom = classRoomRepository.save(classRoom);
+		savedClassRoom.setUrlSlug(classRoomUrlSlugService.generateUniqueSlug(savedClassRoom));
+		return classRoomRepository.save(savedClassRoom);
 	}
 
 	public ClassRoom update(Long id, ClassRoomForm form, Long currentTeacherId) {
@@ -113,6 +133,7 @@ public class ClassRoomService {
 		classRoom.setSubject(findSubject(form.getSubjectId()));
 		classRoom.setTeacher(findTeacher(form.getTeacherId()));
 		applySchedules(classRoom, form);
+		classRoom.setUrlSlug(classRoomUrlSlugService.generateUniqueSlug(classRoom));
 		return classRoomRepository.save(classRoom);
 	}
 
@@ -139,6 +160,8 @@ public class ClassRoomService {
 		homeworkRecordRepository.deleteByHomeworkClassRoomId(id);
 		homeworkRepository.deleteByClassRoomId(id);
 		studentAttendanceRepository.deleteByClassRoomId(id);
+		makeUpClassRequestRepository.deleteByClassRoomId(id);
+		teacherLeaveRepository.deleteByCourseScheduleClassRoomId(id);
 		classStudentRepository.deleteByClassRoomId(id);
 		classRoomRepository.delete(classRoom);
 	}
@@ -176,5 +199,13 @@ public class ClassRoomService {
 	private void applySchedules(ClassRoom classRoom, ClassRoomForm form) {
 		var schedules = form.toSchedules();
 		classRoom.setSchedules(schedules);
+	}
+
+	private java.util.Optional<Long> parseId(String value) {
+		try {
+			return java.util.Optional.of(Long.parseLong(value));
+		} catch (NumberFormatException ex) {
+			return java.util.Optional.empty();
+		}
 	}
 }

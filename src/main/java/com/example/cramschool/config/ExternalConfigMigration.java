@@ -55,8 +55,10 @@ public final class ExternalConfigMigration {
 		values.put("spring.servlet.multipart.max-request-size", "20MB");
 		values.put("app.data.dir", windowsPath(ExternalConfigPaths.dataDirectory()));
 		values.put("app.backup.dir", windowsPath(ExternalConfigPaths.backupsDirectory()));
+		values.put("app.exam-paper.dir", windowsPath(ExternalConfigPaths.classDataDirectory()));
 		values.put("app.update.dir", windowsPath(ExternalConfigPaths.updateDirectory()));
 		values.put("app.mysql.bin-dir", "");
+		values.put("app.status-window.enabled", "true");
 		values.put("logging.file.name",
 				windowsPath(ExternalConfigPaths.logsDirectory().resolve("wholesummer.log")));
 		values.put("app.auto-update.enabled", "true");

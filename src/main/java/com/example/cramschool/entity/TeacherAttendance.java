@@ -18,6 +18,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import jakarta.persistence.UniqueConstraint;
 
 @Entity
@@ -72,6 +73,9 @@ public class TeacherAttendance {
 	@Column(name = "adjusted_at")
 	private LocalDateTime adjustedAt;
 
+	@Transient
+	private boolean manualAdjustmentAllowed;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
 	private TeacherAttendanceStatus status = TeacherAttendanceStatus.WORKING;
@@ -109,15 +113,16 @@ public class TeacherAttendance {
 		if (status != TeacherAttendanceStatus.WORKING && status != TeacherAttendanceStatus.LATE) {
 			return 0;
 		}
+		long minutes = 0;
 		if (matchedCourseId != null && workMinutes != null) {
-			return workMinutes;
+			minutes += workMinutes;
 		}
-		if (matchedCourseId == null && manualAdjusted && manualHours != null) {
-			return manualHours.multiply(BigDecimal.valueOf(60))
+		if (manualAdjusted && manualHours != null) {
+			minutes += manualHours.multiply(BigDecimal.valueOf(60))
 					.setScale(0, RoundingMode.HALF_UP)
 					.longValue();
 		}
-		return 0;
+		return minutes;
 	}
 
 	public Long getId() {
@@ -212,6 +217,10 @@ public class TeacherAttendance {
 		return manualHours;
 	}
 
+	public String getManualHoursInputValue() {
+		return manualHours == null ? null : manualHours.setScale(1, RoundingMode.HALF_UP).toPlainString();
+	}
+
 	public void setManualHours(BigDecimal manualHours) {
 		this.manualHours = manualHours;
 	}
@@ -238,6 +247,14 @@ public class TeacherAttendance {
 
 	public void setAdjustedAt(LocalDateTime adjustedAt) {
 		this.adjustedAt = adjustedAt;
+	}
+
+	public boolean isManualAdjustmentAllowed() {
+		return manualAdjustmentAllowed;
+	}
+
+	public void setManualAdjustmentAllowed(boolean manualAdjustmentAllowed) {
+		this.manualAdjustmentAllowed = manualAdjustmentAllowed;
 	}
 
 	public boolean hasMatchedCourse() {

@@ -13,6 +13,9 @@ import jakarta.validation.constraints.Size;
 
 public class ExamForm {
 
+	public static final String PAPER_STORAGE_COPY = "COPY";
+	public static final String PAPER_STORAGE_LINK = "LINK";
+
 	@NotNull(message = "請選擇班級")
 	private Long classRoomId;
 
@@ -33,6 +36,10 @@ public class ExamForm {
 	@Size(max = 1000, message = "說明不可超過 1000 個字")
 	private String description;
 
+	private String paperFileName;
+
+	private String paperPageSelection;
+
 	public static ExamForm from(Exam exam) {
 		ExamForm form = new ExamForm();
 		form.setClassRoomId(exam.getClassRoom().getId());
@@ -41,6 +48,7 @@ public class ExamForm {
 		form.setExamDate(exam.getExamDate());
 		form.setFullScore(exam.getFullScore());
 		form.setDescription(exam.getDescription());
+		form.setPaperFileName(exam.getPaperFileName());
 		return form;
 	}
 
@@ -48,7 +56,7 @@ public class ExamForm {
 		exam.setName(name);
 		exam.setExamDate(examDate);
 		exam.setFullScore(fullScore);
-		exam.setDescription(description);
+		exam.setDescription(descriptionWithPaperPages());
 	}
 
 	public Long getClassRoomId() {
@@ -97,5 +105,36 @@ public class ExamForm {
 
 	public void setDescription(String description) {
 		this.description = description;
+	}
+
+	public String getPaperFileName() {
+		return paperFileName;
+	}
+
+	public void setPaperFileName(String paperFileName) {
+		this.paperFileName = paperFileName;
+	}
+
+	public String getPaperPageSelection() {
+		return paperPageSelection;
+	}
+
+	public void setPaperPageSelection(String paperPageSelection) {
+		this.paperPageSelection = paperPageSelection;
+	}
+
+	private String descriptionWithPaperPages() {
+		String cleanDescription = description == null ? "" : description.lines()
+				.filter(line -> !line.trim().startsWith("考卷頁數："))
+				.collect(java.util.stream.Collectors.joining(System.lineSeparator()))
+				.trim();
+		if (paperPageSelection == null || paperPageSelection.isBlank()) {
+			return cleanDescription.isBlank() ? null : cleanDescription;
+		}
+		String pageNote = "考卷頁數：" + paperPageSelection.trim();
+		if (cleanDescription.isBlank()) {
+			return pageNote;
+		}
+		return cleanDescription + System.lineSeparator() + pageNote;
 	}
 }

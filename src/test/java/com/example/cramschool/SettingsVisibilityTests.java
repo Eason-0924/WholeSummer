@@ -27,11 +27,11 @@ class SettingsVisibilityTests {
 		assertThat(backup)
 				.contains("data-settings-title=\"資料庫備份\"");
 		assertThat(navigation)
-				.contains("th:if=\"${currentTeacherIsDirector}\" class=\"nav-item\"><a class=\"nav-link\" th:href=\"@{/tuition}\"");
+				.contains("th:if=\"${teacherPermissions.manageTuition}\" class=\"nav-item\"><a class=\"nav-link\" th:href=\"@{/tuition}\"");
 		assertThat(studentDetail)
-				.contains("th:if=\"${currentTeacherIsDirector}\" class=\"mt-4\"");
+				.contains("th:if=\"${teacherPermissions.manageTuition}\" class=\"mt-4\"");
 		assertThat(teacherList)
-				.contains("th:if=\"${currentTeacherIsDirector}\" class=\"btn btn-primary\" th:href=\"@{/teachers/new}\"");
+				.contains("th:if=\"${teacherPermissions.createTeacher}\" class=\"btn btn-primary\" th:href=\"@{/teachers/new}\"");
 	}
 
 	private String read(String path) throws IOException {

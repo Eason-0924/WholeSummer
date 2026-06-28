@@ -11,6 +11,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.entity.TeacherAccount;
 import com.example.cramschool.form.TeacherRegistrationForm;
+import com.example.cramschool.service.ActiveUserRegistry;
 import com.example.cramschool.service.TeacherAccountService;
 
 import jakarta.servlet.http.HttpSession;
@@ -24,9 +25,12 @@ public class AuthController {
 	public static final String TEACHER_NAME_SESSION_KEY = "teacherDisplayName";
 
 	private final TeacherAccountService teacherAccountService;
+	private final ActiveUserRegistry activeUserRegistry;
 
-	public AuthController(TeacherAccountService teacherAccountService) {
+	public AuthController(TeacherAccountService teacherAccountService,
+			ActiveUserRegistry activeUserRegistry) {
 		this.teacherAccountService = teacherAccountService;
+		this.activeUserRegistry = activeUserRegistry;
 	}
 
 	@GetMapping("/login")
@@ -96,6 +100,7 @@ public class AuthController {
 
 	@PostMapping("/logout")
 	public String logout(HttpSession session) {
+		activeUserRegistry.unregister(session.getId());
 		session.invalidate();
 		return "redirect:/login";
 	}
@@ -117,5 +122,7 @@ public class AuthController {
 		session.setAttribute(ACCOUNT_ID_SESSION_KEY, account.getId());
 		session.setAttribute(TEACHER_ID_SESSION_KEY, account.getTeacher().getId());
 		session.setAttribute(TEACHER_NAME_SESSION_KEY, account.getTeacher().getDisplayName());
+		activeUserRegistry.register(session.getId(), account.getId(),
+				account.getTeacher().getId(), account.getTeacher().getDisplayName());
 	}
 }

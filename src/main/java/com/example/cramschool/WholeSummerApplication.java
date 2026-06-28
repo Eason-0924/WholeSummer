@@ -6,10 +6,14 @@ import javax.swing.JOptionPane;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.example.cramschool.config.ExternalConfigInitializer;
 
 @SpringBootApplication
+@EnableAsync
+@EnableScheduling
 public class WholeSummerApplication {
 
 	public static void main(String[] args) {

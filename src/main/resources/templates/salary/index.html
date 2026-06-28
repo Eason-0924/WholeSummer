@@ -179,9 +179,9 @@
 										<td th:text="${attendance.matchedCourseTimeText ?: '-'}">-</td>
 										<td th:text="${attendance.countedHoursText}">0 小時</td>
 										<td>
-											<div th:if="${attendance.hasMatchedCourse()}"
+											<div th:unless="${attendance.manualAdjustmentAllowed}"
 													th:text="${attendance.note ?: '-'}">-</div>
-											<form th:unless="${attendance.hasMatchedCourse()}"
+											<form th:if="${attendance.manualAdjustmentAllowed}"
 													class="d-flex flex-nowrap align-items-center gap-2"
 													style="min-width: 500px;"
 													th:action="@{/salary/attendance/{id}/adjust(id=${attendance.id})}"
@@ -200,13 +200,13 @@
 												</div>
 												<div class="d-flex flex-nowrap align-items-center gap-2 flex-shrink-0">
 													<label class="form-label small mb-0 text-nowrap"
-															th:for="${'manualHours_' + attendance.id}">上課時數</label>
+															th:for="${'manualHours_' + attendance.id}">增加時數</label>
 													<input class="form-control form-control-sm"
 															style="width: 110px;"
 															th:id="${'manualHours_' + attendance.id}"
 															name="manualHours" type="number"
-															min="0" max="24" step="0.01"
-															th:value="${attendance.manualHours}" required>
+															min="0" max="24" step="0.5"
+															th:value="${attendance.manualHoursInputValue}" required>
 												</div>
 												<button class="btn btn-sm btn-outline-primary"
 														type="submit">儲存調整</button>

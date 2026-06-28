@@ -23,12 +23,17 @@ public class SubjectService {
 	private final SubjectRepository subjectRepository;
 	private final ClassRoomRepository classRoomRepository;
 	private final TeacherRepository teacherRepository;
+	private final SubjectUrlSlugService subjectUrlSlugService;
+	private final ClassRoomUrlSlugService classRoomUrlSlugService;
 
 	public SubjectService(SubjectRepository subjectRepository, ClassRoomRepository classRoomRepository,
-			TeacherRepository teacherRepository) {
+			TeacherRepository teacherRepository, SubjectUrlSlugService subjectUrlSlugService,
+			ClassRoomUrlSlugService classRoomUrlSlugService) {
 		this.subjectRepository = subjectRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.teacherRepository = teacherRepository;
+		this.subjectUrlSlugService = subjectUrlSlugService;
+		this.classRoomUrlSlugService = classRoomUrlSlugService;
 	}
 
 	@Transactional(readOnly = true)
@@ -53,6 +58,13 @@ public class SubjectService {
 	}
 
 	@Transactional(readOnly = true)
+	public Subject findByUrlSlugOrId(String urlSlugOrId) {
+		return subjectRepository.findByUrlSlug(urlSlugOrId)
+				.or(() -> parseId(urlSlugOrId).flatMap(subjectRepository::findById))
+				.orElseThrow(() -> new IllegalArgumentException("找不到科目資料"));
+	}
+
+	@Transactional(readOnly = true)
 	public List<ClassRoom> findActiveClassesBySubjectId(Long subjectId) {
 		return classRoomRepository.findBySubjectIdAndActiveTrue(subjectId);
 	}
@@ -67,14 +79,19 @@ public class SubjectService {
 		form.applyTo(subject);
 		subject.setTeachers(findTeachers(form.getTeacherIds()));
 		subject.setActive(true);
-		return subjectRepository.save(subject);
+		Subject savedSubject = subjectRepository.save(subject);
+		savedSubject.setUrlSlug(subjectUrlSlugService.generateUniqueSlug(savedSubject));
+		return subjectRepository.save(savedSubject);
 	}
 
 	public Subject update(Long id, SubjectForm form) {
 		Subject subject = findById(id);
 		form.applyTo(subject);
 		subject.setTeachers(findTeachers(form.getTeacherIds()));
-		return subjectRepository.save(subject);
+		subject.setUrlSlug(subjectUrlSlugService.generateUniqueSlug(subject));
+		Subject savedSubject = subjectRepository.save(subject);
+		refreshClassRoomSlugs(savedSubject.getId());
+		return savedSubject;
 	}
 
 	public void deactivate(Long id) {
@@ -97,5 +114,21 @@ public class SubjectService {
 				.map(teacherId -> teacherRepository.findById(teacherId)
 						.orElseThrow(() -> new IllegalArgumentException("找不到教師資料")))
 				.collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+	}
+
+	private void refreshClassRoomSlugs(Long subjectId) {
+		List<ClassRoom> classRooms = classRoomRepository.findBySubjectId(subjectId);
+		for (ClassRoom classRoom : classRooms) {
+			classRoom.setUrlSlug(classRoomUrlSlugService.generateUniqueSlug(classRoom));
+		}
+		classRoomRepository.saveAll(classRooms);
+	}
+
+	private java.util.Optional<Long> parseId(String value) {
+		try {
+			return java.util.Optional.of(Long.parseLong(value));
+		} catch (NumberFormatException ex) {
+			return java.util.Optional.empty();
+		}
 	}
 }

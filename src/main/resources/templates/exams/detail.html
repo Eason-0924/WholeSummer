@@ -6,6 +6,7 @@
 
 <main class="container py-4">
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
@@ -30,7 +31,7 @@
 			<div class="col-md-6">
 				<div class="text-secondary small">班級</div>
 				<div>
-					<a th:href="@{/classes/{id}(id=${exam.classRoom.id})}" th:text="${exam.classRoom.displayName}">班級</a>
+					<a th:href="@{/classes/{slug}(slug=${exam.classRoom.urlSlug})}" th:text="${exam.classRoom.displayName}">班級</a>
 				</div>
 			</div>
 			<div class="col-md-6">
@@ -52,6 +53,21 @@
 			<div class="col-md-6">
 				<div class="text-secondary small">更新時間</div>
 				<div th:text="${#temporals.format(exam.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+			</div>
+			<div class="col-12">
+				<div class="text-secondary small">考卷檔案</div>
+				<div th:if="${exam.paperFilePath != null and !exam.paperFilePath.isBlank()}"
+						class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+					<div class="min-w-0">
+						<div th:text="${exam.paperFileName ?: exam.paperFilePath}">考卷檔案</div>
+						<div class="text-secondary small text-break" th:text="${exam.paperFilePath}">考卷路徑</div>
+					</div>
+					<form th:if="${exam.paperFilePath != null and !exam.paperFilePath.isBlank()}"
+							th:action="@{/exams/{id}/paper/folder(id=${exam.id})}" method="post">
+						<button class="btn btn-sm btn-outline-primary" type="submit">開啟資料夾</button>
+					</form>
+				</div>
+				<div th:if="${exam.paperFilePath == null or exam.paperFilePath.isBlank()}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">說明</div>
@@ -102,7 +118,7 @@
 				</tr>
 				<tr th:each="score : ${scores}">
 					<td>
-						<a th:href="@{/students/{id}(id=${score.student.id})}" th:text="${score.student.displayName}">學生</a>
+						<a th:href="@{/students/{slug}(slug=${score.student.urlSlug})}" th:text="${score.student.displayName}">學生</a>
 					</td>
 					<td th:text="${score.student.grade ?: '-'}">-</td>
 					<td>

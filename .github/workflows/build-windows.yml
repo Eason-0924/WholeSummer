@@ -1,5 +1,5 @@
 name: Build Windows EXE
-run-name: Release 1.1.1
+run-name: Release 1.1.2
 
 on:
   workflow_dispatch:
@@ -74,6 +74,7 @@ jobs:
             --input input ^
             --main-jar WholeSummer.jar ^
             --dest dist ^
+            --icon packaging\windows\WholeSummer.ico ^
             --win-menu ^
             --win-menu-group WholeSummer ^
             --win-shortcut ^

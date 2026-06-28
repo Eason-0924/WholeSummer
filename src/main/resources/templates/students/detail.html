@@ -20,8 +20,8 @@
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/students}">返回</a>
 			<a th:if="${teacherPermissions.studentUpdate}" class="btn btn-outline-primary"
-					th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
-			<form th:if="${teacherPermissions.studentUpdate}" th:action="@{/students/{id}/delete(id=${student.id})}"
+					th:href="@{/students/{slug}/edit(slug=${student.urlSlug})}">編輯</a>
+			<form th:if="${teacherPermissions.studentUpdate}" th:action="@{/students/{slug}/delete(slug=${student.urlSlug})}"
 					method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
 				<button class="btn btn-outline-danger" type="submit">刪除</button>
 			</form>
@@ -78,7 +78,7 @@
 						th:text="${'逾期 ' + tuitionSummary.overdueCount}">逾期 0</span>
 			</div>
 			<a class="btn btn-sm btn-outline-primary mobile-section-action"
-					th:href="@{/tuition/new(studentId=${student.id})}">新增費用</a>
+					th:href="@{/tuition/new(student=${student.urlSlug})}">新增費用</a>
 		</div>
 		<div class="row g-3 mb-3">
 			<div class="col-md-4">
@@ -175,7 +175,7 @@
 				<tr th:each="attendance : ${attendances}">
 					<td th:text="${#temporals.format(attendance.attendanceDate, 'yyyy-MM-dd')}">2026-01-01</td>
 					<td>
-						<a th:href="@{/classes/{id}(id=${attendance.classRoom.id})}"
+						<a th:href="@{/classes/{slug}(slug=${attendance.classRoom.urlSlug})}"
 								th:text="${attendance.classRoom.displayName}">班級</a>
 					</td>
 					<td>

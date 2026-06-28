@@ -46,7 +46,7 @@
 						<a th:href="@{/homeworks/{id}(id=${homework.id})}" th:text="${homework.title}">作業內容</a>
 					</td>
 					<td>
-						<a th:href="@{/classes/{id}(id=${homework.classRoom.id})}"
+						<a th:href="@{/classes/{slug}(slug=${homework.classRoom.urlSlug})}"
 								th:text="${homework.classRoom.displayName}">班級</a>
 					</td>
 					<td th:text="${homework.subject.name}">科目</td>
@@ -109,7 +109,7 @@
 						</tr>
 						<tr th:each="rate : ${topStudentCompletionRates}">
 							<td>
-								<a th:href="@{/students/{id}(id=${rate.studentId()})}" th:text="${rate.studentName()}">學生</a>
+								<a th:href="@{/students/{slug}(slug=${rate.studentSlug()})}" th:text="${rate.studentName()}">學生</a>
 							</td>
 							<td th:text="${rate.grade() ?: '-'}">-</td>
 							<td th:text="${rate.completedCount()}">0</td>
@@ -141,7 +141,7 @@
 						</tr>
 						<tr th:each="rate : ${lowestStudentCompletionRates}">
 							<td>
-								<a th:href="@{/students/{id}(id=${rate.studentId()})}" th:text="${rate.studentName()}">學生</a>
+								<a th:href="@{/students/{slug}(slug=${rate.studentSlug()})}" th:text="${rate.studentName()}">學生</a>
 							</td>
 							<td th:text="${rate.grade() ?: '-'}">-</td>
 							<td th:text="${rate.completedCount()}">0</td>
@@ -177,10 +177,10 @@
 				</tr>
 				<tr th:each="record : ${overdueRecords}">
 					<td>
-						<a th:href="@{/students/{id}(id=${record.student.id})}" th:text="${record.student.displayName}">學生</a>
+						<a th:href="@{/students/{slug}(slug=${record.student.urlSlug})}" th:text="${record.student.displayName}">學生</a>
 					</td>
 					<td>
-						<a th:href="@{/classes/{id}(id=${record.homework.classRoom.id})}"
+						<a th:href="@{/classes/{slug}(slug=${record.homework.classRoom.urlSlug})}"
 								th:text="${record.homework.classRoom.displayName}">班級</a>
 					</td>
 					<td>

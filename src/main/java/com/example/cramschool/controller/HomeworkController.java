@@ -65,9 +65,10 @@ public class HomeworkController {
 	}
 
 	@GetMapping("/new")
-	public String newForm(@RequestParam(required = false) Long classRoomId, Model model) {
+	public String newForm(@RequestParam(required = false) String classRoom,
+			@RequestParam(required = false) Long classRoomId, Model model) {
 		HomeworkForm homeworkForm = HomeworkForm.newForm();
-		homeworkForm.setClassRoomId(classRoomId);
+		homeworkForm.setClassRoomId(resolveClassRoomId(classRoom, classRoomId));
 		model.addAttribute("pageTitle", "新增作業");
 		model.addAttribute("homeworkForm", homeworkForm);
 		model.addAttribute("formAction", "/homeworks");
@@ -134,5 +135,12 @@ public class HomeworkController {
 		homeworkService.delete(id);
 		redirectAttributes.addFlashAttribute("message", "已刪除作業：" + homework.getTitle());
 		return "redirect:/homeworks";
+	}
+
+	private Long resolveClassRoomId(String classRoomSlug, Long classRoomId) {
+		if (classRoomSlug == null || classRoomSlug.isBlank()) {
+			return classRoomId;
+		}
+		return classRoomService.findByUrlSlugOrId(classRoomSlug).getId();
 	}
 }

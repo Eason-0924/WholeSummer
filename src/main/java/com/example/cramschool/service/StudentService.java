@@ -28,12 +28,13 @@ public class StudentService {
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final TuitionRecordRepository tuitionRecordRepository;
 	private final TeacherPermissionService teacherPermissionService;
+	private final StudentUrlSlugService studentUrlSlugService;
 
 	public StudentService(StudentRepository studentRepository, ClassStudentRepository classStudentRepository,
 			ScoreRepository scoreRepository, HomeworkRecordRepository homeworkRecordRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
 			TuitionRecordRepository tuitionRecordRepository,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService, StudentUrlSlugService studentUrlSlugService) {
 		this.studentRepository = studentRepository;
 		this.classStudentRepository = classStudentRepository;
 		this.scoreRepository = scoreRepository;
@@ -41,6 +42,7 @@ public class StudentService {
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.tuitionRecordRepository = tuitionRecordRepository;
 		this.teacherPermissionService = teacherPermissionService;
+		this.studentUrlSlugService = studentUrlSlugService;
 	}
 
 	@Transactional(readOnly = true)
@@ -64,13 +66,28 @@ public class StudentService {
 				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
 	}
 
+	@Transactional(readOnly = true)
+	public Student findByUrlSlug(String urlSlug) {
+		return studentRepository.findByUrlSlug(urlSlug)
+				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
+	}
+
+	@Transactional(readOnly = true)
+	public Student findByUrlSlugOrId(String urlSlugOrId) {
+		return studentRepository.findByUrlSlug(urlSlugOrId)
+				.or(() -> parseId(urlSlugOrId).flatMap(studentRepository::findById))
+				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
+	}
+
 	public Student create(StudentForm form, Long currentTeacherId) {
 		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.STUDENT_CREATE,
 				"權限不足，無法新增學生");
 		Student student = new Student();
 		form.applyTo(student);
 		student.setActive(true);
-		return studentRepository.save(student);
+		Student savedStudent = studentRepository.save(student);
+		savedStudent.setUrlSlug(studentUrlSlugService.generateUniqueSlug(savedStudent));
+		return studentRepository.save(savedStudent);
 	}
 
 	public Student update(Long id, StudentForm form, Long currentTeacherId) {
@@ -86,6 +103,7 @@ public class StudentService {
 			student.setBirthday(birthday);
 			student.setPhone(phone);
 		}
+		student.setUrlSlug(studentUrlSlugService.generateUniqueSlug(student));
 		return studentRepository.save(student);
 	}
 
@@ -129,5 +147,13 @@ public class StudentService {
 	private int gradeOrder(String grade) {
 		int index = SchoolOptions.STUDENT_GRADES.indexOf(grade);
 		return index >= 0 ? index : SchoolOptions.STUDENT_GRADES.size();
+	}
+
+	private java.util.Optional<Long> parseId(String value) {
+		try {
+			return java.util.Optional.of(Long.parseLong(value));
+		} catch (NumberFormatException ex) {
+			return java.util.Optional.empty();
+		}
 	}
 }

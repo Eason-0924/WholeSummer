@@ -76,46 +76,47 @@ public class SubjectController {
 		return "redirect:/subjects";
 	}
 
-	@GetMapping("/{id}/edit")
-	public String editForm(@PathVariable Long id, Model model) {
-		Subject subject = subjectService.findById(id);
+	@GetMapping("/{slug}/edit")
+	public String editForm(@PathVariable String slug, Model model) {
+		Subject subject = subjectService.findByUrlSlugOrId(slug);
 		model.addAttribute("pageTitle", "編輯科目");
 		model.addAttribute("subject", subject);
 		model.addAttribute("subjectForm", SubjectForm.from(subject));
-		model.addAttribute("formAction", "/subjects/" + id);
+		model.addAttribute("formAction", "/subjects/" + subject.getUrlSlug());
 		model.addAttribute("submitLabel", "儲存");
 		return "subjects/form";
 	}
 
-	@PostMapping("/{id}")
-	public String update(@PathVariable Long id,
+	@PostMapping("/{slug}")
+	public String update(@PathVariable String slug,
 			@Valid @ModelAttribute("subjectForm") SubjectForm subjectForm,
 			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+		Subject existingSubject = subjectService.findByUrlSlugOrId(slug);
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯科目");
-			model.addAttribute("subject", subjectService.findById(id));
-			model.addAttribute("formAction", "/subjects/" + id);
+			model.addAttribute("subject", existingSubject);
+			model.addAttribute("formAction", "/subjects/" + existingSubject.getUrlSlug());
 			model.addAttribute("submitLabel", "儲存");
 			return "subjects/form";
 		}
 
-		Subject subject = subjectService.update(id, subjectForm);
+		Subject subject = subjectService.update(existingSubject.getId(), subjectForm);
 		redirectAttributes.addFlashAttribute("message", "已更新科目：" + subject.getName());
 		return "redirect:/subjects";
 	}
 
-	@PostMapping("/{id}/deactivate")
-	public String deactivate(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-		Subject subject = subjectService.findById(id);
-		subjectService.deactivate(id);
+	@PostMapping("/{slug}/deactivate")
+	public String deactivate(@PathVariable String slug, RedirectAttributes redirectAttributes) {
+		Subject subject = subjectService.findByUrlSlugOrId(slug);
+		subjectService.deactivate(subject.getId());
 		redirectAttributes.addFlashAttribute("message", "已停用科目：" + subject.getName());
 		return "redirect:/subjects";
 	}
 
-	@PostMapping("/{id}/activate")
-	public String activate(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-		Subject subject = subjectService.findById(id);
-		subjectService.activate(id);
+	@PostMapping("/{slug}/activate")
+	public String activate(@PathVariable String slug, RedirectAttributes redirectAttributes) {
+		Subject subject = subjectService.findByUrlSlugOrId(slug);
+		subjectService.activate(subject.getId());
 		redirectAttributes.addFlashAttribute("message", "已啟用科目：" + subject.getName());
 		return "redirect:/subjects";
 	}

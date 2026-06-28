@@ -4,7 +4,7 @@
 <body class="bg-light">
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
-<main class="container py-4">
+<main class="container py-4" id="classDetailPage" th:data-class-name="${classRoom.displayName}">
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
@@ -17,11 +17,11 @@
 		</div>
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/classes}">返回</a>
-			<a class="btn btn-outline-success" th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
+			<a class="btn btn-outline-success" th:href="@{/classes/{slug}/attendance(slug=${classRoom.urlSlug})}">點名</a>
 			<a th:if="${teacherPermissions.classUpdate}" class="btn btn-outline-primary"
-					th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
+					th:href="@{/classes/{slug}/edit(slug=${classRoom.urlSlug})}">編輯</a>
 			<form th:if="${teacherPermissions.classUpdate}"
-					th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+					th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
 					method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
 				<button class="btn btn-outline-danger" type="submit">刪除</button>
 			</form>
@@ -85,7 +85,7 @@
 
 		<form th:if="${teacherPermissions.classUpdate}" id="addStudentForm"
 				class="row g-2 align-items-end mb-4"
-				th:action="@{/classes/{id}/students(id=${classRoom.id})}" method="post"
+				th:action="@{/classes/{slug}/students(slug=${classRoom.urlSlug})}" method="post"
 				th:data-class-grade="${classRoom.grade}">
 			<div class="col-md-8">
 				<label for="studentId" class="form-label">加入學生</label>
@@ -122,7 +122,7 @@
 				</tr>
 				<tr th:each="classStudent : ${classStudents}">
 					<td>
-						<a th:href="@{/students/{id}(id=${classStudent.student.id})}"
+						<a th:href="@{/students/{slug}(slug=${classStudent.student.urlSlug})}"
 								th:text="${classStudent.student.displayName}">學生姓名</a>
 					</td>
 					<td th:text="${classStudent.student.grade ?: '-'}">-</td>
@@ -130,7 +130,7 @@
 					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy-MM-dd HH:mm')}">-</td>
 					<td class="text-end">
 						<form th:if="${teacherPermissions.classUpdate}"
-								th:action="@{/classes/{id}/students/{classStudentId}/remove(id=${classRoom.id}, classStudentId=${classStudent.id})}"
+								th:action="@{/classes/{slug}/students/{classStudentId}/remove(slug=${classRoom.urlSlug}, classStudentId=${classStudent.id})}"
 								method="post" onsubmit="return confirm('確定要刪除這筆班級學生紀錄嗎？');">
 							<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 						</form>
@@ -145,42 +145,55 @@
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
 				<h2 class="h5 mb-0">出缺席統計</h2>
-				<span class="badge text-bg-primary" th:text="${attendanceStats.totalCount}">0</span>
+				<span class="badge text-bg-primary" data-record-count="attendance"
+						th:text="${attendanceStats.totalCount}">0</span>
+				<div class="btn-group btn-group-sm" role="group" aria-label="出缺席範圍">
+					<button class="btn btn-primary" type="button" data-range-toggle="attendance" data-range="month">當月</button>
+					<button class="btn btn-outline-primary" type="button" data-range-toggle="attendance" data-range="all">全部</button>
+				</div>
 			</div>
-			<a class="btn btn-sm btn-outline-success mobile-section-action"
-					th:href="@{/classes/{id}/attendance(id=${classRoom.id})}">點名</a>
+			<div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+				<a class="btn btn-sm btn-outline-success mobile-section-action"
+						th:href="@{/classes/{slug}/attendance(slug=${classRoom.urlSlug})}">點名</a>
+				<form th:action="@{/classes/{slug}/export(slug=${classRoom.urlSlug})}" method="post">
+					<input type="hidden" name="section" value="attendance">
+					<input type="hidden" name="range" value="month" data-export-range="attendance">
+					<button class="btn btn-sm btn-outline-secondary" type="submit">匯出</button>
+				</form>
+			</div>
 		</div>
 		<div class="row g-3 mb-3">
 			<div class="col-md-3">
 				<div class="bg-white border rounded p-3 h-100">
 					<div class="text-secondary small">平均出席率</div>
-					<div class="fs-5 fw-semibold"
+					<div class="fs-5 fw-semibold" data-attendance-stat="presentRate"
 							th:text="${#numbers.formatDecimal(attendanceStats.presentRate, 1, 1) + '%'}">0.0%</div>
 				</div>
 			</div>
 			<div class="col-md-3">
 				<div class="bg-white border rounded p-3 h-100">
 					<div class="text-secondary small">缺席率</div>
-					<div class="fs-5 fw-semibold"
+					<div class="fs-5 fw-semibold" data-attendance-stat="absentRate"
 							th:text="${#numbers.formatDecimal(attendanceStats.absentRate, 1, 1) + '%'}">0.0%</div>
 				</div>
 			</div>
 			<div class="col-md-3">
 				<div class="bg-white border rounded p-3 h-100">
 					<div class="text-secondary small">遲到率</div>
-					<div class="fs-5 fw-semibold"
+					<div class="fs-5 fw-semibold" data-attendance-stat="lateRate"
 							th:text="${#numbers.formatDecimal(attendanceStats.lateRate, 1, 1) + '%'}">0.0%</div>
 				</div>
 			</div>
 			<div class="col-md-3">
 				<div class="bg-white border rounded p-3 h-100">
 					<div class="text-secondary small">請假次數</div>
-					<div class="fs-5 fw-semibold" th:text="${attendanceStats.leaveCount}">0</div>
+					<div class="fs-5 fw-semibold" data-attendance-stat="leaveCount"
+							th:text="${attendanceStats.leaveCount}">0</div>
 				</div>
 			</div>
 		</div>
 		<div class="table-responsive bg-white border rounded">
-			<table class="table table-hover align-middle mb-0">
+			<table class="table table-hover align-middle mb-0" data-export-table="attendance">
 				<thead class="table-light">
 				<tr>
 					<th>日期</th>
@@ -194,7 +207,8 @@
 					<td th:colspan="${#lists.size(classStudents) + 2}"
 							class="text-center text-secondary py-4">目前尚無出缺席紀錄</td>
 				</tr>
-				<tr th:each="attendanceRow : ${attendanceTableRows}">
+				<tr th:each="attendanceRow : ${attendanceTableRows}"
+						th:attr="data-record-date=${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')}">
 					<td th:text="${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')}">2026-01-01</td>
 					<td th:each="attendance : ${attendanceRow.attendances}">
 						<span th:if="${attendance == null}" class="text-secondary">-</span>
@@ -210,8 +224,12 @@
 					</td>
 					<td class="text-end">
 						<a class="btn btn-sm btn-primary"
-								th:href="@{/classes/{id}/attendance(id=${classRoom.id}, date=${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')})}">編輯</a>
+								th:href="@{/classes/{slug}/attendance(slug=${classRoom.urlSlug}, date=${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')})}">編輯</a>
 					</td>
+				</tr>
+				<tr class="d-none" data-empty-row="attendance">
+					<td th:colspan="${#lists.size(classStudents) + 2}"
+							class="text-center text-secondary py-4">此範圍尚無出缺席紀錄</td>
 				</tr>
 				</tbody>
 			</table>
@@ -222,13 +240,25 @@
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
 				<h2 class="h5 mb-0">作業列表</h2>
-				<span class="badge text-bg-primary" th:text="${#lists.size(homeworks)}">0</span>
+				<span class="badge text-bg-primary" data-record-count="homework"
+						th:text="${#lists.size(homeworks)}">0</span>
+				<div class="btn-group btn-group-sm" role="group" aria-label="作業範圍">
+					<button class="btn btn-primary" type="button" data-range-toggle="homework" data-range="month">當月</button>
+					<button class="btn btn-outline-primary" type="button" data-range-toggle="homework" data-range="all">全部</button>
+				</div>
 			</div>
-			<a class="btn btn-sm btn-outline-primary mobile-section-action"
-					th:href="@{/homeworks/new(classRoomId=${classRoom.id})}">新增作業</a>
+			<div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+				<a class="btn btn-sm btn-outline-primary mobile-section-action"
+						th:href="@{/homeworks/new(classRoom=${classRoom.urlSlug})}">新增作業</a>
+				<form th:action="@{/classes/{slug}/export(slug=${classRoom.urlSlug})}" method="post">
+					<input type="hidden" name="section" value="homework">
+					<input type="hidden" name="range" value="month" data-export-range="homework">
+					<button class="btn btn-sm btn-outline-secondary" type="submit">匯出</button>
+				</form>
+			</div>
 		</div>
 		<div class="table-responsive bg-white border rounded">
-			<table class="table table-hover align-middle mb-0">
+			<table class="table table-hover align-middle mb-0" data-export-table="homework">
 				<thead class="table-light">
 				<tr>
 					<th>作業內容</th>
@@ -242,7 +272,8 @@
 				<tr th:if="${#lists.isEmpty(homeworks)}">
 					<td colspan="5" class="text-center text-secondary py-4">目前尚無作業資料</td>
 				</tr>
-				<tr th:each="homework : ${homeworks}">
+				<tr th:each="homework : ${homeworks}"
+						th:attr="data-record-date=${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">
 					<td>
 						<a th:href="@{/homeworks/{id}(id=${homework.id})}" th:text="${homework.title}">作業</a>
 					</td>
@@ -254,6 +285,9 @@
 								th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
 					</td>
 				</tr>
+				<tr class="d-none" data-empty-row="homework">
+					<td colspan="5" class="text-center text-secondary py-4">此範圍尚無作業資料</td>
+				</tr>
 				</tbody>
 			</table>
 		</div>
@@ -263,10 +297,22 @@
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
 				<h2 class="h5 mb-0">測驗列表</h2>
-				<span class="badge text-bg-primary" th:text="${#lists.size(exams)}">0</span>
+				<span class="badge text-bg-primary" data-record-count="exam"
+						th:text="${#lists.size(exams)}">0</span>
+				<div class="btn-group btn-group-sm" role="group" aria-label="測驗範圍">
+					<button class="btn btn-primary" type="button" data-range-toggle="exam" data-range="month">當月</button>
+					<button class="btn btn-outline-primary" type="button" data-range-toggle="exam" data-range="all">全部</button>
+				</div>
 			</div>
-			<a class="btn btn-sm btn-outline-primary mobile-section-action"
-					th:href="@{/exams/new(classRoomId=${classRoom.id})}">新增測驗</a>
+			<div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+				<a class="btn btn-sm btn-outline-primary mobile-section-action"
+						th:href="@{/exams/new(classRoom=${classRoom.urlSlug})}">新增測驗</a>
+				<form th:action="@{/classes/{slug}/export(slug=${classRoom.urlSlug})}" method="post">
+					<input type="hidden" name="section" value="exam">
+					<input type="hidden" name="range" value="month" data-export-range="exam">
+					<button class="btn btn-sm btn-outline-secondary" type="submit">匯出</button>
+				</form>
+			</div>
 		</div>
 		<div th:if="${#lists.isEmpty(exams)}" class="table-responsive bg-white border rounded">
 			<table class="table table-hover align-middle mb-0">
@@ -277,8 +323,8 @@
 				</tbody>
 			</table>
 		</div>
-		<div th:if="${!#lists.isEmpty(scoredExams)}" class="table-responsive bg-white border rounded">
-			<table class="table table-hover align-middle mb-0">
+		<div th:if="${!#lists.isEmpty(scoredExams)}" class="table-responsive bg-white border rounded" data-exam-table-wrapper>
+			<table class="table table-hover align-middle mb-0" data-export-table="exam-scored">
 				<colgroup>
 					<col style="width: 14%;">
 					<col style="width: 28%;">
@@ -303,7 +349,8 @@
 				</tr>
 				</thead>
 				<tbody>
-				<tr th:each="exam : ${scoredExams}" th:with="stats=${statsByExamId[exam.id]}">
+				<tr th:each="exam : ${scoredExams}" th:with="stats=${statsByExamId[exam.id]}"
+						th:attr="data-record-date=${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">
 					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
 					<td>
 						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
@@ -318,8 +365,9 @@
 			</table>
 		</div>
 		<div th:if="${!#lists.isEmpty(practiceExams)}"
-				th:class="${#lists.isEmpty(scoredExams)} ? 'table-responsive bg-white border rounded' : 'table-responsive bg-white border rounded mt-3'">
-			<table class="table table-hover align-middle mb-0">
+				th:class="${#lists.isEmpty(scoredExams)} ? 'table-responsive bg-white border rounded' : 'table-responsive bg-white border rounded mt-3'"
+				data-exam-table-wrapper>
+			<table class="table table-hover align-middle mb-0" data-export-table="exam-practice">
 				<colgroup>
 					<col style="width: 14%;">
 					<col style="width: 28%;">
@@ -336,12 +384,22 @@
 				</tr>
 				</thead>
 				<tbody>
-				<tr th:each="exam : ${practiceExams}" th:with="stats=${statsByExamId[exam.id]}">
+				<tr th:each="exam : ${practiceExams}" th:with="stats=${statsByExamId[exam.id]}"
+						th:attr="data-record-date=${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">
 					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
 					<td>
 						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
 					</td>
 					<td th:text="${stats.completedCount + ' / ' + stats.totalCount}">0 / 0</td>
+				</tr>
+				</tbody>
+			</table>
+		</div>
+		<div class="table-responsive bg-white border rounded d-none" data-empty-row="exam">
+			<table class="table table-hover align-middle mb-0">
+				<tbody>
+				<tr>
+					<td class="text-center text-secondary py-4">此範圍尚無測驗資料</td>
 				</tr>
 				</tbody>
 			</table>
@@ -368,6 +426,144 @@
 			}
 		});
 	}
+
+	const activeRanges = {
+		attendance: 'month',
+		homework: 'month',
+		exam: 'month'
+	};
+
+	function currentMonthPrefix() {
+		const today = new Date();
+		return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+	}
+
+	function inActiveRange(row, section) {
+		const range = activeRanges[section] || 'month';
+		if (range === 'all') {
+			return true;
+		}
+		return (row.dataset.recordDate || '').startsWith(currentMonthPrefix());
+	}
+
+	function dataRows(section) {
+		if (section === 'exam') {
+			return Array.from(document.querySelectorAll('[data-export-table="exam-scored"] tbody tr[data-record-date], [data-export-table="exam-practice"] tbody tr[data-record-date]'));
+		}
+		return Array.from(document.querySelectorAll(`[data-export-table="${section}"] tbody tr[data-record-date]`));
+	}
+
+	function visibleRows(section) {
+		return dataRows(section).filter((row) => !row.classList.contains('d-none'));
+	}
+
+	function updateToggleButtons(section) {
+		document.querySelectorAll(`[data-range-toggle="${section}"]`).forEach((button) => {
+			const active = button.dataset.range === activeRanges[section];
+			button.classList.toggle('btn-primary', active);
+			button.classList.toggle('btn-outline-primary', !active);
+		});
+	}
+
+	function setRecordCount(section, count) {
+		const badge = document.querySelector(`[data-record-count="${section}"]`);
+		if (badge) {
+			badge.textContent = count;
+		}
+	}
+
+	function updateExportRange(section) {
+		const input = document.querySelector(`[data-export-range="${section}"]`);
+		if (input) {
+			input.value = activeRanges[section] || 'month';
+		}
+	}
+
+	function applyRange(section) {
+		const rows = dataRows(section);
+		let visibleCount = 0;
+		rows.forEach((row) => {
+			const visible = inActiveRange(row, section);
+			row.classList.toggle('d-none', !visible);
+			if (visible) {
+				visibleCount += 1;
+			}
+		});
+		setRecordCount(section, visibleCount);
+		updateToggleButtons(section);
+		updateExportRange(section);
+		if (section === 'attendance') {
+			updateAttendanceStats();
+			updateTableEmptyRow('attendance', visibleCount);
+		} else if (section === 'homework') {
+			updateTableEmptyRow('homework', visibleCount);
+		} else if (section === 'exam') {
+			updateExamTables(visibleCount);
+		}
+	}
+
+	function updateTableEmptyRow(section, visibleCount) {
+		const emptyRow = document.querySelector(`[data-empty-row="${section}"]`);
+		if (emptyRow) {
+			emptyRow.classList.toggle('d-none', dataRows(section).length === 0 || visibleCount !== 0);
+		}
+	}
+
+	function statusText(cell) {
+		return (cell.textContent || '').trim();
+	}
+
+	function updateAttendanceStats() {
+		let present = 0;
+		let absent = 0;
+		let late = 0;
+		let leave = 0;
+		let total = 0;
+		visibleRows('attendance').forEach((row) => {
+			Array.from(row.cells).slice(1, -1).forEach((cell) => {
+				const status = statusText(cell);
+				if (!status || status === '-') {
+					return;
+				}
+				total += 1;
+				if (status.includes('出席')) {
+					present += 1;
+				} else if (status.includes('缺席')) {
+					absent += 1;
+				} else if (status.includes('遲到')) {
+					late += 1;
+				} else if (status.includes('請假')) {
+					leave += 1;
+				}
+			});
+		});
+		const percent = (value) => (total === 0 ? '0.0%' : `${((value / total) * 100).toFixed(1)}%`);
+		document.querySelector('[data-attendance-stat="presentRate"]').textContent = percent(present);
+		document.querySelector('[data-attendance-stat="absentRate"]').textContent = percent(absent);
+		document.querySelector('[data-attendance-stat="lateRate"]').textContent = percent(late);
+		document.querySelector('[data-attendance-stat="leaveCount"]').textContent = leave;
+	}
+
+	function updateExamTables(visibleCount) {
+		document.querySelectorAll('[data-exam-table-wrapper]').forEach((wrapper) => {
+			const hasVisibleRows = Array.from(wrapper.querySelectorAll('tbody tr[data-record-date]'))
+					.some((row) => !row.classList.contains('d-none'));
+			wrapper.classList.toggle('d-none', !hasVisibleRows);
+		});
+		const emptyBlock = document.querySelector('[data-empty-row="exam"]');
+		if (emptyBlock) {
+			emptyBlock.classList.toggle('d-none', dataRows('exam').length === 0 || visibleCount !== 0);
+		}
+	}
+
+	document.querySelectorAll('[data-range-toggle]').forEach((button) => {
+		button.addEventListener('click', () => {
+			activeRanges[button.dataset.rangeToggle] = button.dataset.range;
+			applyRange(button.dataset.rangeToggle);
+		});
+	});
+
+	['attendance', 'homework', 'exam'].forEach(applyRange);
 </script>
 </body>
 </html>

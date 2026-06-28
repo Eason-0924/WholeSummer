@@ -37,6 +37,9 @@ public class ClassRoom {
 	@Column(name = "class_type", length = 100)
 	private String classType;
 
+	@Column(name = "url_slug", length = 150, unique = true)
+	private String urlSlug;
+
 	@ManyToOne
 	@JoinColumn(name = "teacher_id")
 	private Teacher teacher;
@@ -123,6 +126,14 @@ public class ClassRoom {
 		this.classType = classType;
 	}
 
+	public String getUrlSlug() {
+		return urlSlug;
+	}
+
+	public void setUrlSlug(String urlSlug) {
+		this.urlSlug = urlSlug;
+	}
+
 	public Teacher getTeacher() {
 		return teacher;
 	}
@@ -165,6 +176,8 @@ public class ClassRoom {
 	public List<ClassSchedule> getEffectiveSchedules() {
 		if (schedules != null && !schedules.isEmpty()) {
 			return schedules.stream()
+					.filter(schedule -> schedule.getScheduleType() == ScheduleType.NORMAL
+							&& schedule.getScheduledStartAt() == null)
 					.sorted(Comparator.comparingInt((ClassSchedule schedule) -> weekdayOrder(schedule.getWeekday()))
 							.thenComparing(ClassSchedule::getStartTime, Comparator.nullsLast(LocalTime::compareTo)))
 					.toList();

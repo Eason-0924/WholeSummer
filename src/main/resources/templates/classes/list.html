@@ -59,9 +59,64 @@
 		.schedule-card-name {
 			font-weight: 600;
 		}
+		.schedule-card-title {
+			display: flex;
+			align-items: center;
+			gap: 0.35rem;
+			flex-wrap: wrap;
+		}
 		.schedule-card-meta {
 			color: #6c757d;
 			font-size: 0.875rem;
+		}
+		.schedule-type-label {
+			font-size: 0.75rem;
+		}
+		.schedule-type-make-up .schedule-type-label,
+		.schedule-type-rescheduled .schedule-type-label {
+			background: #6c757d;
+		}
+		.schedule-type-cancelled {
+			background-color: #f1f1f1;
+			border-color: #999;
+			border-left-color: #999;
+			border-style: dashed;
+			color: #777;
+			opacity: 0.72;
+			text-decoration: line-through;
+		}
+		.reschedule-calendar {
+			display: grid;
+			gap: 0.5rem;
+			grid-template-columns: repeat(7, minmax(0, 1fr));
+		}
+		.reschedule-day {
+			min-height: 3.75rem;
+		}
+		.reschedule-date-arrow {
+			width: 1.5rem;
+			min-width: 1.5rem;
+			height: 1.5rem;
+			line-height: 1;
+			flex: 0 0 1.5rem;
+		}
+		.reschedule-date-field {
+			position: relative;
+		}
+		.reschedule-date-warning {
+			position: absolute;
+			top: 100%;
+			left: 0;
+			margin-top: 0.25rem;
+			white-space: nowrap;
+		}
+		#rescheduleSlotsList .list-group-item {
+			width: 100%;
+		}
+		#rescheduleSlotsList .list-group-item-danger {
+			background-color: var(--bs-danger-bg-subtle);
+			color: var(--bs-danger-text-emphasis);
+			border-color: var(--bs-danger-border-subtle);
 		}
 	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
@@ -102,7 +157,7 @@
 				</tr>
 				<tr th:each="classRoom : ${activeClasses}">
 					<td>
-						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級名稱</a>
+						<a th:href="@{/classes/{slug}(slug=${classRoom.urlSlug})}" th:text="${classRoom.displayName}">班級名稱</a>
 					</td>
 					<td th:text="${classRoom.teacherName ?: '-'}">-</td>
 					<td>
@@ -115,12 +170,12 @@
 					<td class="text-end">
 						<div th:if="${teacherPermissions.classUpdate}" class="class-actions d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
-									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
-							<form th:action="@{/classes/{id}/deactivate(id=${classRoom.id})}"
+									th:href="@{/classes/{slug}/edit(slug=${classRoom.urlSlug})}">編輯</a>
+							<form th:action="@{/classes/{slug}/deactivate(slug=${classRoom.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要將這個班級設為已結束嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">結束</button>
 							</form>
-							<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+							<form th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
@@ -134,7 +189,17 @@
 
 	<section class="mb-4">
 		<div class="schedule-toolbar d-flex justify-content-between align-items-center flex-wrap gap-3 mb-2">
-			<h2 class="h5 mb-0">上課時間表</h2>
+			<div class="d-flex align-items-center gap-2">
+				<h2 class="h5 mb-0">上課時間表</h2>
+				<div class="btn-group btn-group-sm" role="group" aria-label="切換課表">
+					<button class="btn btn-primary" type="button" data-schedule-view-button="fixed">固定課表</button>
+					<button class="btn btn-outline-primary" type="button" data-schedule-view-button="weekly">當週課表</button>
+				</div>
+				<div id="weeklyCancelledToggleWrapper" class="form-check form-check-inline mb-0 d-none">
+					<input id="showCancelledWeeklySchedules" class="form-check-input" type="checkbox">
+					<label class="form-check-label small text-secondary" for="showCancelledWeeklySchedules">顯示取消課程</label>
+				</div>
+			</div>
 			<div class="schedule-toolbar-controls">
 				<label class="schedule-color-label form-label small text-secondary mb-0"
 						for="scheduleColorMode">標記方式</label>
@@ -154,6 +219,7 @@
 						type="button">匯出</button>
 			</div>
 		</div>
+		<div data-schedule-view="fixed">
 		<div th:if="${#lists.isEmpty(scheduleRows)}" class="bg-white border rounded text-center text-secondary py-4">
 			目前尚無開課時間資料
 		</div>
@@ -172,9 +238,9 @@
 							<td class="schedule-cell" th:each="scheduleCell : ${scheduleRow.cells}">
 								<a class="schedule-card"
 										th:each="scheduledClass : ${scheduleCell.classes}"
-										th:href="@{/classes/{id}(id=${scheduledClass.classRoomId})}"
-										th:attr="data-subject-key=${scheduledClass.subjectKey == null ? '未指定' : scheduledClass.subjectKey},
-												data-teacher-key=${scheduledClass.teacherKey == null ? '未指定' : scheduledClass.teacherKey},
+										th:href="@{/classes/{slug}(slug=${scheduledClass.classRoomSlug})}"
+										th:attr="data-subject-key=${scheduledClass.subjectColorKey == null ? '未指定' : scheduledClass.subjectColorKey},
+												data-teacher-key=${scheduledClass.teacherColorKey == null ? '未指定' : scheduledClass.teacherColorKey},
 												data-grade-key=${scheduledClass.gradeKey ?: '未指定'}">
 									<div class="schedule-card-name" th:text="${scheduledClass.className}">國一數學（A班）</div>
 									<div class="schedule-card-meta" th:text="${scheduledClass.teacherName ?: '-'}">王老師</div>
@@ -186,7 +252,135 @@
 					</table>
 				</div>
 			</div>
+		</div>
+		<div data-schedule-view="weekly" class="d-none">
+			<div th:if="${#lists.isEmpty(weeklyScheduleRows)}" class="bg-white border rounded text-center text-secondary py-4">
+				本週尚無課程資料
+			</div>
+			<div th:unless="${#lists.isEmpty(weeklyScheduleRows)}">
+				<div class="table-responsive bg-white border rounded">
+					<table class="table schedule-table mb-0">
+						<thead class="table-light">
+						<tr>
+							<th class="schedule-slot"></th>
+							<th class="text-center" th:each="weekday : ${weeklyScheduleWeekdays}" th:text="${weekday}">星期一</th>
+						</tr>
+						</thead>
+						<tbody>
+						<tr th:each="scheduleRow : ${weeklyScheduleRows}">
+							<th class="schedule-slot text-center" th:text="${scheduleRow.timeSlot}">晚上</th>
+							<td class="schedule-cell" th:each="scheduleCell : ${scheduleRow.cells}">
+								<div class="schedule-card schedule-card-weekly"
+										th:each="scheduledClass : ${scheduleCell.classes}"
+										th:classappend="${scheduledClass.scheduleTypeName == 'MAKE_UP' ? ' schedule-type-make-up' :
+												(scheduledClass.scheduleTypeName == 'RESCHEDULED' ? ' schedule-type-rescheduled' :
+												(scheduledClass.scheduleTypeName == 'CANCELLED' ? ' schedule-type-cancelled' : ' schedule-type-normal'))}"
+										th:attr="data-subject-key=${scheduledClass.subjectColorKey == null ? '未指定' : scheduledClass.subjectColorKey},
+												data-teacher-key=${scheduledClass.teacherColorKey == null ? '未指定' : scheduledClass.teacherColorKey},
+												data-grade-key=${scheduledClass.gradeKey ?: '未指定'},
+												data-schedule-type=${scheduledClass.scheduleTypeName}">
+									<div class="schedule-card-title">
+										<div class="schedule-card-name" th:text="${scheduledClass.className}">國一數學（A班）</div>
+										<div th:if="${scheduledClass.scheduleTypeName == 'MAKE_UP' or scheduledClass.scheduleTypeName == 'RESCHEDULED'}"
+												class="badge text-bg-secondary schedule-type-label"
+												th:text="${scheduledClass.scheduleTypeDisplayName}">補課</div>
+									</div>
+									<div class="schedule-card-meta" th:text="${scheduledClass.teacherName ?: '-'}">王老師</div>
+									<div class="schedule-card-meta" th:text="${scheduledClass.timeRangeText}">18:00 ~ 20:00</div>
+								</div>
+							</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<section class="bg-white border rounded p-3 mt-3">
+				<h3 class="h6 mb-3">安排調課</h3>
+				<form id="rescheduleForm" class="row g-3 align-items-end" method="post" th:action="@{/schedule/week/reschedule}">
+					<input type="hidden" name="allowTeacherConflict" id="rescheduleAllowTeacherConflict" value="false">
+					<input type="hidden" name="pending" id="reschedulePending" value="false">
+					<div class="col-md-3">
+						<label class="form-label">課程</label>
+						<select class="form-select" name="originalScheduleId" id="rescheduleCourseSelect" required>
+							<option value="">請選擇課程</option>
+							<option th:each="course : ${rescheduleCourseOptions}"
+									th:value="${course.scheduleId}"
+									th:attr="data-class-id=${course.classRoomId},data-course-date=${course.courseDate},data-start-time=${#temporals.format(course.startTime, 'HH:mm')},data-end-time=${#temporals.format(course.endTime, 'HH:mm')}"
+									th:text="${course.className}">課程</option>
+						</select>
+					</div>
+					<div class="col-md-2 reschedule-date-field">
+						<label class="form-label">上課時間</label>
+						<div class="d-flex align-items-center gap-2">
+							<button class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0 reschedule-date-arrow"
+									type="button" id="previousOriginalCourseDate">‹</button>
+							<input class="form-control" type="date" name="originalDate"
+									id="originalCourseDate"
+									th:value="${#temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}" required>
+							<button class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0 reschedule-date-arrow"
+									type="button" id="nextOriginalCourseDate">›</button>
+						</div>
+						<div id="originalCourseDateWarning" class="form-text text-danger reschedule-date-warning d-none">此日期不是上課日</div>
+					</div>
+					<div class="col-md-3">
+						<label class="form-label">新上課時間</label>
+						<input type="hidden" name="newStart" id="newRescheduleStartValue">
+						<input class="form-control" type="text"
+								id="newRescheduleStart" readonly
+								data-bs-toggle="modal" data-bs-target="#rescheduleTimeModal"
+								placeholder="點擊選擇可調課時間">
+					</div>
+					<div class="col-md-3">
+						<label class="form-label">調課原因</label>
+						<input class="form-control" type="text" name="reason" maxlength="255" placeholder="請輸入調課原因">
+					</div>
+					<div class="col-md-1 text-end">
+						<button class="btn btn-success w-100" type="submit">送出調課</button>
+					</div>
+				</form>
+			</section>
+		</div>
 	</section>
+
+	<div class="modal fade" id="rescheduleTimeModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title h5">選擇新上課時間</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+				</div>
+				<div class="modal-body">
+					<div class="reschedule-calendar mb-3 text-center text-secondary small fw-semibold">
+						<div>週日</div>
+						<div>週一</div>
+						<div>週二</div>
+						<div>週三</div>
+						<div>週四</div>
+						<div>週五</div>
+						<div>週六</div>
+					</div>
+					<div class="reschedule-calendar mb-3" id="rescheduleCalendar">
+						<div th:if="${!#lists.isEmpty(rescheduleCalendarDates) and rescheduleCalendarDates[0].dayOfWeek.value % 7 > 0}"
+								th:each="blank : ${#numbers.sequence(1, rescheduleCalendarDates[0].dayOfWeek.value % 7)}"></div>
+						<button class="btn btn-outline-secondary reschedule-day text-start"
+								type="button"
+								th:each="day : ${rescheduleCalendarDates}"
+								th:attr="data-date=${#temporals.format(day, 'yyyy-MM-dd')}">
+							<div class="fw-semibold" th:text="${#temporals.format(day, 'MM/dd')}">07/01</div>
+							<div class="small text-secondary">查看時段</div>
+						</button>
+					</div>
+					<div id="rescheduleSlotsLoading" class="text-secondary d-none">載入中...</div>
+					<div id="rescheduleSlotsError" class="alert alert-danger d-none">載入可調課時段失敗，請稍後再試。</div>
+					<div id="rescheduleSlotsList" class="list-group d-none"></div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary" id="markReschedulePending">待定</button>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<section>
 		<div class="d-flex align-items-center gap-2 mb-2">
@@ -210,7 +404,7 @@
 				</tr>
 				<tr th:each="classRoom : ${inactiveClasses}">
 					<td>
-						<a th:href="@{/classes/{id}(id=${classRoom.id})}" th:text="${classRoom.displayName}">班級名稱</a>
+						<a th:href="@{/classes/{slug}(slug=${classRoom.urlSlug})}" th:text="${classRoom.displayName}">班級名稱</a>
 					</td>
 					<td th:text="${classRoom.teacherName ?: '-'}">-</td>
 					<td>
@@ -223,12 +417,12 @@
 					<td class="text-end">
 						<div th:if="${teacherPermissions.classUpdate}" class="class-actions d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
-									th:href="@{/classes/{id}/edit(id=${classRoom.id})}">編輯</a>
-							<form th:action="@{/classes/{id}/activate(id=${classRoom.id})}"
+									th:href="@{/classes/{slug}/edit(slug=${classRoom.urlSlug})}">編輯</a>
+							<form th:action="@{/classes/{slug}/activate(slug=${classRoom.urlSlug})}"
 									method="post">
 								<button class="btn btn-sm btn-outline-success" type="submit">重新開課</button>
 							</form>
-							<form th:action="@{/classes/{id}/delete(id=${classRoom.id})}"
+							<form th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
@@ -246,6 +440,263 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 <script>
+	const weeklyCancelledToggleWrapper = document.getElementById('weeklyCancelledToggleWrapper');
+	const showCancelledWeeklySchedules = document.getElementById('showCancelledWeeklySchedules');
+
+	function updateWeeklyCancelledVisibility() {
+		const showCancelled = Boolean(showCancelledWeeklySchedules?.checked);
+		document.querySelectorAll('.schedule-card-weekly.schedule-type-cancelled').forEach((card) => {
+			card.classList.toggle('d-none', !showCancelled);
+		});
+	}
+
+	document.querySelectorAll('[data-schedule-view-button]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const targetView = button.dataset.scheduleViewButton;
+			document.querySelectorAll('[data-schedule-view]').forEach((section) => {
+				section.classList.toggle('d-none', section.dataset.scheduleView !== targetView);
+			});
+			document.querySelectorAll('[data-schedule-view-button]').forEach((viewButton) => {
+				const active = viewButton.dataset.scheduleViewButton === targetView;
+				viewButton.classList.toggle('btn-primary', active);
+				viewButton.classList.toggle('btn-outline-primary', !active);
+			});
+			if (weeklyCancelledToggleWrapper) {
+				weeklyCancelledToggleWrapper.classList.toggle('d-none', targetView !== 'weekly');
+			}
+			updateWeeklyCancelledVisibility();
+		});
+	});
+	showCancelledWeeklySchedules?.addEventListener('change', updateWeeklyCancelledVisibility);
+	updateWeeklyCancelledVisibility();
+
+	const rescheduleCourseSelect = document.getElementById('rescheduleCourseSelect');
+	const rescheduleForm = document.getElementById('rescheduleForm');
+	const originalCourseDate = document.getElementById('originalCourseDate');
+	const originalCourseDateWarning = document.getElementById('originalCourseDateWarning');
+	const previousOriginalCourseDate = document.getElementById('previousOriginalCourseDate');
+	const nextOriginalCourseDate = document.getElementById('nextOriginalCourseDate');
+	const newRescheduleStart = document.getElementById('newRescheduleStart');
+	const newRescheduleStartValue = document.getElementById('newRescheduleStartValue');
+	const rescheduleAllowTeacherConflict = document.getElementById('rescheduleAllowTeacherConflict');
+	const reschedulePending = document.getElementById('reschedulePending');
+	const markReschedulePending = document.getElementById('markReschedulePending');
+	const rescheduleSlotsLoading = document.getElementById('rescheduleSlotsLoading');
+	const rescheduleSlotsError = document.getElementById('rescheduleSlotsError');
+	const rescheduleSlotsList = document.getElementById('rescheduleSlotsList');
+
+	function selectedRescheduleCourseOption() {
+		return rescheduleCourseSelect?.selectedOptions?.[0] || null;
+	}
+
+	function formatLocalDate(date) {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	function dayOfWeekValue(date) {
+		return date.getDay() === 0 ? 7 : date.getDay();
+	}
+
+	function resetSelectedNewRescheduleTime() {
+		if (newRescheduleStart) {
+			newRescheduleStart.value = '';
+		}
+		if (newRescheduleStartValue) {
+			newRescheduleStartValue.value = '';
+		}
+		if (rescheduleAllowTeacherConflict) {
+			rescheduleAllowTeacherConflict.value = 'false';
+		}
+		if (reschedulePending) {
+			reschedulePending.value = 'false';
+		}
+	}
+
+	function applyOriginalCourseSelection(option, dateValue) {
+		if (!option) {
+			return;
+		}
+		rescheduleCourseSelect.value = option.value;
+		originalCourseDate.value = dateValue || option.dataset.courseDate || '';
+		resetSelectedNewRescheduleTime();
+		updateOriginalCourseDateWarning();
+	}
+
+	function originalCourseDateClassWeekdays() {
+		const option = selectedRescheduleCourseOption();
+		if (!option?.value) {
+			return [];
+		}
+		const classId = option.dataset.classId || '';
+		return Array.from(rescheduleCourseSelect.options)
+				.filter((candidate) => candidate.value && (candidate.dataset.classId || '') === classId)
+				.map((candidate) => candidate.dataset.courseDate)
+				.filter(Boolean)
+				.map((dateValue) => dayOfWeekValue(new Date(`${dateValue}T00:00:00`)))
+				.filter((value, index, values) => values.indexOf(value) === index);
+	}
+
+	function updateOriginalCourseDateWarning() {
+		if (!originalCourseDate || !originalCourseDateWarning) {
+			return;
+		}
+		const option = selectedRescheduleCourseOption();
+		const classWeekdays = originalCourseDateClassWeekdays();
+		const selectedDate = originalCourseDate.value
+				? new Date(`${originalCourseDate.value}T00:00:00`)
+				: null;
+		const invalid = Boolean(option?.value && selectedDate && classWeekdays.length > 0
+				&& !classWeekdays.includes(dayOfWeekValue(selectedDate)));
+		originalCourseDateWarning.classList.toggle('d-none', !invalid);
+		originalCourseDate.classList.toggle('is-invalid', invalid);
+		originalCourseDate.setCustomValidity(invalid ? '此日期不是上課日' : '');
+	}
+
+	function shiftOriginalCourseDate(direction) {
+		const option = selectedRescheduleCourseOption();
+		if (!option?.value || !originalCourseDate?.value) {
+			return;
+		}
+		const classId = option.dataset.classId || '';
+		const relatedOptions = Array.from(rescheduleCourseSelect.options)
+				.filter((candidate) => candidate.value && (candidate.dataset.classId || '') === classId);
+		if (relatedOptions.length === 0) {
+			return;
+		}
+		const currentStartTime = option.dataset.startTime || '00:00';
+		const currentDateTime = new Date(`${originalCourseDate.value}T${currentStartTime}:00`);
+		const occurrences = [];
+		relatedOptions.forEach((candidate) => {
+			if (!candidate.dataset.courseDate || !candidate.dataset.startTime) {
+				return;
+			}
+			const baseDate = new Date(`${candidate.dataset.courseDate}T${candidate.dataset.startTime}:00`);
+			const currentDateOnly = new Date(`${originalCourseDate.value}T00:00:00`);
+			const baseDateOnly = new Date(`${candidate.dataset.courseDate}T00:00:00`);
+			const diffDays = Math.round((currentDateOnly - baseDateOnly) / 86400000);
+			const baseWeeks = Math.floor(diffDays / 7);
+			for (let offset = -2; offset <= 2; offset += 1) {
+				const occurrenceDate = new Date(baseDate);
+				occurrenceDate.setDate(baseDate.getDate() + (baseWeeks + offset) * 7);
+				occurrences.push({
+					option: candidate,
+					dateTime: occurrenceDate,
+					dateValue: formatLocalDate(occurrenceDate)
+				});
+			}
+		});
+		const nextOccurrence = occurrences
+				.filter((occurrence) => direction > 0
+						? occurrence.dateTime > currentDateTime
+						: occurrence.dateTime < currentDateTime)
+				.sort((left, right) => direction > 0
+						? left.dateTime - right.dateTime
+						: right.dateTime - left.dateTime)[0];
+		if (nextOccurrence) {
+			applyOriginalCourseSelection(nextOccurrence.option, nextOccurrence.dateValue);
+		}
+	}
+
+	rescheduleCourseSelect?.addEventListener('change', () => {
+		const option = selectedRescheduleCourseOption();
+		applyOriginalCourseSelection(option);
+	});
+	originalCourseDate?.addEventListener('change', () => {
+		resetSelectedNewRescheduleTime();
+		updateOriginalCourseDateWarning();
+	});
+	rescheduleForm?.addEventListener('submit', () => updateOriginalCourseDateWarning());
+	previousOriginalCourseDate?.addEventListener('click', () => shiftOriginalCourseDate(-1));
+	nextOriginalCourseDate?.addEventListener('click', () => shiftOriginalCourseDate(1));
+	updateOriginalCourseDateWarning();
+
+	document.querySelectorAll('#rescheduleCalendar [data-date]').forEach((button) => {
+		button.addEventListener('click', () => loadRescheduleSlots(button.dataset.date));
+	});
+
+	async function loadRescheduleSlots(date) {
+		const option = selectedRescheduleCourseOption();
+		if (!option?.value) {
+			rescheduleSlotsError.textContent = '請先選擇課程。';
+			rescheduleSlotsError.classList.remove('d-none');
+			return;
+		}
+		rescheduleSlotsLoading.classList.remove('d-none');
+		rescheduleSlotsError.classList.add('d-none');
+		rescheduleSlotsList.classList.add('d-none');
+		rescheduleSlotsList.innerHTML = '';
+		try {
+			const params = new URLSearchParams({ originalScheduleId: option.value, date });
+			const slots = await fetch(`/schedule/week/reschedule-slots?${params}`, {
+				headers: { 'Accept': 'application/json' }
+			}).then((response) => {
+				if (!response.ok) {
+					throw new Error('failed');
+				}
+				return response.json();
+			});
+			slots.forEach((slot) => {
+				const item = document.createElement(slot.statusClass === 'danger' ? 'div' : 'button');
+				if (item.tagName === 'BUTTON') {
+					item.type = 'button';
+				}
+				item.className = `list-group-item list-group-item-${slot.statusClass} d-flex justify-content-between align-items-center w-100 text-start`;
+				item.innerHTML = `<span>${slot.timeText}</span><span class="badge text-bg-${slot.statusClass}">${slot.statusLabel}</span>`;
+				if (slot.statusClass === 'danger') {
+					rescheduleSlotsList.appendChild(item);
+					return;
+				}
+				item.addEventListener('click', () => {
+					if (slot.statusClass === 'warning') {
+						const details = (slot.teacherConflictDetails || []).length > 0
+								? slot.teacherConflictDetails.map((detail) => `・${detail}`).join('\n')
+								: '・此時段教師已有其他課程';
+						if (!window.confirm(`此時段教師已有以下課程：\n${details}\n\n是否仍要選擇？`)) {
+							return;
+						}
+					}
+					newRescheduleStart.value = slot.start.slice(0, 16).replace('T', ' ');
+					if (newRescheduleStartValue) {
+						newRescheduleStartValue.value = slot.start.slice(0, 16);
+					}
+					if (reschedulePending) {
+						reschedulePending.value = 'false';
+					}
+					if (rescheduleAllowTeacherConflict) {
+						rescheduleAllowTeacherConflict.value = slot.statusClass === 'warning' ? 'true' : 'false';
+					}
+					bootstrap.Modal.getOrCreateInstance(document.getElementById('rescheduleTimeModal')).hide();
+				});
+				rescheduleSlotsList.appendChild(item);
+			});
+			rescheduleSlotsLoading.classList.add('d-none');
+			rescheduleSlotsList.classList.remove('d-none');
+		} catch (error) {
+			rescheduleSlotsLoading.classList.add('d-none');
+			rescheduleSlotsError.textContent = '載入可調課時段失敗，請稍後再試。';
+			rescheduleSlotsError.classList.remove('d-none');
+		}
+	}
+
+	markReschedulePending?.addEventListener('click', () => {
+		if (newRescheduleStart) {
+			newRescheduleStart.value = '待定';
+		}
+		if (newRescheduleStartValue) {
+			newRescheduleStartValue.value = '';
+		}
+		if (reschedulePending) {
+			reschedulePending.value = 'true';
+		}
+		if (rescheduleAllowTeacherConflict) {
+			rescheduleAllowTeacherConflict.value = 'false';
+		}
+		bootstrap.Modal.getOrCreateInstance(document.getElementById('rescheduleTimeModal')).hide();
+	});
+
 	const scheduleColorMode = document.getElementById('scheduleColorMode');
 	const scheduleCards = Array.from(document.querySelectorAll('.schedule-card'));
 	const exportScheduleJpeg = document.getElementById('exportScheduleJpeg');

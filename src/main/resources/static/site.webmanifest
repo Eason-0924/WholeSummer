@@ -1,0 +1,19 @@
+{
+  "name": "霍爾夏天補習班 Whole Summer",
+  "short_name": "WholeSummer",
+  "icons": [
+    {
+      "src": "/icons/WholeSummer-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/WholeSummer-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#0B90D5",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

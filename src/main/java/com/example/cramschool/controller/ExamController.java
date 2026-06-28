@@ -1,5 +1,16 @@
 package com.example.cramschool.controller;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -10,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.cramschool.entity.Exam;
 import com.example.cramschool.form.ExamForm;
@@ -51,9 +63,10 @@ public class ExamController {
 	}
 
 	@GetMapping("/new")
-	public String newForm(@RequestParam(required = false) Long classRoomId, Model model) {
+	public String newForm(@RequestParam(required = false) String classRoom,
+			@RequestParam(required = false) Long classRoomId, Model model) {
 		ExamForm examForm = new ExamForm();
-		examForm.setClassRoomId(classRoomId);
+		examForm.setClassRoomId(resolveClassRoomId(classRoom, classRoomId));
 		model.addAttribute("pageTitle", "新增測驗");
 		model.addAttribute("examForm", examForm);
 		model.addAttribute("formAction", "/exams");
@@ -63,7 +76,8 @@ public class ExamController {
 
 	@PostMapping
 	public String create(@Valid @ModelAttribute("examForm") ExamForm examForm,
-			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+			BindingResult bindingResult, @RequestParam(required = false) MultipartFile paperFile,
+			Model model, RedirectAttributes redirectAttributes) {
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "新增測驗");
 			model.addAttribute("formAction", "/exams");
@@ -71,9 +85,17 @@ public class ExamController {
 			return "exams/form";
 		}
 
-		Exam exam = examService.create(examForm);
-		redirectAttributes.addFlashAttribute("message", "已新增測驗：" + exam.getName());
-		return "redirect:/exams/" + exam.getId();
+		try {
+			Exam exam = examService.create(examForm, paperFile);
+			redirectAttributes.addFlashAttribute("message", "已新增測驗：" + exam.getName());
+			return "redirect:/exams/" + exam.getId();
+		} catch (IllegalArgumentException | UncheckedIOException ex) {
+			model.addAttribute("pageTitle", "新增測驗");
+			model.addAttribute("formAction", "/exams");
+			model.addAttribute("submitLabel", "新增");
+			model.addAttribute("errorMessage", ex.getMessage());
+			return "exams/form";
+		}
 	}
 
 	@GetMapping("/{id}")
@@ -83,6 +105,33 @@ public class ExamController {
 		model.addAttribute("scores", scoreService.findByExamId(id));
 		model.addAttribute("scoreStats", scoreService.calculateStatsForExam(id));
 		return "exams/detail";
+	}
+
+	@GetMapping("/{id}/paper")
+	public ResponseEntity<FileSystemResource> paper(@PathVariable Long id) throws IOException {
+		Exam exam = examService.findById(id);
+		Path path = examService.paperPath(id);
+		FileSystemResource resource = new FileSystemResource(path);
+		String fileName = exam.getPaperFileName() == null || exam.getPaperFileName().isBlank()
+				? path.getFileName().toString()
+				: exam.getPaperFileName();
+		String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+		String contentType = Files.probeContentType(path);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
+				.contentType(contentType == null ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(contentType))
+				.body(resource);
+	}
+
+	@PostMapping("/{id}/paper/folder")
+	public String openPaperFolder(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+		try {
+			examService.openPaperFolder(id);
+			redirectAttributes.addFlashAttribute("message", "已開啟考卷檔案資料夾");
+		} catch (IllegalArgumentException | IllegalStateException | UncheckedIOException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return "redirect:/exams/" + id;
 	}
 
 	@GetMapping("/{id}/edit")
@@ -99,7 +148,8 @@ public class ExamController {
 	@PostMapping("/{id}")
 	public String update(@PathVariable Long id,
 			@Valid @ModelAttribute("examForm") ExamForm examForm,
-			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {
+			BindingResult bindingResult, @RequestParam(required = false) MultipartFile paperFile,
+			Model model, RedirectAttributes redirectAttributes) {
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯測驗");
 			model.addAttribute("exam", examService.findById(id));
@@ -108,9 +158,18 @@ public class ExamController {
 			return "exams/form";
 		}
 
-		Exam exam = examService.update(id, examForm);
-		redirectAttributes.addFlashAttribute("message", "已更新測驗：" + exam.getName());
-		return "redirect:/exams/" + id;
+		try {
+			Exam exam = examService.update(id, examForm, paperFile);
+			redirectAttributes.addFlashAttribute("message", "已更新測驗：" + exam.getName());
+			return "redirect:/exams/" + id;
+		} catch (IllegalArgumentException | UncheckedIOException ex) {
+			model.addAttribute("pageTitle", "編輯測驗");
+			model.addAttribute("exam", examService.findById(id));
+			model.addAttribute("formAction", "/exams/" + id);
+			model.addAttribute("submitLabel", "儲存");
+			model.addAttribute("errorMessage", ex.getMessage());
+			return "exams/form";
+		}
 	}
 
 	@PostMapping("/{id}/delete")
@@ -119,5 +178,12 @@ public class ExamController {
 		examService.delete(id);
 		redirectAttributes.addFlashAttribute("message", "已刪除測驗：" + exam.getName());
 		return "redirect:/exams";
+	}
+
+	private Long resolveClassRoomId(String classRoomSlug, Long classRoomId) {
+		if (classRoomSlug == null || classRoomSlug.isBlank()) {
+			return classRoomId;
+		}
+		return classRoomService.findByUrlSlugOrId(classRoomSlug).getId();
 	}
 }

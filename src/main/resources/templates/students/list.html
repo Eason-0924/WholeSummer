@@ -46,7 +46,7 @@
 				</tr>
 				<tr th:each="student : ${activeStudents}">
 					<td>
-						<a th:href="@{/students/{id}(id=${student.id})}" th:text="${student.chineseName}">中文名</a>
+						<a th:href="@{/students/{slug}(slug=${student.urlSlug})}" th:text="${student.chineseName}">中文名</a>
 					</td>
 					<td th:text="${student.englishName ?: '-'}">-</td>
 					<td th:text="${student.gender ?: '-'}">-</td>
@@ -58,12 +58,12 @@
 					<td class="text-end">
 						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
-									th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
-							<form th:action="@{/students/{id}/deactivate(id=${student.id})}"
+									th:href="@{/students/{slug}/edit(slug=${student.urlSlug})}">編輯</a>
+							<form th:action="@{/students/{slug}/deactivate(slug=${student.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要將這位學生設為已畢業嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">畢業</button>
 							</form>
-							<form th:action="@{/students/{id}/delete(id=${student.id})}"
+							<form th:action="@{/students/{slug}/delete(slug=${student.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
@@ -100,7 +100,7 @@
 				</tr>
 				<tr th:each="student : ${inactiveStudents}">
 					<td>
-						<a th:href="@{/students/{id}(id=${student.id})}" th:text="${student.chineseName}">中文名</a>
+						<a th:href="@{/students/{slug}(slug=${student.urlSlug})}" th:text="${student.chineseName}">中文名</a>
 					</td>
 					<td th:text="${student.englishName ?: '-'}">-</td>
 					<td th:text="${student.gender ?: '-'}">-</td>
@@ -112,12 +112,12 @@
 					<td class="text-end">
 						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">
 							<a class="btn btn-sm btn-outline-primary"
-									th:href="@{/students/{id}/edit(id=${student.id})}">編輯</a>
-							<form th:action="@{/students/{id}/activate(id=${student.id})}"
+									th:href="@{/students/{slug}/edit(slug=${student.urlSlug})}">編輯</a>
+							<form th:action="@{/students/{slug}/activate(slug=${student.urlSlug})}"
 									method="post">
 								<button class="btn btn-sm btn-outline-success" type="submit">復學</button>
 							</form>
-							<form th:action="@{/students/{id}/delete(id=${student.id})}"
+							<form th:action="@{/students/{slug}/delete(slug=${student.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>

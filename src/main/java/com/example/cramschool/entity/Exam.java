@@ -42,6 +42,15 @@ public class Exam {
 	@Column(length = 1000)
 	private String description;
 
+	@Column(name = "paper_file_path", length = 1000)
+	private String paperFilePath;
+
+	@Column(name = "paper_file_name", length = 255)
+	private String paperFileName;
+
+	@Column(name = "paper_storage_mode", length = 20)
+	private String paperStorageMode;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
@@ -114,6 +123,30 @@ public class Exam {
 
 	public void setDescription(String description) {
 		this.description = description;
+	}
+
+	public String getPaperFilePath() {
+		return paperFilePath;
+	}
+
+	public void setPaperFilePath(String paperFilePath) {
+		this.paperFilePath = paperFilePath;
+	}
+
+	public String getPaperFileName() {
+		return paperFileName;
+	}
+
+	public void setPaperFileName(String paperFileName) {
+		this.paperFileName = paperFileName;
+	}
+
+	public String getPaperStorageMode() {
+		return paperStorageMode;
+	}
+
+	public void setPaperStorageMode(String paperStorageMode) {
+		this.paperStorageMode = paperStorageMode;
 	}
 
 	public LocalDateTime getCreatedAt() {

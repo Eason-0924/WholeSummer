@@ -37,6 +37,14 @@ public class OperationLogService {
 		return operationLogRepository.findTop500ByOrderByCreatedAtDescIdDesc();
 	}
 
+	@Transactional(readOnly = true)
+	public List<OperationLog> findRecent(int limit) {
+		return operationLogRepository.findTop500ByOrderByCreatedAtDescIdDesc()
+				.stream()
+				.limit(Math.max(0, limit))
+				.toList();
+	}
+
 	private boolean hasText(String value) {
 		return value != null && !value.isBlank();
 	}

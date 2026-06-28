@@ -16,56 +16,87 @@
 		<a class="btn btn-outline-secondary" th:href="@{/teachers}">返回教師</a>
 	</div>
 
-	<form id="attendanceDateForm" class="row g-2 align-items-end mb-4" method="get"
+	<form th:if="${attendanceDirectorView}" id="attendanceDateForm" class="row g-2 align-items-end mb-4" method="get"
 			th:action="@{/teachers/attendance}">
-		<div class="col-md-4 col-lg-3">
+		<div class="col-md-6 col-lg-4">
 			<label for="attendanceDatePicker" class="form-label">出勤日期</label>
-			<input id="attendanceDatePicker" name="date" class="form-control" type="date"
-					th:value="${#temporals.format(attendanceDate, 'yyyy-MM-dd')}">
+			<div class="d-flex align-items-center gap-2">
+				<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+						style="width: 1.5rem; min-width: 1.5rem; height: 1.5rem; line-height: 1; flex: 0 0 1.5rem;"
+						th:href="@{/teachers/attendance(date=${#temporals.format(previousAttendanceDate, 'yyyy-MM-dd')})}">‹</a>
+				<input id="attendanceDatePicker" name="date" class="form-control text-center" type="date"
+						th:value="${#temporals.format(attendanceDate, 'yyyy-MM-dd')}">
+				<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center p-0"
+						style="width: 1.5rem; min-width: 1.5rem; height: 1.5rem; line-height: 1; flex: 0 0 1.5rem;"
+						th:href="@{/teachers/attendance(date=${#temporals.format(nextAttendanceDate, 'yyyy-MM-dd')})}">›</a>
+			</div>
 		</div>
 	</form>
 
-	<section class="bg-white border rounded p-4 mb-4">
+	<section class="bg-white border rounded p-4 mb-4" th:unless="${attendanceDirectorView}">
 		<h2 class="h5 mb-3">快速打卡</h2>
-		<form class="row g-2 align-items-end">
-			<div class="col-md-5" th:if="${attendanceDirectorView}">
-				<label for="quickTeacherId" class="form-label">教師</label>
-				<select id="quickTeacherId" class="form-select" name="teacherId" required>
-					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
-							th:text="${teacher.displayName}">教師</option>
-				</select>
-			</div>
-			<div class="col-md-5" th:unless="${attendanceDirectorView}">
+		<form class="row g-2 align-items-end"
+				th:action="@{/attendance/quick-clock}" method="post">
+			<div class="col-md-5">
 				<label class="form-label">教師</label>
 				<input class="form-control" type="text" th:value="${currentTeacherName}" disabled>
-				<input type="hidden" name="teacherId" th:value="${currentTeacherId}">
 			</div>
-			<div class="col-md-7 d-flex flex-wrap gap-2">
-				<button class="btn btn-success" type="submit"
-						formmethod="post" th:formaction="@{/teachers/attendance/clock-in}">上班打卡</button>
-				<button class="btn btn-primary" type="submit"
-						formmethod="post" th:formaction="@{/teachers/attendance/clock-out}">下班打卡</button>
-				<button class="btn btn-outline-warning" type="submit"
-						formmethod="post" th:formaction="@{/teachers/attendance/leave}">請假</button>
-				<button class="btn btn-outline-danger" type="submit"
-						formmethod="post" th:formaction="@{/teachers/attendance/absent}">缺勤</button>
+			<div class="col-md-7">
+				<button class="btn btn-success" type="submit">快速打卡</button>
 			</div>
 		</form>
+	</section>
+
+	<section class="bg-white border rounded p-4 mb-4" th:unless="${attendanceDirectorView}">
+		<h2 class="h5 mb-3">請假</h2>
+		<form class="row g-3 align-items-end" th:action="@{/attendance/leave}" method="post">
+			<div class="col-md-6">
+				<label for="leaveDate" class="form-label">請假日期</label>
+				<input id="leaveDate" name="leaveDate" class="form-control" type="date"
+						th:value="${#temporals.format(leaveDate, 'yyyy-MM-dd')}" required>
+			</div>
+			<div class="col-md-6">
+				<label for="courseScheduleId" class="form-label">請假課程</label>
+				<select id="courseScheduleId" name="courseScheduleId" class="form-select leave-course-select"
+						th:attr="data-date-input='leaveDate',data-teacher-id=${currentTeacherId}">
+					<option value="">全天請假</option>
+					<option th:each="course : ${leaveCourseOptions}"
+							th:value="${course.scheduleId}"
+							th:attr="data-weekday=${course.weekday},data-teacher-id=${course.teacherId}"
+							th:text="${course.displayText}">課程</option>
+				</select>
+			</div>
+			<div class="col-md-9">
+				<label for="reason" class="form-label">請假原因</label>
+				<input id="reason" name="reason" class="form-control" type="text"
+						maxlength="255" placeholder="例如：病假、家裡有事">
+			</div>
+			<div class="col-md-3 d-grid">
+				<button class="btn btn-warning leave-submit" type="submit">送出請假</button>
+			</div>
+		</form>
+		<div class="mt-3" th:if="${teacherLeaves != null && !#lists.isEmpty(teacherLeaves)}">
+			<div class="small text-secondary mb-2">今日請假紀錄</div>
+			<ul class="list-group list-group-flush border rounded">
+				<li class="list-group-item" th:each="leave : ${teacherLeaves}">
+					<span th:text="${leave.courseSchedule == null ? '全天請假' : leave.courseSchedule.displayText}">請假</span>
+					<span class="badge text-bg-info ms-2" th:text="${leave.status.displayName}">已核准</span>
+					<span class="text-secondary ms-2" th:text="${leave.reason ?: ''}"></span>
+				</li>
+			</ul>
+		</div>
 	</section>
 
 	<section class="bg-white border rounded p-4 mb-4" th:if="${attendanceDirectorView}">
 		<h2 class="h5 mb-3">手動登記</h2>
 		<form class="row g-3" th:action="@{/teachers/attendance}" th:object="${attendanceForm}" method="post">
+			<input type="hidden" name="attendanceDate" th:value="${#temporals.format(attendanceDate, 'yyyy-MM-dd')}">
 			<div class="col-md-4">
 				<label for="teacherId" class="form-label">教師</label>
 				<select id="teacherId" class="form-select" th:field="*{teacherId}" required>
 					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
 							th:text="${teacher.displayName}">教師</option>
 				</select>
-			</div>
-			<div class="col-md-4">
-				<label for="date" class="form-label">日期</label>
-				<input id="date" class="form-control" type="date" th:field="*{date}" required>
 			</div>
 			<div class="col-md-4">
 				<label for="status" class="form-label">狀態</label>
@@ -75,19 +106,52 @@
 				</select>
 			</div>
 			<div class="col-md-4">
-				<label for="clockInTime" class="form-label">上班時間</label>
-				<input id="clockInTime" class="form-control" type="time" th:field="*{clockInTime}">
-			</div>
-			<div class="col-md-4">
-				<label for="clockOutTime" class="form-label">下班時間</label>
-				<input id="clockOutTime" class="form-control" type="time" th:field="*{clockOutTime}">
-			</div>
-			<div class="col-md-4">
 				<label for="note" class="form-label">備註</label>
 				<input id="note" class="form-control" type="text" th:field="*{note}">
 			</div>
-			<div class="col-12">
+			<div class="col-md-4">
+				<label for="clockInTime" class="form-label">上班時間</label>
+				<input id="clockInTime" class="form-control manual-attendance-time" type="time" th:field="*{clockInTime}">
+			</div>
+			<div class="col-md-4">
+				<label for="clockOutTime" class="form-label">下班時間</label>
+				<input id="clockOutTime" class="form-control manual-attendance-time" type="time" th:field="*{clockOutTime}">
+			</div>
+			<div class="col-md-4 d-grid align-self-end">
 				<button class="btn btn-primary" type="submit">儲存出勤</button>
+			</div>
+		</form>
+	</section>
+
+	<section class="bg-white border rounded p-4 mb-4" th:if="${attendanceDirectorView}">
+		<h2 class="h5 mb-3">手動請假</h2>
+		<form class="row g-3 align-items-end" th:action="@{/teachers/attendance/leave}" method="post">
+			<input type="hidden" name="attendanceDate" th:value="${#temporals.format(attendanceDate, 'yyyy-MM-dd')}">
+			<div class="col-md-6">
+				<label for="directorLeaveTeacherId" class="form-label">教師</label>
+				<select id="directorLeaveTeacherId" class="form-select" name="teacherId" required>
+					<option th:each="teacher : ${teacherOptions}" th:value="${teacher.id}"
+							th:text="${teacher.displayName}">教師</option>
+				</select>
+			</div>
+			<div class="col-md-6">
+				<label for="directorLeaveCourseScheduleId" class="form-label">請假課程</label>
+				<select id="directorLeaveCourseScheduleId" name="courseScheduleId" class="form-select leave-course-select"
+						th:attr="data-date-value=${#temporals.format(attendanceDate, 'yyyy-MM-dd')},data-teacher-selector='directorLeaveTeacherId'">
+					<option value="">全天請假</option>
+					<option th:each="course : ${leaveCourseOptions}"
+							th:value="${course.scheduleId}"
+							th:attr="data-weekday=${course.weekday},data-teacher-id=${course.teacherId}"
+							th:text="${course.displayText}">課程</option>
+				</select>
+			</div>
+			<div class="col-md-9">
+				<label for="directorLeaveReason" class="form-label">請假原因</label>
+				<input id="directorLeaveReason" name="reason" class="form-control" type="text"
+						maxlength="255" placeholder="例如：病假、家裡有事">
+			</div>
+			<div class="col-md-3 d-grid">
+				<button class="btn btn-warning leave-submit" type="submit">送出請假</button>
 			</div>
 		</form>
 	</section>
@@ -116,7 +180,7 @@
 				</tr>
 				<tr th:each="attendance : ${attendances}">
 					<td>
-						<a th:href="@{/teachers/{id}(id=${attendance.teacher.id})}"
+						<a th:href="@{/teachers/{slug}(slug=${attendance.teacher.urlSlug})}"
 								th:text="${attendance.teacher.displayName}">教師</a>
 					</td>
 					<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
@@ -146,6 +210,64 @@
 	if (attendanceDatePicker && attendanceDateForm) {
 		attendanceDatePicker.addEventListener('change', () => attendanceDateForm.submit());
 	}
+
+	const manualStatus = document.getElementById('status');
+	const manualTimeInputs = document.querySelectorAll('.manual-attendance-time');
+	const refreshManualTimeInputs = () => {
+		const absent = manualStatus && manualStatus.value === 'ABSENT';
+		manualTimeInputs.forEach((input) => {
+			if (absent) {
+				input.value = '';
+			}
+			input.disabled = absent;
+		});
+	};
+	if (manualStatus) {
+		manualStatus.addEventListener('change', refreshManualTimeInputs);
+		refreshManualTimeInputs();
+	}
+
+	const weekdayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+	document.querySelectorAll('.leave-course-select').forEach((select) => {
+		const placeholder = select.querySelector('option[value=""]');
+		const courseOptions = Array.from(select.querySelectorAll('option[value]:not([value=""])'));
+		const form = select.closest('form');
+		const submitButton = form ? form.querySelector('.leave-submit') : null;
+		const dateInput = select.dataset.dateInput ? document.getElementById(select.dataset.dateInput) : null;
+		const teacherSelect = select.dataset.teacherSelector ? document.getElementById(select.dataset.teacherSelector) : null;
+
+		const refreshLeaveCourses = () => {
+			const dateValue = dateInput ? dateInput.value : select.dataset.dateValue;
+			const teacherId = teacherSelect ? teacherSelect.value : select.dataset.teacherId;
+			const weekday = dateValue ? weekdayNames[new Date(dateValue + 'T00:00:00').getDay()] : '';
+			let visibleCount = 0;
+			courseOptions.forEach((option) => {
+				const visible = option.dataset.weekday === weekday
+						&& (!teacherId || option.dataset.teacherId === teacherId);
+				option.hidden = !visible;
+				option.disabled = !visible;
+				if (visible) {
+					visibleCount += 1;
+				}
+			});
+			select.value = '';
+			if (placeholder) {
+				placeholder.textContent = visibleCount === 0 ? '當日無課程' : '全天請假';
+			}
+			select.disabled = visibleCount === 0;
+			if (submitButton) {
+				submitButton.disabled = visibleCount === 0;
+			}
+		};
+
+		if (dateInput) {
+			dateInput.addEventListener('change', refreshLeaveCourses);
+		}
+		if (teacherSelect) {
+			teacherSelect.addEventListener('change', refreshLeaveCourses);
+		}
+		refreshLeaveCourses();
+	});
 </script>
 </body>
 </html>

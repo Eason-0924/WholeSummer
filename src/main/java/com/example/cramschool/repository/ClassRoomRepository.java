@@ -27,8 +27,21 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
 	List<ClassRoom> findBySubjectIdAndActiveTrue(Long subjectId);
 
 	@EntityGraph(attributePaths = { "subject", "teacher", "schedules" })
+	List<ClassRoom> findBySubjectId(Long subjectId);
+
+	@EntityGraph(attributePaths = { "subject", "teacher", "schedules" })
 	List<ClassRoom> findByTeacherIdAndActiveTrueOrderByGradeAscIdAsc(Long teacherId);
 
 	@EntityGraph(attributePaths = { "subject", "teacher", "schedules" })
+	List<ClassRoom> findByTeacherIdAndActiveTrue(Long teacherId);
+
+	@EntityGraph(attributePaths = { "subject", "teacher", "schedules" })
 	List<ClassRoom> findByTeacherIdOrderByIdAsc(Long teacherId);
+
+	@EntityGraph(attributePaths = { "subject", "teacher", "schedules" })
+	Optional<ClassRoom> findByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlugAndIdNot(String urlSlug, Long id);
 }

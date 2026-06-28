@@ -90,92 +90,98 @@ public class StudentController {
 
 		Student student = studentService.create(studentForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已新增學生：" + student.getDisplayName());
-		return "redirect:/students/" + student.getId();
+		return redirectToStudent(student);
 	}
 
-	@GetMapping("/{id}")
-	public String detail(@PathVariable Long id, Model model) {
-		var tuitionRecords = tuitionRecordService.findByStudentId(id);
+	@GetMapping("/{slug}")
+	public String detail(@PathVariable String slug, Model model) {
+		Student student = studentService.findByUrlSlugOrId(slug);
+		if (student.getUrlSlug() != null && !slug.equals(student.getUrlSlug())) {
+			return redirectToStudent(student);
+		}
+		Long studentId = student.getId();
+		var tuitionRecords = tuitionRecordService.findByStudentId(studentId);
 		model.addAttribute("pageTitle", "學生資料");
-		model.addAttribute("student", studentService.findById(id));
-		model.addAttribute("scores", scoreService.findByStudentId(id));
-		model.addAttribute("homeworkRecords", homeworkRecordService.findByStudentId(id));
-		model.addAttribute("attendances", studentAttendanceService.findByStudentId(id));
+		model.addAttribute("student", student);
+		model.addAttribute("scores", scoreService.findByStudentId(studentId));
+		model.addAttribute("homeworkRecords", homeworkRecordService.findByStudentId(studentId));
+		model.addAttribute("attendances", studentAttendanceService.findByStudentId(studentId));
 		model.addAttribute("tuitionRecords", tuitionRecords);
 		model.addAttribute("tuitionSummary", tuitionRecordService.summarize(tuitionRecords));
 		return "students/detail";
 	}
 
-	@GetMapping("/{id}/edit")
-	public String editForm(@PathVariable Long id, HttpSession session, Model model,
+	@GetMapping("/{slug}/edit")
+	public String editForm(@PathVariable String slug, HttpSession session, Model model,
 			RedirectAttributes redirectAttributes) {
+		Student student = studentService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更學生資料");
-			return "redirect:/students/" + id;
+			return redirectToStudent(student);
 		}
-		Student student = studentService.findById(id);
 		model.addAttribute("pageTitle", "編輯學生");
 		model.addAttribute("student", student);
 		model.addAttribute("studentForm", StudentForm.from(student));
-		model.addAttribute("formAction", "/students/" + id);
+		model.addAttribute("formAction", "/students/" + student.getUrlSlug());
 		model.addAttribute("submitLabel", "儲存");
 		return "students/form";
 	}
 
-	@PostMapping("/{id}")
-	public String update(@PathVariable Long id,
+	@PostMapping("/{slug}")
+	public String update(@PathVariable String slug,
 			@Valid @ModelAttribute("studentForm") StudentForm studentForm,
 			BindingResult bindingResult, Model model, HttpSession session,
 			RedirectAttributes redirectAttributes) {
+		Student existingStudent = studentService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更學生資料");
-			return "redirect:/students/" + id;
+			return redirectToStudent(existingStudent);
 		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯學生");
-			model.addAttribute("student", studentService.findById(id));
-			model.addAttribute("formAction", "/students/" + id);
+			model.addAttribute("student", existingStudent);
+			model.addAttribute("formAction", "/students/" + existingStudent.getUrlSlug());
 			model.addAttribute("submitLabel", "儲存");
 			return "students/form";
 		}
 
-		Student student = studentService.update(id, studentForm, currentTeacherId(session));
+		Student student = studentService.update(existingStudent.getId(), studentForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已更新學生：" + student.getDisplayName());
-		return "redirect:/students/" + id;
+		return redirectToStudent(student);
 	}
 
-	@PostMapping("/{id}/deactivate")
-	public String deactivate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/deactivate")
+	public String deactivate(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更學生資料");
 			return "redirect:/students";
 		}
-		Student student = studentService.findById(id);
-		studentService.deactivate(id, currentTeacherId(session));
+		Student student = studentService.findByUrlSlugOrId(slug);
+		studentService.deactivate(student.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已停用學生：" + student.getDisplayName());
 		return "redirect:/students";
 	}
 
-	@PostMapping("/{id}/activate")
-	public String activate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/activate")
+	public String activate(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更學生資料");
 			return "redirect:/students";
 		}
-		Student student = studentService.findById(id);
-		studentService.activate(id, currentTeacherId(session));
+		Student student = studentService.findByUrlSlugOrId(slug);
+		studentService.activate(student.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已啟用學生：" + student.getDisplayName());
 		return "redirect:/students";
 	}
 
-	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/delete")
+	public String delete(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更學生資料");
 			return "redirect:/students";
 		}
-		Student student = studentService.findById(id);
-		studentService.delete(id, currentTeacherId(session));
+		Student student = studentService.findByUrlSlugOrId(slug);
+		studentService.delete(student.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已刪除學生：" + student.getDisplayName());
 		return "redirect:/students";
 	}
@@ -187,5 +193,9 @@ public class StudentController {
 	private Long currentTeacherId(HttpSession session) {
 		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
 		return teacherId instanceof Long id ? id : null;
+	}
+
+	private String redirectToStudent(Student student) {
+		return "redirect:/students/" + (student.getUrlSlug() == null ? student.getId() : student.getUrlSlug());
 	}
 }

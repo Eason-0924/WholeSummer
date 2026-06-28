@@ -29,6 +29,10 @@ public class TeacherDailySchedule {
 		return timeRanges.isEmpty() ? null : timeRanges.getFirst().getStartTime();
 	}
 
+	public LocalTime getLastEndTime() {
+		return timeRanges.isEmpty() ? null : timeRanges.getLast().getEndTime();
+	}
+
 	public String getTimeRangeText() {
 		if (timeRanges.isEmpty()) {
 			return "當日無課程";

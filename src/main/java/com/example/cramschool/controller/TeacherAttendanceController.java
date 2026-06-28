@@ -16,6 +16,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.example.cramschool.entity.TeacherAttendanceStatus;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.TeacherAttendanceForm;
+import com.example.cramschool.service.CurrentUserService;
+import com.example.cramschool.service.LeaveService;
 import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.service.TeacherAttendanceService;
 import com.example.cramschool.service.TeacherService;
@@ -31,14 +33,20 @@ public class TeacherAttendanceController {
 	private final TeacherService teacherService;
 	private final TeacherAccountService teacherAccountService;
 	private final TeacherPermissionService teacherPermissionService;
+	private final CurrentUserService currentUserService;
+	private final LeaveService leaveService;
 
 	public TeacherAttendanceController(TeacherAttendanceService teacherAttendanceService,
 			TeacherService teacherService, TeacherAccountService teacherAccountService,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService,
+			CurrentUserService currentUserService,
+			LeaveService leaveService) {
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherService = teacherService;
 		this.teacherAccountService = teacherAccountService;
 		this.teacherPermissionService = teacherPermissionService;
+		this.currentUserService = currentUserService;
+		this.leaveService = leaveService;
 	}
 
 	@ModelAttribute
@@ -50,19 +58,28 @@ public class TeacherAttendanceController {
 				: List.of(teacherService.findById(teacherId)));
 		model.addAttribute("statusOptions", List.of(
 				TeacherAttendanceStatus.WORKING,
-				TeacherAttendanceStatus.LEAVE,
 				TeacherAttendanceStatus.ABSENT));
 		model.addAttribute("attendanceDirectorView", director);
+		model.addAttribute("currentTeacherId", teacherId);
+		model.addAttribute("currentTeacherName", currentUserService.currentTeacherName(session));
+		if (director) {
+			model.addAttribute("leaveCourseOptions", leaveService.findAllCourseOptions());
+		}
 	}
 
 	@GetMapping
 	public String index(@RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
-			Model model) {
+			Model model, HttpSession session) {
+		if (!isDirector(session)) {
+			return "redirect:/attendance/my";
+		}
 		LocalDate targetDate = date == null ? LocalDate.now() : date;
 		TeacherAttendanceForm form = new TeacherAttendanceForm();
 		form.setDate(targetDate);
 		model.addAttribute("pageTitle", "教師出勤");
 		model.addAttribute("attendanceDate", targetDate);
+		model.addAttribute("previousAttendanceDate", targetDate.minusDays(1));
+		model.addAttribute("nextAttendanceDate", targetDate.plusDays(1));
 		model.addAttribute("attendanceForm", form);
 		model.addAttribute("attendances", teacherAttendanceService.findByDate(targetDate));
 		return "teachers/attendance";
@@ -70,6 +87,7 @@ public class TeacherAttendanceController {
 
 	@PostMapping
 	public String save(@ModelAttribute("attendanceForm") TeacherAttendanceForm form,
+			@RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate attendanceDate,
 			HttpSession session,
 			RedirectAttributes redirectAttributes) {
 		if (!isDirector(session)) {
@@ -77,19 +95,24 @@ public class TeacherAttendanceController {
 			return "redirect:/teachers/attendance";
 		}
 		try {
+			form.setDate(attendanceDate);
 			teacherAttendanceService.save(form);
 			redirectAttributes.addFlashAttribute("message", "已儲存教師出勤紀錄");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
-		return "redirect:/teachers/attendance?date=" + form.getDate();
+		return "redirect:/teachers/attendance?date=" + attendanceDate;
 	}
 
 	@PostMapping("/clock-in")
 	public String clockIn(@RequestParam Long teacherId, HttpSession session,
 			RedirectAttributes redirectAttributes) {
-		teacherAttendanceService.clockIn(quickAttendanceTeacherId(teacherId, session));
-		redirectAttributes.addFlashAttribute("message", "已完成上班打卡");
+		try {
+			teacherAttendanceService.clockIn(quickAttendanceTeacherId(teacherId, session));
+			redirectAttributes.addFlashAttribute("message", "已完成上班打卡");
+		} catch (IllegalArgumentException | IllegalStateException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
 		return "redirect:/teachers/attendance";
 	}
 
@@ -99,18 +122,30 @@ public class TeacherAttendanceController {
 		try {
 			teacherAttendanceService.clockOut(quickAttendanceTeacherId(teacherId, session));
 			redirectAttributes.addFlashAttribute("message", "已完成下班打卡");
-		} catch (IllegalArgumentException ex) {
+		} catch (IllegalArgumentException | IllegalStateException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
 		return "redirect:/teachers/attendance";
 	}
 
 	@PostMapping("/leave")
-	public String leave(@RequestParam Long teacherId, HttpSession session,
+	public String leave(@RequestParam Long teacherId,
+			@RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate attendanceDate,
+			@RequestParam(required = false) Long courseScheduleId,
+			@RequestParam(required = false) String reason,
+			HttpSession session,
 			RedirectAttributes redirectAttributes) {
-		teacherAttendanceService.markLeave(quickAttendanceTeacherId(teacherId, session));
-		redirectAttributes.addFlashAttribute("message", "已登記教師請假");
-		return "redirect:/teachers/attendance";
+		if (!isDirector(session)) {
+			redirectAttributes.addFlashAttribute("errorMessage", "目前帳號沒有手動登記所有教師出勤的權限");
+			return "redirect:/attendance/my";
+		}
+		try {
+			leaveService.createLeave(teacherId, attendanceDate, courseScheduleId, reason);
+			redirectAttributes.addFlashAttribute("message", "已登記教師請假");
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return "redirect:/teachers/attendance?date=" + attendanceDate;
 	}
 
 	@PostMapping("/absent")
@@ -131,10 +166,6 @@ public class TeacherAttendanceController {
 	}
 
 	private Long currentTeacherId(HttpSession session) {
-		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
-		if (teacherId instanceof Long id) {
-			return id;
-		}
-		throw new IllegalArgumentException("找不到目前登入教師");
+		return currentUserService.currentTeacherId(session);
 	}
 }

@@ -1,6 +1,7 @@
 package com.example.cramschool.controller;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,20 +21,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.config.SchoolOptions;
+import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.ClassStudent;
+import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.ClassRoomForm;
 import com.example.cramschool.service.ClassStudentService;
 import com.example.cramschool.service.ClassRoomService;
+import com.example.cramschool.service.ClassStatisticsExportService;
 import com.example.cramschool.service.ExamService;
 import com.example.cramschool.service.HomeworkService;
 import com.example.cramschool.service.ScoreService;
 import com.example.cramschool.service.StudentAttendanceService;
 import com.example.cramschool.service.SubjectService;
 import com.example.cramschool.service.TeacherPermissionService;
+import com.example.cramschool.service.WeeklyScheduleService;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
@@ -48,6 +53,7 @@ public class ClassRoomController {
 	private static final LocalTime EVENING = LocalTime.of(18, 0);
 
 	private final ClassRoomService classRoomService;
+	private final ClassStatisticsExportService classStatisticsExportService;
 	private final ClassStudentService classStudentService;
 	private final SubjectService subjectService;
 	private final ExamService examService;
@@ -55,12 +61,16 @@ public class ClassRoomController {
 	private final HomeworkService homeworkService;
 	private final StudentAttendanceService studentAttendanceService;
 	private final TeacherPermissionService teacherPermissionService;
+	private final WeeklyScheduleService weeklyScheduleService;
 
-	public ClassRoomController(ClassRoomService classRoomService, ClassStudentService classStudentService,
+	public ClassRoomController(ClassRoomService classRoomService, ClassStatisticsExportService classStatisticsExportService,
+			ClassStudentService classStudentService,
 			SubjectService subjectService, ExamService examService, ScoreService scoreService,
 			HomeworkService homeworkService, StudentAttendanceService studentAttendanceService,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService,
+			WeeklyScheduleService weeklyScheduleService) {
 		this.classRoomService = classRoomService;
+		this.classStatisticsExportService = classStatisticsExportService;
 		this.classStudentService = classStudentService;
 		this.subjectService = subjectService;
 		this.examService = examService;
@@ -68,6 +78,7 @@ public class ClassRoomController {
 		this.homeworkService = homeworkService;
 		this.studentAttendanceService = studentAttendanceService;
 		this.teacherPermissionService = teacherPermissionService;
+		this.weeklyScheduleService = weeklyScheduleService;
 	}
 
 	@ModelAttribute
@@ -79,7 +90,7 @@ public class ClassRoomController {
 	}
 
 	@GetMapping
-	public String list(Model model) {
+	public String list(Model model, HttpSession session) {
 		List<ClassRoom> activeClasses = classRoomService.findActiveClasses();
 		List<ClassRoom> inactiveClasses = classRoomService.findInactiveClasses();
 		Map<Long, Long> classStudentCounts = new LinkedHashMap<>();
@@ -99,6 +110,17 @@ public class ClassRoomController {
 		List<ScheduleRow> scheduleRows = buildScheduleRows(scheduleGrid, visibleScheduleWeekdays);
 		model.addAttribute("scheduleWeekdays", visibleScheduleWeekdays);
 		model.addAttribute("scheduleRows", scheduleRows);
+		Long currentTeacherId = currentTeacherId(session);
+		boolean director = hasPermission(session, TeacherPermissionType.MANAGE_ALL_ATTENDANCE);
+		List<WeeklyScheduleDto> weeklySchedules = weeklyScheduleService.findWeeklySchedules(
+				LocalDate.now(), currentTeacherId, director, director ? null : currentTeacherId, null);
+		Map<String, Map<String, List<ScheduledClass>>> weeklyScheduleGrid = buildWeeklyScheduleGrid(weeklySchedules);
+		List<String> visibleWeeklyScheduleWeekdays = findVisibleScheduleWeekdays(weeklyScheduleGrid);
+		model.addAttribute("weeklyScheduleWeekdays", visibleWeeklyScheduleWeekdays);
+		model.addAttribute("weeklyScheduleRows", buildScheduleRows(weeklyScheduleGrid, visibleWeeklyScheduleWeekdays));
+		model.addAttribute("rescheduleCourseOptions", buildRescheduleCourseOptions(
+				activeClasses, currentTeacherId, director, LocalDate.now()));
+		model.addAttribute("rescheduleCalendarDates", weeklyScheduleService.buildRescheduleCalendarDates(LocalDate.now()));
 		return "classes/list";
 	}
 
@@ -132,141 +154,164 @@ public class ClassRoomController {
 
 		ClassRoom classRoom = classRoomService.create(classRoomForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已新增班級：" + classRoom.getDisplayName());
-		return "redirect:/classes/" + classRoom.getId();
+		return redirectToClassRoom(classRoom);
 	}
 
-	@GetMapping("/{id}")
-	public String detail(@PathVariable Long id, Model model) {
-		List<ClassStudent> classStudents = classStudentService.findActiveByClassRoomId(id);
-		var exams = examService.findByClassRoomId(id);
+	@GetMapping("/{slug}")
+	public String detail(@PathVariable String slug, Model model) {
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
+		if (classRoom.getUrlSlug() != null && !slug.equals(classRoom.getUrlSlug())) {
+			return redirectToClassRoom(classRoom);
+		}
+		Long classRoomId = classRoom.getId();
+		List<ClassStudent> classStudents = classStudentService.findActiveByClassRoomId(classRoomId);
+		var exams = examService.findByClassRoomId(classRoomId);
 		var scoredExams = exams.stream()
 				.filter(exam -> exam.getFullScore() > 0)
 				.toList();
 		var practiceExams = exams.stream()
 				.filter(exam -> exam.getFullScore() == 0)
 				.toList();
-		var homeworks = homeworkService.findByClassRoomId(id);
+		var homeworks = homeworkService.findByClassRoomId(classRoomId);
 		model.addAttribute("pageTitle", "班級資料");
-		model.addAttribute("classRoom", classRoomService.findById(id));
+		model.addAttribute("classRoom", classRoom);
 		model.addAttribute("classStudents", classStudents);
 		model.addAttribute("studentCount", classStudents.size());
-		model.addAttribute("availableStudents", classStudentService.findAvailableStudents(id));
+		model.addAttribute("availableStudents", classStudentService.findAvailableStudents(classRoomId));
 		model.addAttribute("exams", exams);
 		model.addAttribute("scoredExams", scoredExams);
 		model.addAttribute("practiceExams", practiceExams);
 		model.addAttribute("statsByExamId", scoreService.calculateStatsByExam(exams));
 		model.addAttribute("homeworks", homeworks);
 		model.addAttribute("homeworkCompletionRates", homeworkService.calculateCompletionRates(homeworks));
-		model.addAttribute("attendanceStats", studentAttendanceService.calculateStatsByClassRoomId(id));
+		model.addAttribute("attendanceStats", studentAttendanceService.calculateStatsByClassRoomId(classRoomId));
 		model.addAttribute("attendanceTableRows",
-				buildAttendanceTableRows(classStudents, studentAttendanceService.findByClassRoomId(id)));
+				buildAttendanceTableRows(classStudents, studentAttendanceService.findByClassRoomId(classRoomId)));
 		return "classes/detail";
 	}
 
-	@GetMapping("/{id}/edit")
-	public String editForm(@PathVariable Long id, HttpSession session, Model model,
+	@GetMapping("/{slug}/edit")
+	public String editForm(@PathVariable String slug, HttpSession session, Model model,
 			RedirectAttributes redirectAttributes) {
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
-			return "redirect:/classes/" + id;
+			return redirectToClassRoom(classRoom);
 		}
-		ClassRoom classRoom = classRoomService.findById(id);
 		model.addAttribute("pageTitle", "編輯班級");
 		model.addAttribute("classRoom", classRoom);
 		model.addAttribute("classRoomForm", ClassRoomForm.from(classRoom));
-		model.addAttribute("formAction", "/classes/" + id);
+		model.addAttribute("formAction", "/classes/" + classRoom.getUrlSlug());
 		model.addAttribute("submitLabel", "儲存");
 		return "classes/form";
 	}
 
-	@PostMapping("/{id}")
-	public String update(@PathVariable Long id,
+	@PostMapping("/{slug}")
+	public String update(@PathVariable String slug,
 			@Valid @ModelAttribute("classRoomForm") ClassRoomForm classRoomForm,
 			BindingResult bindingResult, Model model, HttpSession session,
 			RedirectAttributes redirectAttributes) {
+		ClassRoom existingClassRoom = classRoomService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
-			return "redirect:/classes/" + id;
+			return redirectToClassRoom(existingClassRoom);
 		}
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯班級");
-			model.addAttribute("classRoom", classRoomService.findById(id));
-			model.addAttribute("formAction", "/classes/" + id);
+			model.addAttribute("classRoom", existingClassRoom);
+			model.addAttribute("formAction", "/classes/" + existingClassRoom.getUrlSlug());
 			model.addAttribute("submitLabel", "儲存");
 			return "classes/form";
 		}
 
-		ClassRoom classRoom = classRoomService.update(id, classRoomForm, currentTeacherId(session));
+		ClassRoom classRoom = classRoomService.update(existingClassRoom.getId(), classRoomForm, currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已更新班級：" + classRoom.getDisplayName());
-		return "redirect:/classes/" + id;
+		return redirectToClassRoom(classRoom);
 	}
 
-	@PostMapping("/{id}/deactivate")
-	public String deactivate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/deactivate")
+	public String deactivate(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
 			return "redirect:/classes";
 		}
-		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.deactivate(id, currentTeacherId(session));
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
+		classRoomService.deactivate(classRoom.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已停用班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
-	@PostMapping("/{id}/activate")
-	public String activate(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/activate")
+	public String activate(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
 			return "redirect:/classes";
 		}
-		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.activate(id, currentTeacherId(session));
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
+		classRoomService.activate(classRoom.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已啟用班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
-	@PostMapping("/{id}/delete")
-	public String delete(@PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
+	@PostMapping("/{slug}/delete")
+	public String delete(@PathVariable String slug, HttpSession session, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
 			return "redirect:/classes";
 		}
-		ClassRoom classRoom = classRoomService.findById(id);
-		classRoomService.delete(id, currentTeacherId(session));
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
+		classRoomService.delete(classRoom.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已刪除班級：" + classRoom.getDisplayName());
 		return "redirect:/classes";
 	}
 
-	@PostMapping("/{id}/students")
-	public String addStudent(@PathVariable Long id, @RequestParam Long studentId,
+	@PostMapping("/{slug}/export")
+	public String exportStatistics(@PathVariable String slug,
+			@RequestParam String section,
+			@RequestParam String range,
+			RedirectAttributes redirectAttributes) {
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
+		try {
+			classStatisticsExportService.exportAndOpenFolder(classRoom.getId(), section, range);
+			redirectAttributes.addFlashAttribute("message", "已匯出班級統計資料並開啟資料夾");
+		} catch (IllegalArgumentException | java.io.UncheckedIOException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return redirectToClassRoom(classRoom);
+	}
+
+	@PostMapping("/{slug}/students")
+	public String addStudent(@PathVariable String slug, @RequestParam Long studentId,
 			HttpSession session, RedirectAttributes redirectAttributes) {
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
-			return "redirect:/classes/" + id;
+			return redirectToClassRoom(classRoom);
 		}
 		try {
-			classStudentService.addStudent(id, studentId, currentTeacherId(session));
+			classStudentService.addStudent(classRoom.getId(), studentId, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已加入學生");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
-		return "redirect:/classes/" + id;
+		return redirectToClassRoom(classRoom);
 	}
 
-	@PostMapping("/{id}/students/{classStudentId}/remove")
-	public String removeStudent(@PathVariable Long id, @PathVariable Long classStudentId,
+	@PostMapping("/{slug}/students/{classStudentId}/remove")
+	public String removeStudent(@PathVariable String slug, @PathVariable Long classStudentId,
 			HttpSession session, RedirectAttributes redirectAttributes) {
+		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
 		if (!hasPermission(session, TeacherPermissionType.CLASS_UPDATE)) {
 			redirectAttributes.addFlashAttribute("errorMessage", "權限不足，無法變更班級資料");
-			return "redirect:/classes/" + id;
+			return redirectToClassRoom(classRoom);
 		}
 		try {
-			classStudentService.removeStudent(id, classStudentId, currentTeacherId(session));
+			classStudentService.removeStudent(classRoom.getId(), classStudentId, currentTeacherId(session));
 			redirectAttributes.addFlashAttribute("message", "已刪除班級學生紀錄");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
-		return "redirect:/classes/" + id;
+		return redirectToClassRoom(classRoom);
 	}
 
 	private List<ScheduleRow> buildScheduleRows(Map<String, Map<String, List<ScheduledClass>>> scheduleGrid,
@@ -317,6 +362,81 @@ public class ClassRoomController {
 		return scheduleGrid;
 	}
 
+	private Map<String, Map<String, List<ScheduledClass>>> buildWeeklyScheduleGrid(List<WeeklyScheduleDto> schedules) {
+		Map<String, Map<String, List<ScheduledClass>>> scheduleGrid = new LinkedHashMap<>();
+		for (String timeSlot : SCHEDULE_TIME_SLOTS) {
+			Map<String, List<ScheduledClass>> classesByWeekday = new LinkedHashMap<>();
+			for (String weekday : SCHEDULE_WEEKDAYS) {
+				classesByWeekday.put(weekday, new ArrayList<>());
+			}
+			scheduleGrid.put(timeSlot, classesByWeekday);
+		}
+		for (WeeklyScheduleDto schedule : schedules) {
+			String weekday = SCHEDULE_WEEKDAYS.get(schedule.getCourseDate().getDayOfWeek().getValue() - 1);
+			ScheduledClass scheduledClass = new ScheduledClass(schedule);
+			scheduleGrid.get(findScheduleTimeSlot(schedule.getStartTime().toLocalTime())).get(weekday)
+					.add(scheduledClass);
+		}
+		Comparator<ScheduledClass> byStartTimeThenName = Comparator
+				.comparing(ScheduledClass::getStartTime, Comparator.nullsLast(LocalTime::compareTo))
+				.thenComparing(ScheduledClass::getClassName, Comparator.nullsLast(String::compareTo));
+		for (Map<String, List<ScheduledClass>> classesByWeekday : scheduleGrid.values()) {
+			for (List<ScheduledClass> scheduledClasses : classesByWeekday.values()) {
+				scheduledClasses.sort(byStartTimeThenName);
+			}
+		}
+		return scheduleGrid;
+	}
+
+	private List<WeeklyScheduleDto> buildRescheduleCourseOptions(List<ClassRoom> activeClasses,
+			Long currentTeacherId, boolean director, LocalDate baseDate) {
+		LocalDate today = baseDate == null ? LocalDate.now() : baseDate;
+		return activeClasses.stream()
+				.filter(classRoom -> director || classRoom.getTeacher() != null
+						&& currentTeacherId != null
+						&& currentTeacherId.equals(classRoom.getTeacher().getId()))
+				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(this::hasCompleteSchedule)
+						.map(schedule -> toRescheduleCourseOption(classRoom, schedule, today)))
+				.sorted(Comparator.comparing(WeeklyScheduleDto::getStartTime)
+						.thenComparing(WeeklyScheduleDto::getClassName, Comparator.nullsLast(String::compareTo)))
+				.toList();
+	}
+
+	private WeeklyScheduleDto toRescheduleCourseOption(ClassRoom classRoom, ClassSchedule schedule, LocalDate today) {
+		LocalDate courseDate = nextCourseDate(schedule, today);
+		return new WeeklyScheduleDto(
+				schedule.getId(),
+				null,
+				classRoom.getId(),
+				classRoom.getSubjectName(),
+				classRoom.getDisplayName(),
+				classRoom.getTeacherName(),
+				courseDate,
+				LocalDateTime.of(courseDate, schedule.getStartTime()),
+				LocalDateTime.of(courseDate, schedule.getEndTime()),
+				ScheduleType.NORMAL,
+				null,
+				null,
+				classRoom.getSubject() == null ? "未指定" : String.valueOf(classRoom.getSubject().getId()),
+				classRoom.getTeacher() == null ? "未指定" : String.valueOf(classRoom.getTeacher().getId()),
+				classRoom.getGrade() == null || classRoom.getGrade().isBlank() ? "未指定" : classRoom.getGrade());
+	}
+
+	private LocalDate nextCourseDate(ClassSchedule schedule, LocalDate today) {
+		int weekdayIndex = SCHEDULE_WEEKDAYS.indexOf(schedule.getWeekday());
+		if (weekdayIndex < 0) {
+			return today;
+		}
+		int todayIndex = today.getDayOfWeek().getValue() - 1;
+		int daysUntilCourse = (weekdayIndex - todayIndex + 7) % 7;
+		LocalDate courseDate = today.plusDays(daysUntilCourse);
+		if (LocalDateTime.of(courseDate, schedule.getStartTime()).isAfter(LocalDateTime.now())) {
+			return courseDate;
+		}
+		return courseDate.plusDays(7);
+	}
+
 	private List<AttendanceTableRow> buildAttendanceTableRows(List<ClassStudent> classStudents,
 			List<StudentAttendance> attendances) {
 		Map<LocalDate, Map<Long, StudentAttendance>> attendancesByDate = new LinkedHashMap<>();
@@ -337,10 +457,14 @@ public class ClassRoomController {
 	}
 
 	private String findScheduleTimeSlot(ClassSchedule schedule) {
-		if (schedule.getStartTime().isBefore(NOON)) {
+		return findScheduleTimeSlot(schedule.getStartTime());
+	}
+
+	private String findScheduleTimeSlot(LocalTime startTime) {
+		if (startTime.isBefore(NOON)) {
 			return "早上";
 		}
-		if (schedule.getStartTime().isBefore(EVENING)) {
+		if (startTime.isBefore(EVENING)) {
 			return "下午";
 		}
 		return "晚上";
@@ -361,6 +485,10 @@ public class ClassRoomController {
 	private Long currentTeacherId(HttpSession session) {
 		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
 		return teacherId instanceof Long id ? id : null;
+	}
+
+	private String redirectToClassRoom(ClassRoom classRoom) {
+		return "redirect:/classes/" + (classRoom.getUrlSlug() == null ? classRoom.getId() : classRoom.getUrlSlug());
 	}
 
 	private List<String> findVisibleScheduleWeekdays(Map<String, Map<String, List<ScheduledClass>>> scheduleGrid) {
@@ -436,42 +564,94 @@ public class ClassRoomController {
 
 		private final ClassRoom classRoom;
 		private final ClassSchedule schedule;
+		private final WeeklyScheduleDto weeklySchedule;
 
 		public ScheduledClass(ClassRoom classRoom, ClassSchedule schedule) {
 			this.classRoom = classRoom;
 			this.schedule = schedule;
+			this.weeklySchedule = null;
 		}
 
-		public Long getClassRoomId() {
-			return classRoom.getId();
+		public ScheduledClass(WeeklyScheduleDto weeklySchedule) {
+			this.classRoom = null;
+			this.schedule = null;
+			this.weeklySchedule = weeklySchedule;
+		}
+
+		public String getClassRoomSlug() {
+			return classRoom == null ? "" : classRoom.getUrlSlug();
 		}
 
 		public String getClassName() {
-			return classRoom.getDisplayName();
+			return weeklySchedule == null ? classRoom.getDisplayName() : weeklySchedule.getClassName();
 		}
 
 		public String getTeacherName() {
-			return classRoom.getTeacherName();
+			return weeklySchedule == null ? classRoom.getTeacherName() : weeklySchedule.getTeacherName();
 		}
 
 		public String getTimeRangeText() {
-			return schedule.getTimeRangeText();
+			if (weeklySchedule == null) {
+				return schedule.getTimeRangeText();
+			}
+			return weeklySchedule.getStartTime().toLocalTime() + " ~ " + weeklySchedule.getEndTime().toLocalTime();
 		}
 
 		public Long getSubjectKey() {
+			if (weeklySchedule != null) {
+				return null;
+			}
 			return classRoom.getSubject() == null ? null : classRoom.getSubject().getId();
 		}
 
+		public String getSubjectColorKey() {
+			return weeklySchedule == null
+					? (classRoom.getSubject() == null ? "未指定" : String.valueOf(classRoom.getSubject().getId()))
+					: weeklySchedule.getSubjectKey();
+		}
+
 		public Long getTeacherKey() {
+			if (weeklySchedule != null) {
+				return null;
+			}
 			return classRoom.getTeacher() == null ? null : classRoom.getTeacher().getId();
 		}
 
+		public String getTeacherColorKey() {
+			return weeklySchedule == null
+					? (classRoom.getTeacher() == null ? "未指定" : String.valueOf(classRoom.getTeacher().getId()))
+					: weeklySchedule.getTeacherKey();
+		}
+
 		public String getGradeKey() {
+			if (weeklySchedule != null) {
+				return weeklySchedule.getGradeKey();
+			}
 			return classRoom.getGrade();
 		}
 
 		public LocalTime getStartTime() {
-			return schedule.getStartTime();
+			return weeklySchedule == null ? schedule.getStartTime() : weeklySchedule.getStartTime().toLocalTime();
+		}
+
+		public boolean isWeekly() {
+			return weeklySchedule != null;
+		}
+
+		public String getScheduleTypeName() {
+			return weeklySchedule == null ? "NORMAL" : weeklySchedule.getScheduleType().name();
+		}
+
+		public String getScheduleTypeDisplayName() {
+			return weeklySchedule == null ? "原課程" : weeklySchedule.getScheduleTypeDisplayName();
+		}
+
+		public Long getScheduleId() {
+			return weeklySchedule == null ? schedule.getId() : weeklySchedule.getScheduleId();
+		}
+
+		public LocalDate getCourseDate() {
+			return weeklySchedule == null ? null : weeklySchedule.getCourseDate();
 		}
 	}
 

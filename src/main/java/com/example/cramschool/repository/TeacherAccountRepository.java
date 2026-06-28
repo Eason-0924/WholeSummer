@@ -31,4 +31,7 @@ public interface TeacherAccountRepository extends JpaRepository<TeacherAccount, 
 	@Override
 	@EntityGraph(attributePaths = "teacher")
 	List<TeacherAccount> findAll();
+
+	@EntityGraph(attributePaths = "teacher")
+	List<TeacherAccount> findTop20ByLastLoginAtIsNotNullOrderByLastLoginAtDesc();
 }

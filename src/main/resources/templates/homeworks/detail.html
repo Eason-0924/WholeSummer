@@ -30,7 +30,7 @@
 			<div class="col-md-6">
 				<div class="text-secondary small">班級</div>
 				<div>
-					<a th:href="@{/classes/{id}(id=${homework.classRoom.id})}"
+					<a th:href="@{/classes/{slug}(slug=${homework.classRoom.urlSlug})}"
 							th:text="${homework.classRoom.displayName}">班級</a>
 				</div>
 			</div>
@@ -87,7 +87,7 @@
 				</tr>
 				<tr th:each="record : ${records}">
 					<td>
-						<a th:href="@{/students/{id}(id=${record.student.id})}" th:text="${record.student.displayName}">學生</a>
+						<a th:href="@{/students/{slug}(slug=${record.student.urlSlug})}" th:text="${record.student.displayName}">學生</a>
 					</td>
 					<td th:text="${record.student.grade ?: '-'}">-</td>
 					<td>

@@ -24,7 +24,7 @@ import com.example.cramschool.repository.HomeworkRepository;
 @Transactional
 public class HomeworkService {
 
-	public record StudentHomeworkCompletionRate(Long studentId, String studentName, String grade,
+	public record StudentHomeworkCompletionRate(Long studentId, String studentSlug, String studentName, String grade,
 			long completedCount, long totalCount, double completionRate) {
 	}
 
@@ -119,6 +119,7 @@ public class HomeworkService {
 			Long studentId = record.getStudent().getId();
 			StudentHomeworkCounter counter = counters.computeIfAbsent(studentId, id -> new StudentHomeworkCounter(
 					studentId,
+					record.getStudent().getUrlSlug(),
 					record.getStudent().getDisplayName(),
 					record.getStudent().getGrade()));
 			counter.add(record.getStatus().isCompleted());
@@ -203,13 +204,15 @@ public class HomeworkService {
 	private static class StudentHomeworkCounter {
 
 		private final Long studentId;
+		private final String studentSlug;
 		private final String studentName;
 		private final String grade;
 		private long completedCount;
 		private long totalCount;
 
-		StudentHomeworkCounter(Long studentId, String studentName, String grade) {
+		StudentHomeworkCounter(Long studentId, String studentSlug, String studentName, String grade) {
 			this.studentId = studentId;
+			this.studentSlug = studentSlug;
 			this.studentName = studentName;
 			this.grade = grade;
 		}
@@ -223,7 +226,7 @@ public class HomeworkService {
 
 		StudentHomeworkCompletionRate toRate() {
 			double completionRate = totalCount == 0 ? 0 : completedCount * 100.0 / totalCount;
-			return new StudentHomeworkCompletionRate(studentId, studentName, grade, completedCount, totalCount, completionRate);
+			return new StudentHomeworkCompletionRate(studentId, studentSlug, studentName, grade, completedCount, totalCount, completionRate);
 		}
 	}
 }

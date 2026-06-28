@@ -22,4 +22,11 @@ public interface SubjectRepository extends JpaRepository<Subject, Long> {
 
 	@EntityGraph(attributePaths = "teachers")
 	List<Subject> findByTeachersIdOrderByIdAsc(Long teacherId);
+
+	@EntityGraph(attributePaths = "teachers")
+	Optional<Subject> findByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlug(String urlSlug);
+
+	boolean existsByUrlSlugAndIdNot(String urlSlug, Long id);
 }

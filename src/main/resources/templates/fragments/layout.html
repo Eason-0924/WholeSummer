@@ -4,6 +4,10 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title th:text="${title}">霍爾夏天補習班 Whole Summer</title>
+	<link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" sizes="any">
+	<link rel="icon" type="image/png" sizes="32x32" th:href="@{/icons/WholeSummer-32.png}" href="/icons/WholeSummer-32.png">
+	<link rel="apple-touch-icon" th:href="@{/icons/WholeSummer-192.png}" href="/icons/WholeSummer-192.png">
+	<link rel="manifest" th:href="@{/site.webmanifest}" href="/site.webmanifest">
 	<script>
 		(() => {
 			const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -814,7 +818,7 @@
 			}
 		});
 
-		const detailPagePattern = /^\/(students|teachers|classes|exams|homeworks)\/\d+\/?$/;
+		const detailPagePattern = /^\/(?:(?:students|teachers|classes)\/[^/]+|(?:exams|homeworks)\/\d+)\/?$/;
 		if (detailPagePattern.test(window.location.pathname)) {
 			const main = document.querySelector('main');
 			main?.classList.add('mobile-detail-page');

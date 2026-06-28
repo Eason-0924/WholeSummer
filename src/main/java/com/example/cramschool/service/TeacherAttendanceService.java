@@ -1,16 +1,19 @@
 package com.example.cramschool.service;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.dto.TeacherAttendanceStats;
+import com.example.cramschool.dto.TeacherDailySchedule;
 import com.example.cramschool.dto.TeacherScheduleMatch;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAttendance;
@@ -49,6 +52,7 @@ public class TeacherAttendanceService {
 							|| attendance.getStatus() == TeacherAttendanceStatus.LATE)) {
 				applySchedule(attendance, attendance.getStatus());
 			}
+			attendance.setManualAdjustmentAllowed(canManuallyAdjust(attendance));
 		}
 		return teacherAttendanceRepository.saveAll(attendances);
 	}
@@ -56,6 +60,12 @@ public class TeacherAttendanceService {
 	@Transactional(readOnly = true)
 	public List<TeacherAttendance> findByDate(LocalDate date) {
 		return teacherAttendanceRepository.findByDateOrderByTeacherNameAsc(date == null ? LocalDate.now() : date);
+	}
+
+	@Transactional(readOnly = true)
+	public Optional<TeacherAttendance> findByTeacherIdAndDate(Long teacherId, LocalDate date) {
+		return teacherAttendanceRepository.findByTeacherIdAndDate(
+				teacherId, date == null ? LocalDate.now() : date);
 	}
 
 	@Transactional(readOnly = true)
@@ -100,11 +110,32 @@ public class TeacherAttendanceService {
 		return teacherAttendanceRepository.save(attendance);
 	}
 
+	public TeacherAttendance quickClock(Long currentTeacherId) {
+		Teacher teacher = teacherRepository.findById(currentTeacherId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
+		LocalDate today = LocalDate.now();
+		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(currentTeacherId, today)
+				.orElseGet(TeacherAttendance::new);
+		attendance.setTeacher(teacher);
+		attendance.setDate(today);
+		if (attendance.getClockInTime() == null) {
+			attendance.setClockInTime(LocalTime.now().withSecond(0).withNano(0));
+		} else if (attendance.getClockOutTime() == null) {
+			attendance.setClockOutTime(LocalTime.now().withSecond(0).withNano(0));
+		} else {
+			throw new IllegalStateException("今日已完成上下班打卡");
+		}
+		applySchedule(attendance, TeacherAttendanceStatus.WORKING);
+		return teacherAttendanceRepository.save(attendance);
+	}
+
 	public void clockIn(Long teacherId) {
-		TeacherAttendanceForm form = todayForm(teacherId);
-		form.setClockInTime(LocalTime.now().withSecond(0).withNano(0));
-		form.setStatus(TeacherAttendanceStatus.WORKING);
-		save(form);
+		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(teacherId, LocalDate.now())
+				.orElse(null);
+		if (attendance != null && attendance.getClockInTime() != null) {
+			throw new IllegalStateException("今天已完成上班打卡");
+		}
+		quickClock(teacherId);
 	}
 
 	public void clockOut(Long teacherId) {
@@ -117,11 +148,22 @@ public class TeacherAttendanceService {
 	}
 
 	public void markLeave(Long teacherId) {
-		TeacherAttendanceForm form = todayForm(teacherId);
-		form.setStatus(TeacherAttendanceStatus.LEAVE);
-		form.setClockInTime(null);
-		form.setClockOutTime(null);
-		save(form);
+		recordLeave(teacherId, LocalDate.now(), "請假");
+	}
+
+	public TeacherAttendance recordLeave(Long teacherId, LocalDate leaveDate, String note) {
+		Teacher teacher = teacherRepository.findById(teacherId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
+		LocalDate targetDate = leaveDate == null ? LocalDate.now() : leaveDate;
+		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(teacherId, targetDate)
+				.orElseGet(TeacherAttendance::new);
+		attendance.setTeacher(teacher);
+		attendance.setDate(targetDate);
+		attendance.setClockInTime(null);
+		attendance.setClockOutTime(null);
+		attendance.setNote(note);
+		applySchedule(attendance, TeacherAttendanceStatus.LEAVE);
+		return teacherAttendanceRepository.save(attendance);
 	}
 
 	public void markAbsent(Long teacherId) {
@@ -150,29 +192,61 @@ public class TeacherAttendanceService {
 		if (!currentTeacherIsDirector) {
 			throw new IllegalArgumentException("只有主任可以調整打卡紀錄");
 		}
-		if (attendance.hasMatchedCourse()) {
-			throw new IllegalArgumentException("已有對應課程的打卡紀錄不可手動調整");
+		if (!canManuallyAdjust(attendance)) {
+			throw new IllegalArgumentException(
+					"只有無對應課程，或打卡時間超出課程前後一小時的紀錄可手動調整");
 		}
 		if (manualHours == null) {
-			throw new IllegalArgumentException("請輸入上課時數");
+			throw new IllegalArgumentException("請輸入增加時數");
 		}
 		if (manualHours.compareTo(BigDecimal.ZERO) < 0) {
-			throw new IllegalArgumentException("上課時數不可小於 0");
+			throw new IllegalArgumentException("增加時數不可小於 0");
 		}
 		if (manualHours.compareTo(BigDecimal.valueOf(24)) > 0) {
-			throw new IllegalArgumentException("上課時數不可超過 24 小時");
+			throw new IllegalArgumentException("增加時數不可超過 24 小時");
 		}
+		if (manualHours.remainder(new BigDecimal("0.5")).compareTo(BigDecimal.ZERO) != 0) {
+			throw new IllegalArgumentException("增加時數須以 0.5 小時為間距");
+		}
+		BigDecimal normalizedManualHours = manualHours.setScale(1);
 		String normalizedRemark = manualRemark == null ? null : manualRemark.trim();
 		if (normalizedRemark != null && normalizedRemark.length() > 255) {
 			throw new IllegalArgumentException("備註不可超過 255 個字");
 		}
 		attendance.setManualRemark(normalizedRemark == null || normalizedRemark.isBlank()
 				? null : normalizedRemark);
-		attendance.setManualHours(manualHours);
+		attendance.setManualHours(normalizedManualHours);
 		attendance.setManualAdjusted(true);
 		attendance.setAdjustedByTeacherId(currentTeacherId);
 		attendance.setAdjustedAt(LocalDateTime.now());
-		attendance.setWorkMinutes(0L);
+	}
+
+	boolean canManuallyAdjust(TeacherAttendance attendance) {
+		if (attendance == null) {
+			return false;
+		}
+		if (attendance.isManualAdjusted() || !attendance.hasMatchedCourse()) {
+			return true;
+		}
+		TeacherDailySchedule schedule = teacherScheduleService.findDailySchedule(
+				attendance.getTeacher().getId(), attendance.getDate());
+		return isMoreThanOneHourOutsideSchedule(attendance, schedule);
+	}
+
+	boolean isMoreThanOneHourOutsideSchedule(TeacherAttendance attendance,
+			TeacherDailySchedule schedule) {
+		if (attendance == null || schedule == null) {
+			return false;
+		}
+		LocalTime firstStartTime = schedule.getFirstStartTime();
+		LocalTime lastEndTime = schedule.getLastEndTime();
+		boolean clockedInTooEarly = attendance.getClockInTime() != null
+				&& firstStartTime != null
+				&& Duration.between(attendance.getClockInTime(), firstStartTime).toMinutes() > 60;
+		boolean clockedOutTooLate = attendance.getClockOutTime() != null
+				&& lastEndTime != null
+				&& Duration.between(lastEndTime, attendance.getClockOutTime()).toMinutes() > 60;
+		return clockedInTooEarly || clockedOutTooLate;
 	}
 
 	private TeacherAttendanceForm todayForm(Long teacherId) {

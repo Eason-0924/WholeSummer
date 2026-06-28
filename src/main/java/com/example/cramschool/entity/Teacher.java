@@ -30,6 +30,9 @@ public class Teacher {
 	@Column(length = 100)
 	private String nickname;
 
+	@Column(name = "url_slug", length = 150, unique = true)
+	private String urlSlug;
+
 	@Column(length = 30)
 	private String phone;
 
@@ -98,6 +101,14 @@ public class Teacher {
 
 	public void setNickname(String nickname) {
 		this.nickname = nickname;
+	}
+
+	public String getUrlSlug() {
+		return urlSlug;
+	}
+
+	public void setUrlSlug(String urlSlug) {
+		this.urlSlug = urlSlug;
 	}
 
 	public String getPhone() {

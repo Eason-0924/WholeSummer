@@ -43,6 +43,45 @@ update_project_version() {
   rm -f .github/workflows/build-windows.yml.bak
 }
 
+read_release_notes_from_readme() {
+  awk -v heading_prefix="## $VERSION 更新內容" '
+    found && /^## / {
+      exit
+    }
+    found && /^- / {
+      print
+    }
+    !found && index($0, heading_prefix) == 1 {
+      found = 1
+      next
+    }
+  ' README.md
+}
+
+read_release_notes_manually() {
+  echo
+  echo "README.md 找不到「## $VERSION 更新內容」。"
+  echo "請逐行輸入本次更新內容，輸入 END 後按 Enter 完成。"
+  echo "每行可直接輸入文字，也可以使用「- 」開頭。"
+  echo
+
+  while IFS= read -r -p "> " LINE; do
+    if [ "$LINE" = "END" ]; then
+      break
+    fi
+
+    if [ -z "$LINE" ]; then
+      continue
+    fi
+
+    if [[ "$LINE" == "- "* ]]; then
+      RELEASE_NOTES="${RELEASE_NOTES}${RELEASE_NOTES:+$'\n'}$LINE"
+    else
+      RELEASE_NOTES="${RELEASE_NOTES}${RELEASE_NOTES:+$'\n'}- $LINE"
+    fi
+  done
+}
+
 refresh_version_state
 
 while [ "$LOCAL_TAG_EXISTS" = true ] || [ "$REMOTE_TAG_EXISTS" = true ]; do
@@ -140,37 +179,22 @@ echo
 git add .
 
 COMMIT_MESSAGE="Release $VERSION"
-RELEASE_NOTES=""
+RELEASE_NOTES=$(read_release_notes_from_readme)
+
+if [ -n "$RELEASE_NOTES" ]; then
+  echo "已從 README.md 讀取 $VERSION 更新內容："
+  echo
+  printf '%s\n' "$RELEASE_NOTES"
+  echo
+else
+  read_release_notes_manually
+fi
 
 if git diff --cached --quiet; then
   echo "沒有新的檔案變更，略過 commit。"
 else
-  echo "是否要描述本次更新內容？"
-  read -p "輸入 y 表示要描述，其他則略過： " ADD_DESCRIPTION
-
-  if [ "$ADD_DESCRIPTION" = "y" ] || [ "$ADD_DESCRIPTION" = "Y" ]; then
-    echo
-    echo "請輸入本次更新內容。"
-    echo "每輸入一行按 Enter。"
-    echo "輸入空白行代表結束。"
-    echo
-
-    while true; do
-      read -p "> " LINE
-
-      if [ -z "$LINE" ]; then
-        break
-      fi
-
-      RELEASE_NOTES="$RELEASE_NOTES
-- $LINE"
-    done
-
-    if [ -n "$RELEASE_NOTES" ]; then
-      git commit -m "$COMMIT_MESSAGE" -m "$RELEASE_NOTES"
-    else
-      git commit -m "$COMMIT_MESSAGE"
-    fi
+  if [ -n "$RELEASE_NOTES" ]; then
+    git commit -m "$COMMIT_MESSAGE" -m "$RELEASE_NOTES"
   else
     git commit -m "$COMMIT_MESSAGE"
   fi

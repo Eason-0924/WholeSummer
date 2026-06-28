@@ -127,6 +127,11 @@ public class TeacherAccountService {
 				.isPresent();
 	}
 
+	@Transactional(readOnly = true)
+	public List<TeacherAccount> findRecentLogins() {
+		return teacherAccountRepository.findTop20ByLastLoginAtIsNotNullOrderByLastLoginAtDesc();
+	}
+
 	public void changePassword(Long accountId, String currentPassword, String newPassword, String confirmPassword) {
 		TeacherAccount account = teacherAccountRepository.findById(accountId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到登入帳號"));

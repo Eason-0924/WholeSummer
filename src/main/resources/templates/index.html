@@ -23,6 +23,7 @@
 		.notification-tuition { border-left-color: #dc3545; }
 		.notification-update { border-left-color: #6f42c1; }
 		.notification-birthday { border-left-color: #d63384; }
+		.notification-makeup { border-left-color: #fd7e14; }
 	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}">已完成</div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
@@ -100,7 +101,15 @@
 			<a class="card text-decoration-none text-dark h-100" th:href="@{/settings}">
 				<div class="card-body">
 					<h2 class="h5">系統設定</h2>
-					<p class="text-secondary mb-0">調整畫面模式、個人密碼與可用系統選項。</p>
+					<p class="text-secondary mb-0">調整畫面模式、個人密碼與其他選項。</p>
+				</div>
+			</a>
+		</div>
+		<div th:unless="${homeDirectorView}" class="col-md-6 col-lg-3">
+			<a class="card text-decoration-none text-dark h-100" th:href="@{/attendance/my}">
+				<div class="card-body">
+					<h2 class="h5">前往打卡</h2>
+					<p class="text-secondary mb-0">快速記錄今日上班、下班與請假。</p>
 				</div>
 			</a>
 		</div>
@@ -126,7 +135,8 @@
 								th:classappend="${notification.type == 'homework' ? 'text-bg-warning' :
 										(notification.type == 'exam' ? 'text-bg-primary' :
 										(notification.type == 'tuition' ? 'text-bg-danger' :
-										(notification.type == 'update' ? 'text-bg-info' : 'text-bg-success')))}"
+										(notification.type == 'update' ? 'text-bg-info' :
+										(notification.type == 'makeup' ? 'text-bg-warning' : 'text-bg-success'))))}"
 								th:text="${notification.typeLabel}">通知</span>
 						<span class="small text-secondary"
 								th:text="${#temporals.format(notification.date, 'yyyy-MM-dd')}">2026-01-01</span>

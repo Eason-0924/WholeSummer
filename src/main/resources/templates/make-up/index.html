@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line mb-1">
+			<h1 class="h3 mb-0">補課需求</h1>
+			<span th:replace="~{fragments/layout :: help('查看因教師請假或缺勤產生的補課需求。點進單筆需求後才會計算可補課時段，以提升載入速度。')}"></span>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/}">返回首頁</a>
+	</div>
+
+	<section>
+		<div class="d-flex align-items-center gap-2 mb-2">
+			<h2 class="h5 mb-0" th:text="${makeUpDirectorView ? '全部待補課' : '我的待補課'}">待補課</h2>
+			<span class="badge text-bg-warning" th:text="${#lists.size(makeUpRequests)}">0</span>
+		</div>
+		<div th:if="${#lists.isEmpty(makeUpRequests)}"
+				class="bg-white border rounded text-center text-secondary py-4">
+			目前沒有待補課需求。
+		</div>
+		<div class="vstack gap-3" th:unless="${#lists.isEmpty(makeUpRequests)}">
+			<div class="card" th:each="request : ${makeUpRequests}">
+				<div class="card-body">
+					<div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+						<div>
+							<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+								<span class="badge text-bg-warning" th:text="${request.sourceType.displayName}">請假</span>
+								<span class="badge text-bg-secondary" th:text="${request.status.displayName}">待補課</span>
+							</div>
+							<h3 class="h5 mb-2"
+									th:text="${request.classRoom == null ? '未指定班級' : request.classRoom.displayName}">
+								班級
+							</h3>
+							<div class="text-secondary small">
+								<span>原課程日期：</span>
+								<span th:text="${#temporals.format(request.originalCourseDate, 'yyyy-MM-dd')}">2026-06-26</span>
+								<span class="mx-2">｜</span>
+								<span>原課程時間：</span>
+								<span th:text="${request.originalCourseSchedule.timeRangeText}">18:00 ~ 20:00</span>
+								<span class="mx-2">｜</span>
+								<span>教師：</span>
+								<span th:text="${request.teacher.displayName}">教師</span>
+								<span class="mx-2">｜</span>
+								<span th:text="${'原因：' + (request.sourceType.name() == 'LEAVE' ? request.teacher.displayName + '老師請假' : (#strings.isEmpty(request.note) ? request.sourceType.displayName : request.note))}">原因：王老師請假</span>
+							</div>
+						</div>
+						<a class="btn btn-primary"
+								th:href="@{/make-up/{id}(id=${request.id})}">安排補課時間</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+</body>
+</html>

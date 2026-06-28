@@ -26,6 +26,9 @@ public final class OperationActionResolver {
 		add("^/teachers/attendance/clock-out$", "下班打卡");
 		add("^/teachers/attendance/leave$", "登記教師請假");
 		add("^/teachers/attendance/absent$", "登記教師缺勤");
+		add("^/attendance/quick-clock$", "快速打卡");
+		add("^/attendance/leave$", "教師請假");
+		add("^/make-up$", "查看補課需求");
 		add("^/classes$", "新增班級");
 		add("^/classes/\\d+$", "更新班級資料");
 		add("^/classes/\\d+/deactivate$", "結束班級");

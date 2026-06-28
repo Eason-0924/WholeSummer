@@ -30,6 +30,9 @@ public class Subject {
 	@Column(nullable = false, length = 100)
 	private String name;
 
+	@Column(name = "url_slug", length = 150, unique = true)
+	private String urlSlug;
+
 	@Column(length = 1000)
 	private String description;
 
@@ -77,6 +80,14 @@ public class Subject {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public String getUrlSlug() {
+		return urlSlug;
+	}
+
+	public void setUrlSlug(String urlSlug) {
+		this.urlSlug = urlSlug;
 	}
 
 	public String getDescription() {

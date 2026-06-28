@@ -23,6 +23,9 @@ import com.example.cramschool.entity.TeacherAttendance;
 import com.example.cramschool.entity.TeacherAttendanceStatus;
 import com.example.cramschool.entity.TeacherPosition;
 import com.example.cramschool.entity.TeacherStatus;
+import com.example.cramschool.entity.ClassRoom;
+import com.example.cramschool.entity.ClassSchedule;
+import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
 import com.example.cramschool.repository.TeacherAttendanceRepository;
 import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
@@ -47,6 +50,9 @@ class SalaryAttendanceAdjustmentTests {
 
 	@Autowired
 	private TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
+
+	@Autowired
+	private ClassRoomRepository classRoomRepository;
 
 	@Autowired
 	private PasswordHashService passwordHashService;
@@ -137,6 +143,36 @@ class SalaryAttendanceAdjustmentTests {
 				.contains("salaryAttendance_" + teacher.getId(), "儲存調整", "加課");
 	}
 
+	@Test
+	void matchedOutlierAdjustmentAddsHoursToOriginalCourseHours() throws Exception {
+		ClassRoom classRoom = createClassRoomWithSchedule(
+				"星期四", LocalTime.of(18, 0), LocalTime.of(20, 0));
+		attendance.setMatchedCourseId(classRoom.getSchedules().getFirst().getId());
+		attendance.setMatchedCourseName(classRoom.getDisplayName());
+		attendance.setMatchedCourseTimeText("18:00 ~ 20:00");
+		attendance.setClockInTime(LocalTime.of(16, 30));
+		attendance.setClockOutTime(LocalTime.of(20, 0));
+		attendance.setWorkMinutes(120L);
+		attendance = teacherAttendanceRepository.save(attendance);
+
+		MockHttpSession directorSession = login(directorUsername, "DirectorPassword123");
+		mockMvc.perform(post("/salary/attendance/{id}/adjust", attendance.getId())
+				.session(directorSession)
+				.param("year", "2026")
+				.param("month", "6")
+				.param("manualRemark", "提早備課")
+				.param("manualHours", "2.5"))
+				.andExpect(status().is3xxRedirection());
+
+		TeacherAttendance updated = teacherAttendanceRepository.findById(attendance.getId()).orElseThrow();
+		assertThat(updated.getManualHours()).isEqualByComparingTo("2.5");
+		assertThat(updated.getWorkMinutes()).isEqualTo(270);
+
+		assertThat(teacherMonthlySalaryRepository
+				.findByTeacherIdAndSalaryYearAndSalaryMonth(teacher.getId(), 2026, 6)
+				.orElseThrow().getWorkMinutes()).isEqualTo(270);
+	}
+
 	private Teacher createTeacher(String name, TeacherPosition position) {
 		Teacher created = new Teacher();
 		created.setName(name);
@@ -155,6 +191,15 @@ class SalaryAttendanceAdjustmentTests {
 		return teacherAccountRepository.save(account);
 	}
 
+	private ClassRoom createClassRoomWithSchedule(String weekday, LocalTime startTime, LocalTime endTime) {
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setGrade("測試班");
+		classRoom.setClassType("薪資補正");
+		classRoom.setTeacher(teacher);
+		classRoom.addSchedule(new ClassSchedule(weekday, startTime, endTime));
+		return classRoomRepository.save(classRoom);
+	}
+
 	private MockHttpSession login(String username, String password) throws Exception {
 		return (MockHttpSession) mockMvc.perform(post("/login")
 				.param("username", username)
@@ -170,6 +215,8 @@ class SalaryAttendanceAdjustmentTests {
 		teacherAttendanceRepository.deleteByTeacherId(target.getId());
 		teacherMonthlySalaryRepository.deleteByTeacherId(target.getId());
 		teacherAccountRepository.deleteByTeacherId(target.getId());
+		classRoomRepository.findByTeacherIdOrderByIdAsc(target.getId())
+				.forEach(classRoomRepository::delete);
 		teacherRepository.deleteById(target.getId());
 	}
 

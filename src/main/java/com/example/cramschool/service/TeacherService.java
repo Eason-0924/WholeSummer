@@ -14,8 +14,10 @@ import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.form.TeacherForm;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.BugReportRepository;
+import com.example.cramschool.repository.MakeUpClassRequestRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
+import com.example.cramschool.repository.TeacherLeaveRepository;
 import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TeacherPermissionRepository;
@@ -33,6 +35,9 @@ public class TeacherService {
 	private final BugReportRepository bugReportRepository;
 	private final TeacherPermissionRepository teacherPermissionRepository;
 	private final TeacherPermissionService teacherPermissionService;
+	private final TeacherLeaveRepository teacherLeaveRepository;
+	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
+	private final TeacherUrlSlugService teacherUrlSlugService;
 
 	public TeacherService(TeacherRepository teacherRepository, ClassRoomRepository classRoomRepository,
 			SubjectRepository subjectRepository, TeacherAttendanceService teacherAttendanceService,
@@ -40,7 +45,10 @@ public class TeacherService {
 			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository,
 			BugReportRepository bugReportRepository,
 			TeacherPermissionRepository teacherPermissionRepository,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService,
+			TeacherLeaveRepository teacherLeaveRepository,
+			MakeUpClassRequestRepository makeUpClassRequestRepository,
+			TeacherUrlSlugService teacherUrlSlugService) {
 		this.teacherRepository = teacherRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
@@ -50,6 +58,9 @@ public class TeacherService {
 		this.bugReportRepository = bugReportRepository;
 		this.teacherPermissionRepository = teacherPermissionRepository;
 		this.teacherPermissionService = teacherPermissionService;
+		this.teacherLeaveRepository = teacherLeaveRepository;
+		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
+		this.teacherUrlSlugService = teacherUrlSlugService;
 	}
 
 	@Transactional(readOnly = true)
@@ -78,6 +89,13 @@ public class TeacherService {
 				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
 	}
 
+	@Transactional(readOnly = true)
+	public Teacher findByUrlSlugOrId(String urlSlugOrId) {
+		return teacherRepository.findByUrlSlug(urlSlugOrId)
+				.or(() -> parseId(urlSlugOrId).flatMap(teacherRepository::findById))
+				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
+	}
+
 	public Teacher create(TeacherForm form, Long currentTeacherId) {
 		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.CREATE_TEACHER,
 				"權限不足，無法新增教師");
@@ -88,7 +106,9 @@ public class TeacherService {
 		Teacher teacher = new Teacher();
 		form.applyTo(teacher);
 		teacher.setStatus(TeacherStatus.ACTIVE);
-		return teacherRepository.save(teacher);
+		Teacher savedTeacher = teacherRepository.save(teacher);
+		savedTeacher.setUrlSlug(teacherUrlSlugService.generateUniqueSlug(savedTeacher));
+		return teacherRepository.save(savedTeacher);
 	}
 
 	public Teacher update(Long id, TeacherForm form, Long currentTeacherId) {
@@ -115,6 +135,7 @@ public class TeacherService {
 			teacher.setPhone(originalPhone);
 			teacher.setEmail(originalEmail);
 		}
+		teacher.setUrlSlug(teacherUrlSlugService.generateUniqueSlug(teacher));
 		return teacherRepository.save(teacher);
 	}
 
@@ -146,6 +167,8 @@ public class TeacherService {
 		subjectRepository.saveAll(subjects);
 
 		teacherAttendanceService.deleteByTeacherId(id);
+		makeUpClassRequestRepository.deleteByTeacherId(id);
+		teacherLeaveRepository.deleteByTeacherId(id);
 		bugReportRepository.deleteByTeacherId(id);
 		teacherAccountRepository.deleteByTeacherId(id);
 		teacherMonthlySalaryRepository.deleteByTeacherId(id);
@@ -170,6 +193,14 @@ public class TeacherService {
 				&& teacherRepository.countByPositionAndStatus(
 						TeacherPosition.DIRECTOR, TeacherStatus.ACTIVE) <= 1) {
 			throw new IllegalArgumentException("系統至少需要一位任教中的主任");
+		}
+	}
+
+	private java.util.Optional<Long> parseId(String value) {
+		try {
+			return java.util.Optional.of(Long.parseLong(value));
+		} catch (NumberFormatException ex) {
+			return java.util.Optional.empty();
 		}
 	}
 }

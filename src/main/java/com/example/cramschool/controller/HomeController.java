@@ -37,7 +37,9 @@ public class HomeController {
 		java.util.List<HomeNotification> notifications = new java.util.ArrayList<>(
 				homeNotificationService.buildNotifications(teacherId, warningDays));
 		Object accountId = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-		if (accountId instanceof Long id && teacherAccountService.isDirector(id)) {
+		boolean director = accountId instanceof Long id && teacherAccountService.isDirector(id);
+		model.addAttribute("homeDirectorView", director);
+		if (director) {
 			updateCoordinator.getAvailableUpdate().ifPresent(update -> notifications.add(new HomeNotification(
 					"update", "系統更新", "WholeSummer " + update.latestVersion() + " 可更新",
 					"目前版本：" + update.currentVersion(),
