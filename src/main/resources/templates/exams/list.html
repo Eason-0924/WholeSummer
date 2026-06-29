@@ -38,9 +38,9 @@
 			<tr th:each="exam : ${exams}">
 				<td>
 					<span class="mobile-date-year"
-							th:text="${#temporals.format(exam.examDate, 'yyyy-')}">2026-</span><span
+							th:text="${#temporals.format(exam.examDate, 'yyyy/')}">2026/</span><span
 							class="mobile-date-month-day"
-							th:text="${#temporals.format(exam.examDate, 'MM-dd')}">01-01</span>
+							th:text="${#temporals.format(exam.examDate, 'MM/dd')}">01/01</span>
 				</td>
 				<td>
 					<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗名稱</a>

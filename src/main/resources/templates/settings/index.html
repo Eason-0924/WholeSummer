@@ -285,7 +285,7 @@
 						<td colspan="6" class="text-center text-secondary py-4">目前尚無問題回報</td>
 					</tr>
 					<tr th:each="report : ${bugReports}">
-						<td th:text="${#temporals.format(report.createdAt, 'yyyy-MM-dd HH:mm')}">2026-01-01</td>
+						<td th:text="${#temporals.format(report.createdAt, 'yyyy/MM/dd HH:mm')}">2026/01/01</td>
 						<td th:text="${report.type.displayName}">錯誤回報</td>
 						<td th:text="${report.title}">標題</td>
 						<td>

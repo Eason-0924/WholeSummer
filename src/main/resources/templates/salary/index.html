@@ -5,6 +5,42 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4">
+	<style>
+		.salary-collapse-heading {
+			background: transparent;
+			border: 0;
+			color: inherit;
+			text-align: left;
+		}
+		.salary-collapse-heading:hover .salary-collapse-name,
+		.salary-collapse-heading:focus .salary-collapse-name {
+			color: var(--bs-primary);
+		}
+		.salary-collapse-toggle {
+			background: transparent;
+			border: 0;
+			color: var(--bs-secondary-color);
+			font-size: 1.2rem;
+			height: 1.5rem;
+			line-height: 0;
+			margin-right: -0.25rem;
+			min-width: 1.5rem;
+			transform: scaleY(0.65) rotate(-90deg);
+			transform-origin: center;
+			transition: color 0.2s ease, transform 0.2s ease;
+			width: 1.5rem;
+		}
+		.salary-collapse-heading:hover .salary-collapse-toggle,
+		.salary-collapse-heading:focus .salary-collapse-toggle {
+			color: var(--bs-body-color);
+		}
+		.salary-collapse-heading[aria-expanded="true"] .salary-collapse-toggle {
+			transform: scaleY(0.65);
+		}
+		.salary-collapsed {
+			display: none !important;
+		}
+	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
@@ -89,7 +125,7 @@
 						<td colspan="7" class="text-center text-secondary py-4">本月尚無打卡紀錄</td>
 					</tr>
 					<tr th:each="attendance : ${summary.attendanceRecords}">
-						<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+						<td th:text="${#temporals.format(attendance.date, 'yyyy/MM/dd')}">2026/01/01</td>
 						<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
 						<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
 						<td th:text="${attendance.matchedCourseName ?: '-'}">-</td>
@@ -123,15 +159,19 @@
 				</thead>
 				<tbody>
 				<th:block th:each="summary : ${salarySummaries}">
-				<tr role="button" data-bs-toggle="collapse"
-						th:data-bs-target="${'#salaryAttendance_' + summary.teacher.id}"
-						th:aria-controls="${'salaryAttendance_' + summary.teacher.id}"
-						aria-expanded="false">
+				<tr>
 					<td>
-						<span class="fw-semibold" th:text="${summary.teacher.displayName}">教師名稱</span>
+						<button class="d-inline-flex align-items-center gap-2 p-0 salary-collapse-heading"
+								type="button"
+								th:data-salary-target="${'salaryAttendance_' + summary.teacher.id}"
+								th:aria-controls="${'salaryAttendance_' + summary.teacher.id}"
+								aria-expanded="false">
+							<span class="d-inline-flex align-items-center justify-content-center p-0 salary-collapse-toggle">⌄</span>
+							<span class="fw-semibold salary-collapse-name"
+									th:text="${summary.teacher.displayName}">教師名稱</span>
+						</button>
 						<span th:if="${summary.teacher.status.name() == 'LEFT'}"
 								class="badge text-bg-danger ms-1">已離職</span>
-						<span class="text-secondary small ms-2">展開／收合</span>
 					</td>
 					<td th:text="${summary.workHoursText}">0 小時 0 分</td>
 					<td th:text="${'NT$ ' + summary.hourlyRate}">NT$ 0</td>
@@ -151,7 +191,7 @@
 						</form>
 					</td>
 				</tr>
-				<tr class="collapse" th:id="${'salaryAttendance_' + summary.teacher.id}">
+				<tr class="salary-collapsed" th:id="${'salaryAttendance_' + summary.teacher.id}">
 					<td colspan="5" class="p-0">
 						<div class="p-3 bg-body-tertiary">
 							<div class="table-responsive border rounded bg-white">
@@ -172,7 +212,7 @@
 										<td colspan="7" class="text-center text-secondary py-3">本月尚無打卡紀錄</td>
 									</tr>
 									<tr th:each="attendance : ${summary.attendanceRecords}">
-										<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+										<td th:text="${#temporals.format(attendance.date, 'yyyy/MM/dd')}">2026/01/01</td>
 										<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
 										<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
 										<td th:text="${attendance.matchedCourseName ?: '-'}">-</td>
@@ -231,5 +271,18 @@
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	document.querySelectorAll('[data-salary-target]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const content = document.getElementById(button.dataset.salaryTarget);
+			if (!content) {
+				return;
+			}
+			const collapsed = !content.classList.contains('salary-collapsed');
+			content.classList.toggle('salary-collapsed', collapsed);
+			button.setAttribute('aria-expanded', String(!collapsed));
+		});
+	});
+</script>
 </body>
 </html>

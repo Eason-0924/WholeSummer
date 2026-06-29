@@ -52,15 +52,15 @@
 					<td th:text="${homework.subject.name}">科目</td>
 					<td>
 						<span class="mobile-date-year"
-								th:text="${#temporals.format(homework.assignedDate, 'yyyy-')}">2026-</span><span
+								th:text="${#temporals.format(homework.assignedDate, 'yyyy/')}">2026/</span><span
 								class="mobile-date-month-day"
-								th:text="${#temporals.format(homework.assignedDate, 'MM-dd')}">01-01</span>
+								th:text="${#temporals.format(homework.assignedDate, 'MM/dd')}">01/01</span>
 					</td>
 					<td>
 						<span class="mobile-date-year"
-								th:text="${#temporals.format(homework.dueDate, 'yyyy-')}">2026-</span><span
+								th:text="${#temporals.format(homework.dueDate, 'yyyy/')}">2026/</span><span
 								class="mobile-date-month-day"
-								th:text="${#temporals.format(homework.dueDate, 'MM-dd')}">01-01</span>
+								th:text="${#temporals.format(homework.dueDate, 'MM/dd')}">01/01</span>
 					</td>
 					<td th:text="${#numbers.formatDecimal(completionRates[homework.id], 1, 1) + '%'}">0.0%</td>
 					<td class="text-end">
@@ -186,7 +186,7 @@
 					<td>
 						<a th:href="@{/homeworks/{id}(id=${record.homework.id})}" th:text="${record.homework.title}">作業</a>
 					</td>
-					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td th:text="${overdueDaysByRecordId[record.id]}">1</td>
 				</tr>
 				</tbody>

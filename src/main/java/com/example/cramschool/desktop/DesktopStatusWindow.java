@@ -9,7 +9,10 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -47,7 +50,7 @@ import com.example.cramschool.service.TeacherAccountService;
 public class DesktopStatusWindow {
 
 	private static final DateTimeFormatter DATE_TIME_FORMATTER =
-			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+			DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
 	private final ActiveUserRegistry activeUserRegistry;
 	private final OperationLogService operationLogService;
@@ -83,13 +86,22 @@ public class DesktopStatusWindow {
 				|| !environment.getProperty("app.status-window.enabled", Boolean.class, true)) {
 			return;
 		}
+		showStatusWindow();
+	}
+
+	public void showStatusWindow() {
+		if (GraphicsEnvironment.isHeadless()) {
+			return;
+		}
 		SwingUtilities.invokeLater(this::createAndShow);
 	}
 
 	private void createAndShow() {
 		if (frame != null) {
 			frame.setVisible(true);
+			frame.setExtendedState(JFrame.NORMAL);
 			frame.toFront();
+			frame.requestFocus();
 			return;
 		}
 
@@ -326,19 +338,50 @@ public class DesktopStatusWindow {
 
 	private List<Image> loadWindowIcons() {
 		List<Image> icons = new ArrayList<>();
-		for (int size : new int[] {16, 32, 48, 64, 128, 256}) {
-			var resource = DesktopStatusWindow.class.getResource(
-					"/static/icons/WholeSummer-" + size + ".png");
-			if (resource == null) {
-				continue;
+		try (InputStream inputStream = DesktopStatusWindow.class.getResourceAsStream("/static/favicon.ico")) {
+			if (inputStream == null) {
+				return icons;
 			}
-			try {
-				icons.add(ImageIO.read(resource));
-			} catch (IOException ignored) {
-				// Missing window icons should not prevent the status window from opening.
+			byte[] icoBytes = inputStream.readAllBytes();
+			try (DataInputStream dataInputStream = new DataInputStream(new ByteArrayInputStream(icoBytes))) {
+				if (readUnsignedShortLE(dataInputStream) != 0
+						|| readUnsignedShortLE(dataInputStream) != 1) {
+					return icons;
+				}
+				int imageCount = readUnsignedShortLE(dataInputStream);
+				for (int index = 0; index < imageCount; index++) {
+					dataInputStream.skipNBytes(4);
+					readUnsignedShortLE(dataInputStream);
+					readUnsignedShortLE(dataInputStream);
+					int imageLength = readIntLE(dataInputStream);
+					int imageOffset = readIntLE(dataInputStream);
+					if (imageOffset < 0 || imageLength <= 0 || imageOffset + imageLength > icoBytes.length) {
+						continue;
+					}
+					Image image = ImageIO.read(new ByteArrayInputStream(icoBytes, imageOffset, imageLength));
+					if (image != null) {
+						icons.add(image);
+					}
+				}
 			}
+		} catch (IOException ignored) {
+			// Missing window icons should not prevent the status window from opening.
 		}
 		return icons;
+	}
+
+	private int readUnsignedShortLE(DataInputStream inputStream) throws IOException {
+		int low = inputStream.readUnsignedByte();
+		int high = inputStream.readUnsignedByte();
+		return low | (high << 8);
+	}
+
+	private int readIntLE(DataInputStream inputStream) throws IOException {
+		int first = inputStream.readUnsignedByte();
+		int second = inputStream.readUnsignedByte();
+		int third = inputStream.readUnsignedByte();
+		int fourth = inputStream.readUnsignedByte();
+		return first | (second << 8) | (third << 16) | (fourth << 24);
 	}
 
 	private record StatusSnapshot(List<ActiveUserRegistry.ActiveUser> activeUsers,

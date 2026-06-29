@@ -37,7 +37,9 @@
 				<td colspan="7" class="text-center text-secondary py-4">目前尚無科目資料</td>
 			</tr>
 			<tr th:each="subject : ${subjects}">
-				<td th:text="${subject.name}">科目名稱</td>
+				<td>
+					<a th:href="@{/subjects/{slug}(slug=${subject.urlSlug})}" th:text="${subject.name}">科目名稱</a>
+				</td>
 				<td th:text="${subject.teacherDisplay}">-</td>
 				<td th:text="${subject.gradeLevelDisplay}">國一、國二</td>
 				<td class="tablet-hidden-column" th:text="${subject.description ?: '-'}">-</td>

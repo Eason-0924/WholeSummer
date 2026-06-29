@@ -30,7 +30,7 @@
 				<td colspan="5" class="text-center text-secondary py-4">目前尚無操作紀錄</td>
 			</tr>
 			<tr th:each="log : ${operationLogs}">
-				<td th:text="${#temporals.format(log.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01 12:00:00</td>
+				<td th:text="${#temporals.format(log.createdAt, 'yyyy/MM/dd HH:mm:ss')}">2026/01/01 12:00:00</td>
 				<td th:text="${log.actorName}">教師</td>
 				<td th:text="${log.action}">更新資料</td>
 				<td><code th:text="${log.requestPath}">/students</code></td>

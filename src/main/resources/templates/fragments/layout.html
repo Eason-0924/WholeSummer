@@ -4,10 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title th:text="${title}">霍爾夏天補習班 Whole Summer</title>
-	<link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" sizes="any">
-	<link rel="icon" type="image/png" sizes="32x32" th:href="@{/icons/WholeSummer-32.png}" href="/icons/WholeSummer-32.png">
-	<link rel="apple-touch-icon" th:href="@{/icons/WholeSummer-192.png}" href="/icons/WholeSummer-192.png">
-	<link rel="manifest" th:href="@{/site.webmanifest}" href="/site.webmanifest">
+	<link rel="icon" th:href="@{/favicon.ico(v=3)}" href="/favicon.ico?v=3" sizes="any">
 	<script>
 		(() => {
 			const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -28,6 +25,79 @@
 		.brand-navbar {
 			background-color: #0B90D5;
 			transition: background-color 0.25s ease;
+		}
+		.brand-navbar .navbar-brand,
+		.brand-navbar .nav-link {
+			transform-origin: center;
+			transition: color 0.2s ease, text-shadow 0.2s ease, transform 0.2s ease;
+		}
+		.brand-navbar .nav-hover-dropdown {
+			position: relative;
+		}
+		.brand-navbar .nav-mobile-toggle-row {
+			align-items: center;
+			display: flex;
+		}
+		.brand-navbar .nav-mobile-submenu-toggle {
+			display: none;
+		}
+		.brand-navbar .nav-hover-menu {
+			background: #fff;
+			border: 1px solid rgba(11, 144, 213, 0.18);
+			border-radius: 0.45rem;
+			box-shadow: 0 0.85rem 1.75rem rgba(0, 0, 0, 0.16);
+			left: 50%;
+			list-style: none;
+			margin: 0;
+			max-height: min(22rem, calc(100vh - 5rem));
+			min-width: 12rem;
+			opacity: 0;
+			overflow-y: auto;
+			padding: 0.35rem;
+			pointer-events: none;
+			position: absolute;
+			top: calc(100% + 0.2rem);
+			transform: translateX(-50%) translateY(0.35rem);
+			transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+			visibility: hidden;
+			z-index: 1080;
+		}
+		.brand-navbar .nav-hover-dropdown:hover .nav-hover-menu,
+		.brand-navbar .nav-hover-dropdown:focus-within .nav-hover-menu {
+			opacity: 1;
+			pointer-events: auto;
+			transform: translateX(-50%) translateY(0);
+			visibility: visible;
+		}
+		.brand-navbar .nav-hover-item {
+			border-radius: 0.35rem;
+			color: #212529;
+			display: block;
+			font-size: 0.92rem;
+			line-height: 1.35;
+			padding: 0.45rem 0.6rem;
+			text-decoration: none;
+			white-space: nowrap;
+		}
+		.brand-navbar .nav-hover-item:hover,
+		.brand-navbar .nav-hover-item:focus {
+			background: rgba(11, 144, 213, 0.1);
+			color: #0B5ED7;
+			outline: none;
+		}
+		.brand-navbar .nav-hover-empty {
+			color: #6c757d;
+			font-size: 0.9rem;
+			padding: 0.45rem 0.6rem;
+			white-space: nowrap;
+		}
+		.brand-navbar .navbar-brand:hover,
+		.brand-navbar .navbar-brand:focus,
+		.brand-navbar .nav-link:hover,
+		.brand-navbar .nav-link:focus {
+			color: #fff;
+			text-shadow: 0 0.35rem 0.9rem rgba(255, 255, 255, 0.35);
+			transform: scale(1.12);
 		}
 		body,
 		.bg-white,
@@ -169,6 +239,21 @@
 		}
 		[data-bs-theme="dark"] .brand-navbar {
 			background-color: #24306f;
+		}
+		[data-bs-theme="dark"] .brand-navbar .nav-hover-menu {
+			background: #1b1f23;
+			border-color: #3b424a;
+		}
+		[data-bs-theme="dark"] .brand-navbar .nav-hover-item {
+			color: #f8f9fa;
+		}
+		[data-bs-theme="dark"] .brand-navbar .nav-hover-item:hover,
+		[data-bs-theme="dark"] .brand-navbar .nav-hover-item:focus {
+			background: rgba(13, 110, 253, 0.22);
+			color: #fff;
+		}
+		[data-bs-theme="dark"] .brand-navbar .nav-hover-empty {
+			color: #adb5bd;
 		}
 		[data-bs-theme="dark"] body.bg-light {
 			background-color: #121416 !important;
@@ -391,6 +476,63 @@
 			.navbar-nav .navbar-text {
 				padding-bottom: 0.55rem !important;
 				padding-top: 0.55rem !important;
+			}
+			.brand-navbar .nav-mobile-toggle-row {
+				gap: 0.25rem;
+				justify-content: space-between;
+			}
+			.brand-navbar .nav-mobile-toggle-row .nav-link {
+				flex: 1 1 auto;
+			}
+			.brand-navbar .nav-mobile-submenu-toggle {
+				align-items: center;
+				background: transparent;
+				border: 0;
+				color: rgba(255, 255, 255, 0.85);
+				display: inline-flex;
+				flex: 0 0 auto;
+				font-size: 1.2rem;
+				height: 2.25rem;
+				justify-content: center;
+				line-height: 1;
+				padding: 0;
+				transform: rotate(-90deg) scaleY(0.78);
+				transform-origin: center;
+				transition: color 0.16s ease, transform 0.16s ease;
+				width: 2.25rem;
+			}
+			.brand-navbar .mobile-nav-open .nav-mobile-submenu-toggle {
+				color: #fff;
+				transform: rotate(0deg) scaleY(0.78);
+			}
+			.brand-navbar .nav-hover-menu {
+				border-color: rgba(255, 255, 255, 0.18);
+				box-shadow: none;
+				display: none;
+				left: auto;
+				margin: 0 0 0.35rem 0.75rem;
+				max-height: 14rem;
+				min-width: 0;
+				opacity: 1;
+				padding: 0.2rem;
+				pointer-events: auto;
+				position: static;
+				transform: none;
+				visibility: visible;
+				width: 100%;
+			}
+			.brand-navbar .nav-hover-dropdown:hover .nav-hover-menu,
+			.brand-navbar .nav-hover-dropdown:focus-within .nav-hover-menu {
+				transform: none;
+			}
+			.brand-navbar .nav-hover-dropdown.mobile-nav-open .nav-hover-menu {
+				display: block;
+			}
+			.brand-navbar .navbar-brand:hover,
+			.brand-navbar .navbar-brand:focus,
+			.brand-navbar .nav-link:hover,
+			.brand-navbar .nav-link:focus {
+				transform: scale(1.06);
 			}
 			.bg-white.p-4,
 			form.bg-white.p-4,
@@ -644,10 +786,62 @@
 		</button>
 		<div class="collapse navbar-collapse" id="mainNav">
 			<ul class="navbar-nav ms-auto">
-				<li class="nav-item"><a class="nav-link" th:href="@{/students}">學生</a></li>
-				<li class="nav-item"><a class="nav-link" th:href="@{/teachers}">教師</a></li>
-				<li class="nav-item"><a class="nav-link" th:href="@{/classes}">班級</a></li>
-				<li class="nav-item"><a class="nav-link" th:href="@{/subjects}">科目</a></li>
+				<li class="nav-item nav-hover-dropdown">
+					<div class="nav-mobile-toggle-row">
+						<a class="nav-link" th:href="@{/students}">學生</a>
+						<button class="nav-mobile-submenu-toggle" type="button" data-mobile-nav-toggle
+								aria-expanded="false" aria-label="展開學生清單">⌄</button>
+					</div>
+					<ul class="nav-hover-menu">
+						<li th:if="${#lists.isEmpty(navStudents)}" class="nav-hover-empty">目前沒有學生</li>
+						<li th:each="student : ${navStudents}">
+							<a class="nav-hover-item" th:href="@{/students/{slug}(slug=${student.urlSlug})}"
+									th:text="${student.displayName}">學生姓名</a>
+						</li>
+					</ul>
+				</li>
+				<li class="nav-item nav-hover-dropdown">
+					<div class="nav-mobile-toggle-row">
+						<a class="nav-link" th:href="@{/teachers}">教師</a>
+						<button class="nav-mobile-submenu-toggle" type="button" data-mobile-nav-toggle
+								aria-expanded="false" aria-label="展開教師清單">⌄</button>
+					</div>
+					<ul class="nav-hover-menu">
+						<li th:if="${#lists.isEmpty(navTeachers)}" class="nav-hover-empty">目前沒有教師</li>
+						<li th:each="teacher : ${navTeachers}">
+							<a class="nav-hover-item" th:href="@{/teachers/{slug}(slug=${teacher.urlSlug})}"
+									th:text="${teacher.displayName}">教師姓名</a>
+						</li>
+					</ul>
+				</li>
+				<li class="nav-item nav-hover-dropdown">
+					<div class="nav-mobile-toggle-row">
+						<a class="nav-link" th:href="@{/classes}">班級</a>
+						<button class="nav-mobile-submenu-toggle" type="button" data-mobile-nav-toggle
+								aria-expanded="false" aria-label="展開班級清單">⌄</button>
+					</div>
+					<ul class="nav-hover-menu">
+						<li th:if="${#lists.isEmpty(navClasses)}" class="nav-hover-empty">目前沒有班級</li>
+						<li th:each="classRoom : ${navClasses}">
+							<a class="nav-hover-item" th:href="@{/classes/{slug}(slug=${classRoom.urlSlug})}"
+									th:text="${classRoom.displayName}">班級名稱</a>
+						</li>
+					</ul>
+				</li>
+				<li class="nav-item nav-hover-dropdown">
+					<div class="nav-mobile-toggle-row">
+						<a class="nav-link" th:href="@{/subjects}">科目</a>
+						<button class="nav-mobile-submenu-toggle" type="button" data-mobile-nav-toggle
+								aria-expanded="false" aria-label="展開科目清單">⌄</button>
+					</div>
+					<ul class="nav-hover-menu">
+						<li th:if="${#lists.isEmpty(navSubjects)}" class="nav-hover-empty">目前沒有科目</li>
+						<li th:each="subject : ${navSubjects}">
+							<a class="nav-hover-item" th:href="@{/subjects/{slug}(slug=${subject.urlSlug})}"
+									th:text="${subject.name}">科目名稱</a>
+						</li>
+					</ul>
+				</li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/exams}">測驗</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/homeworks}">作業</a></li>
 				<li th:if="${teacherPermissions.manageTuition}" class="nav-item"><a class="nav-link" th:href="@{/tuition}">學費</a></li>
@@ -743,6 +937,36 @@
 			+ '(min-width: 768px) and (max-width: 1199.98px) and (orientation: landscape)'
 		);
 
+		function closeMobileNavLists() {
+			document.querySelectorAll('.nav-hover-dropdown.mobile-nav-open').forEach((dropdown) => {
+				dropdown.classList.remove('mobile-nav-open');
+				dropdown.querySelector('[data-mobile-nav-toggle]')?.setAttribute('aria-expanded', 'false');
+			});
+		}
+
+		document.querySelectorAll('[data-mobile-nav-toggle]').forEach((button) => {
+			button.addEventListener('click', (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				if (!wholeSummerMobileQuery.matches) {
+					return;
+				}
+				const dropdown = button.closest('.nav-hover-dropdown');
+				if (!dropdown) {
+					return;
+				}
+				const opening = !dropdown.classList.contains('mobile-nav-open');
+				dropdown.classList.toggle('mobile-nav-open', opening);
+				button.setAttribute('aria-expanded', String(opening));
+			});
+		});
+		wholeSummerMobileQuery.addEventListener('change', () => {
+			if (!wholeSummerMobileQuery.matches) {
+				closeMobileNavLists();
+			}
+		});
+		document.getElementById('mainNav')?.addEventListener('hidden.bs.collapse', closeMobileNavLists);
+
 		document.querySelectorAll('.responsive-login-title').forEach((title) => {
 			const titleText = title.textContent.trim();
 			const englishTitle = 'Whole Summer';
@@ -818,7 +1042,7 @@
 			}
 		});
 
-		const detailPagePattern = /^\/(?:(?:students|teachers|classes)\/[^/]+|(?:exams|homeworks)\/\d+)\/?$/;
+		const detailPagePattern = /^\/(?:(?:students|teachers|classes|subjects)\/[^/]+|(?:exams|homeworks)\/\d+)\/?$/;
 		if (detailPagePattern.test(window.location.pathname)) {
 			const main = document.querySelector('main');
 			main?.classList.add('mobile-detail-page');

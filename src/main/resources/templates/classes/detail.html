@@ -5,6 +5,46 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4" id="classDetailPage" th:data-class-name="${classRoom.displayName}">
+	<style>
+		.detail-range-toggle .btn {
+			font-size: 0.75rem;
+			line-height: 1.15;
+			padding: 0.18rem 0.45rem;
+		}
+		.detail-collapse-heading {
+			background: transparent;
+			border: 0;
+			color: inherit;
+		}
+		.detail-collapse-heading:hover h2,
+		.detail-collapse-heading:focus h2 {
+			color: var(--bs-primary);
+		}
+		.detail-collapse-toggle {
+			background: transparent;
+			border: 0;
+			color: var(--bs-secondary-color);
+			font-size: 1.2rem;
+			height: 1.5rem;
+			line-height: 0;
+			margin-right: -0.25rem;
+			min-width: 1.5rem;
+			transform: scaleY(0.65) rotate(-90deg);
+			transform-origin: center;
+			transition: color 0.2s ease, transform 0.2s ease;
+			width: 1.5rem;
+		}
+		.detail-collapse-heading:hover .detail-collapse-toggle,
+		.detail-collapse-heading:focus .detail-collapse-toggle {
+			color: var(--bs-body-color);
+		}
+		.detail-collapse-heading[aria-expanded="true"] .detail-collapse-toggle {
+			transform: scaleY(0.65);
+		}
+		.detail-collapsed {
+			display: none !important;
+		}
+	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
 
@@ -63,11 +103,11 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
-				<div th:text="${#temporals.format(classRoom.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(classRoom.createdAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">更新時間</div>
-				<div th:text="${#temporals.format(classRoom.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(classRoom.updatedAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">說明</div>
@@ -127,7 +167,7 @@
 					</td>
 					<td th:text="${classStudent.student.grade ?: '-'}">-</td>
 					<td th:text="${classStudent.student.school ?: '-'}">-</td>
-					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy/MM/dd HH:mm')}">-</td>
 					<td class="text-end">
 						<form th:if="${teacherPermissions.classUpdate}"
 								th:action="@{/classes/{slug}/students/{classStudentId}/remove(slug=${classRoom.urlSlug}, classStudentId=${classStudent.id})}"
@@ -144,10 +184,15 @@
 	<section class="mt-4">
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
-				<h2 class="h5 mb-0">出缺席統計</h2>
+				<button class="d-inline-flex align-items-center gap-2 p-0 detail-collapse-heading"
+						type="button" data-section-collapse="attendance" aria-label="展開出席統計"
+						data-section-label="出席統計" aria-expanded="false">
+					<span class="d-inline-flex align-items-center justify-content-center p-0 detail-collapse-toggle">⌄</span>
+					<h2 class="h5 mb-0">出席統計</h2>
+				</button>
 				<span class="badge text-bg-primary" data-record-count="attendance"
 						th:text="${attendanceStats.totalCount}">0</span>
-				<div class="btn-group btn-group-sm" role="group" aria-label="出缺席範圍">
+				<div class="btn-group btn-group-sm detail-range-toggle" role="group" aria-label="出缺席範圍">
 					<button class="btn btn-primary" type="button" data-range-toggle="attendance" data-range="month">當月</button>
 					<button class="btn btn-outline-primary" type="button" data-range-toggle="attendance" data-range="all">全部</button>
 				</div>
@@ -162,6 +207,7 @@
 				</form>
 			</div>
 		</div>
+		<div data-collapsible-section="attendance" class="detail-collapsed">
 		<div class="row g-3 mb-3">
 			<div class="col-md-3">
 				<div class="bg-white border rounded p-3 h-100">
@@ -209,7 +255,7 @@
 				</tr>
 				<tr th:each="attendanceRow : ${attendanceTableRows}"
 						th:attr="data-record-date=${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')}">
-					<td th:text="${#temporals.format(attendanceRow.date, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(attendanceRow.date, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td th:each="attendance : ${attendanceRow.attendances}">
 						<span th:if="${attendance == null}" class="text-secondary">-</span>
 						<span th:if="${attendance != null && (attendance.note == null || attendance.note.isBlank())}"
@@ -234,15 +280,21 @@
 				</tbody>
 			</table>
 		</div>
+		</div>
 	</section>
 
 	<section class="mt-4">
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
-				<h2 class="h5 mb-0">作業列表</h2>
+				<button class="d-inline-flex align-items-center gap-2 p-0 detail-collapse-heading"
+						type="button" data-section-collapse="homework" aria-label="展開作業列表"
+						data-section-label="作業列表" aria-expanded="false">
+					<span class="d-inline-flex align-items-center justify-content-center p-0 detail-collapse-toggle">⌄</span>
+					<h2 class="h5 mb-0">作業列表</h2>
+				</button>
 				<span class="badge text-bg-primary" data-record-count="homework"
 						th:text="${#lists.size(homeworks)}">0</span>
-				<div class="btn-group btn-group-sm" role="group" aria-label="作業範圍">
+				<div class="btn-group btn-group-sm detail-range-toggle" role="group" aria-label="作業範圍">
 					<button class="btn btn-primary" type="button" data-range-toggle="homework" data-range="month">當月</button>
 					<button class="btn btn-outline-primary" type="button" data-range-toggle="homework" data-range="all">全部</button>
 				</div>
@@ -257,6 +309,7 @@
 				</form>
 			</div>
 		</div>
+		<div data-collapsible-section="homework" class="detail-collapsed">
 		<div class="table-responsive bg-white border rounded">
 			<table class="table table-hover align-middle mb-0" data-export-table="homework">
 				<thead class="table-light">
@@ -277,8 +330,8 @@
 					<td>
 						<a th:href="@{/homeworks/{id}(id=${homework.id})}" th:text="${homework.title}">作業</a>
 					</td>
-					<td th:text="${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">2026-01-01</td>
-					<td th:text="${#temporals.format(homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(homework.assignedDate, 'yyyy/MM/dd')}">2026/01/01</td>
+					<td th:text="${#temporals.format(homework.dueDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td th:text="${#numbers.formatDecimal(homeworkCompletionRates[homework.id], 1, 1) + '%'}">0.0%</td>
 					<td class="text-end">
 						<a class="btn btn-sm btn-outline-success"
@@ -291,15 +344,21 @@
 				</tbody>
 			</table>
 		</div>
+		</div>
 	</section>
 
 	<section class="mt-4">
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-2">
 			<div class="d-flex align-items-center gap-2">
-				<h2 class="h5 mb-0">測驗列表</h2>
+				<button class="d-inline-flex align-items-center gap-2 p-0 detail-collapse-heading"
+						type="button" data-section-collapse="exam" aria-label="展開測驗列表"
+						data-section-label="測驗列表" aria-expanded="false">
+					<span class="d-inline-flex align-items-center justify-content-center p-0 detail-collapse-toggle">⌄</span>
+					<h2 class="h5 mb-0">測驗列表</h2>
+				</button>
 				<span class="badge text-bg-primary" data-record-count="exam"
 						th:text="${#lists.size(exams)}">0</span>
-				<div class="btn-group btn-group-sm" role="group" aria-label="測驗範圍">
+				<div class="btn-group btn-group-sm detail-range-toggle" role="group" aria-label="測驗範圍">
 					<button class="btn btn-primary" type="button" data-range-toggle="exam" data-range="month">當月</button>
 					<button class="btn btn-outline-primary" type="button" data-range-toggle="exam" data-range="all">全部</button>
 				</div>
@@ -314,6 +373,7 @@
 				</form>
 			</div>
 		</div>
+		<div data-collapsible-section="exam" class="detail-collapsed">
 		<div th:if="${#lists.isEmpty(exams)}" class="table-responsive bg-white border rounded">
 			<table class="table table-hover align-middle mb-0">
 				<tbody>
@@ -351,7 +411,7 @@
 				<tbody>
 				<tr th:each="exam : ${scoredExams}" th:with="stats=${statsByExamId[exam.id]}"
 						th:attr="data-record-date=${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">
-					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(exam.examDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
 					</td>
@@ -386,7 +446,7 @@
 				<tbody>
 				<tr th:each="exam : ${practiceExams}" th:with="stats=${statsByExamId[exam.id]}"
 						th:attr="data-record-date=${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">
-					<td th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(exam.examDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a>
 					</td>
@@ -403,6 +463,7 @@
 				</tr>
 				</tbody>
 			</table>
+		</div>
 		</div>
 	</section>
 </main>
@@ -560,6 +621,20 @@
 		button.addEventListener('click', () => {
 			activeRanges[button.dataset.rangeToggle] = button.dataset.range;
 			applyRange(button.dataset.rangeToggle);
+		});
+	});
+
+	document.querySelectorAll('[data-section-collapse]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const section = button.dataset.sectionCollapse;
+			const content = document.querySelector(`[data-collapsible-section="${section}"]`);
+			if (!content) {
+				return;
+			}
+			const collapsed = !content.classList.contains('detail-collapsed');
+			content.classList.toggle('detail-collapsed', collapsed);
+			button.setAttribute('aria-expanded', String(!collapsed));
+			button.setAttribute('aria-label', `${collapsed ? '展開' : '收合'}${button.dataset.sectionLabel || ''}`);
 		});
 	});
 

@@ -59,7 +59,7 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">到職日</div>
-				<div th:text="${teacher.hireDate == null ? '-' : #temporals.format(teacher.hireDate, 'yyyy-MM-dd')}">-</div>
+				<div th:text="${teacher.hireDate == null ? '-' : #temporals.format(teacher.hireDate, 'yyyy/MM/dd')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">職位</div>
@@ -76,11 +76,11 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
-				<div th:text="${#temporals.format(teacher.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(teacher.createdAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">更新時間</div>
-				<div th:text="${#temporals.format(teacher.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(teacher.updatedAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">備註</div>
@@ -208,7 +208,7 @@
 					<td colspan="7" class="text-center text-secondary py-4">目前尚無出勤紀錄</td>
 				</tr>
 				<tr th:each="attendance : ${attendances}">
-					<td th:text="${#temporals.format(attendance.date, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(attendance.date, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td th:text="${attendance.clockInTime == null ? '-' : #temporals.format(attendance.clockInTime, 'HH:mm')}">-</td>
 					<td th:text="${attendance.clockOutTime == null ? '-' : #temporals.format(attendance.clockOutTime, 'HH:mm')}">-</td>
 					<td th:text="${attendance.scheduledTimeText}">當日無課程</td>

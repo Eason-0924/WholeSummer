@@ -61,6 +61,15 @@ public class SubjectController {
 		return "subjects/form";
 	}
 
+	@GetMapping("/{slug}")
+	public String detail(@PathVariable String slug, Model model) {
+		Subject subject = subjectService.findByUrlSlugOrId(slug);
+		model.addAttribute("pageTitle", subject.getName());
+		model.addAttribute("subject", subject);
+		model.addAttribute("activeClasses", subjectService.findActiveClassesBySubjectId(subject.getId()));
+		return "subjects/detail";
+	}
+
 	@PostMapping
 	public String create(@Valid @ModelAttribute("subjectForm") SubjectForm subjectForm,
 			BindingResult bindingResult, Model model, RedirectAttributes redirectAttributes) {

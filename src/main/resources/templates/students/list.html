@@ -53,7 +53,7 @@
 					<td th:text="${student.school ?: '-'}">-</td>
 					<td th:text="${student.grade ?: '-'}">-</td>
 					<td class="mobile-secondary-column tablet-hidden-column"
-							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</td>
+							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy/MM/dd')) : '無權限查看'}">-</td>
 					<td th:text="${teacherPermissions.studentSensitiveView ? (student.phone ?: '-') : '無權限查看'}">-</td>
 					<td class="text-end">
 						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">
@@ -107,7 +107,7 @@
 					<td th:text="${student.school ?: '-'}">-</td>
 					<td th:text="${student.grade ?: '-'}">-</td>
 					<td class="mobile-secondary-column tablet-hidden-column"
-							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</td>
+							th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy/MM/dd')) : '無權限查看'}">-</td>
 					<td th:text="${teacherPermissions.studentSensitiveView ? (student.phone ?: '-') : '無權限查看'}">-</td>
 					<td class="text-end">
 						<div th:if="${teacherPermissions.studentUpdate}" class="d-inline-flex gap-2">

@@ -69,7 +69,7 @@
 			</h2>
 			<div class="text-secondary small mb-3">
 				<span>原課程日期：</span>
-				<span th:text="${#temporals.format(view.request.originalCourseDate, 'yyyy-MM-dd')}">2026-06-26</span>
+				<span th:text="${#temporals.format(view.request.originalCourseDate, 'yyyy/MM/dd')}">2026/06/26</span>
 				<span class="mx-2">｜</span>
 				<span>原課程時間：</span>
 				<span th:text="${view.request.originalCourseSchedule.timeRangeText}">18:00 ~ 20:00</span>
@@ -105,7 +105,7 @@
 						data-bs-toggle="modal"
 						data-bs-target="#makeUpSlotsModal"
 						th:classappend="${day.calculated ? ' border-' + day.statusClass : ''}"
-						th:attr="data-slots-url=@{/make-up/{id}/slots(id=${view.request.id},date=${#temporals.format(day.date, 'yyyy-MM-dd')})},data-date-text=${#temporals.format(day.date, 'yyyy-MM-dd')},data-calendar-date=${#temporals.format(day.date, 'yyyy-MM-dd')}">
+						th:attr="data-slots-url=@{/make-up/{id}/slots(id=${view.request.id},date=${#temporals.format(day.date, 'yyyy-MM-dd')})},data-date-text=${#temporals.format(day.date, 'yyyy/MM/dd')},data-calendar-date=${#temporals.format(day.date, 'yyyy-MM-dd')}">
 					<div class="make-up-day-number" th:text="${#temporals.format(day.date, 'MM/dd')}">07/01</div>
 					<div class="make-up-day-counts mt-2" th:classappend="${day.calculated ? '' : ' opacity-50'}">
 						<span class="badge text-bg-success make-up-day-count make-up-day-count-success"
@@ -123,7 +123,7 @@
 					<div class="modal-content">
 						<div class="modal-header">
 							<h3 class="modal-title h5">
-								<span id="makeUpSlotsModalDate">2026-07-01</span>
+								<span id="makeUpSlotsModalDate">2026/07-01</span>
 								<span>可補課時段</span>
 							</h3>
 							<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>

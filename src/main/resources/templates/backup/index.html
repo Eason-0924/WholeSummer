@@ -22,7 +22,7 @@
 		<div class="row g-3">
 			<div class="col-md-6">
 				<div class="text-secondary small">最近成功備份時間</div>
-				<div th:text="${latestBackup == null ? '尚無成功備份' : #temporals.format(latestBackup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">-</div>
+				<div th:text="${latestBackup == null ? '尚無成功備份' : #temporals.format(latestBackup.backupTime, 'yyyy/MM/dd HH:mm:ss')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">備份提醒天數</div>
@@ -81,7 +81,7 @@
 							th:data-file-name="${backup.fileName}"
 							th:title="${backup.fileName}"
 							th:text="${backup.fileName}">backup.sql</td>
-					<td th:text="${#temporals.format(backup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">2026-01-01</td>
+					<td th:text="${#temporals.format(backup.backupTime, 'yyyy/MM/dd HH:mm:ss')}">2026/01/01</td>
 					<td th:text="${backup.fileSizeText}">-</td>
 					<td>
 						<span th:class="${backup.status.name() == 'SUCCESS' ? 'badge text-bg-success' : 'badge text-bg-danger'}"
@@ -123,7 +123,7 @@
 							<div class="border rounded p-3 mb-3">
 								<div class="fw-semibold" th:text="${backup.fileName}">backup.sql</div>
 								<div class="text-secondary small"
-										th:text="${#temporals.format(backup.backupTime, 'yyyy-MM-dd HH:mm:ss')}">時間</div>
+										th:text="${#temporals.format(backup.backupTime, 'yyyy/MM/dd HH:mm:ss')}">時間</div>
 							</div>
 							<div class="alert alert-warning small">
 								目前資料將被覆蓋。系統會先自動建立一份還原前安全備份。

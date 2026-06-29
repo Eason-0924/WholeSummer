@@ -40,7 +40,7 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">測驗日期</div>
-				<div th:text="${#temporals.format(exam.examDate, 'yyyy-MM-dd')}">2026-01-01</div>
+				<div th:text="${#temporals.format(exam.examDate, 'yyyy/MM/dd')}">2026/01/01</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">滿分</div>
@@ -48,11 +48,11 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
-				<div th:text="${#temporals.format(exam.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(exam.createdAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">更新時間</div>
-				<div th:text="${#temporals.format(exam.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(exam.updatedAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">考卷檔案</div>

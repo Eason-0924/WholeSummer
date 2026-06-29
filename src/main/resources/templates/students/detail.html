@@ -44,7 +44,7 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">生日</div>
-				<div th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy-MM-dd')) : '無權限查看'}">-</div>
+				<div th:text="${teacherPermissions.studentSensitiveView ? (student.birthday == null ? '-' : #temporals.format(student.birthday, 'yyyy/MM/dd')) : '無權限查看'}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">學校</div>
@@ -60,7 +60,7 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
-				<div th:text="${#temporals.format(student.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(student.createdAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">備註</div>
@@ -124,8 +124,8 @@
 					<td th:text="${record.title}">學費</td>
 					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountDue, 1, 'COMMA')}">NT$ 0</td>
 					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountPaid, 1, 'COMMA')}">NT$ 0</td>
-					<td th:text="${#temporals.format(record.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
-					<td th:text="${record.paidDate == null ? '-' : #temporals.format(record.paidDate, 'yyyy-MM-dd')}">-</td>
+					<td th:text="${#temporals.format(record.dueDate, 'yyyy/MM/dd')}">2026/01/01</td>
+					<td th:text="${record.paidDate == null ? '-' : #temporals.format(record.paidDate, 'yyyy/MM/dd')}">-</td>
 					<td>
 						<span th:if="${record.overdue}" class="badge text-bg-danger">逾期未繳</span>
 						<span th:unless="${record.overdue}"
@@ -173,7 +173,7 @@
 					<td colspan="4" class="text-center text-secondary py-4">目前尚無出缺席紀錄</td>
 				</tr>
 				<tr th:each="attendance : ${attendances}">
-					<td th:text="${#temporals.format(attendance.attendanceDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(attendance.attendanceDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<a th:href="@{/classes/{slug}(slug=${attendance.classRoom.urlSlug})}"
 								th:text="${attendance.classRoom.displayName}">班級</a>
@@ -214,12 +214,12 @@
 						<a th:href="@{/homeworks/{id}(id=${record.homework.id})}" th:text="${record.homework.title}">作業</a>
 					</td>
 					<td th:text="${record.homework.classRoom.displayName}">班級</td>
-					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(record.homework.dueDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<span th:class="${record.status.name() == 'NOT_SUBMITTED' ? 'badge text-bg-danger' : 'badge text-bg-success'}"
 								th:text="${record.status.displayName}">狀態</span>
 					</td>
-					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy/MM/dd HH:mm')}">-</td>
 				</tr>
 				</tbody>
 			</table>
@@ -248,7 +248,7 @@
 					<td colspan="6" class="text-center text-secondary py-4">目前尚無成績紀錄</td>
 				</tr>
 				<tr th:each="score : ${scores}">
-					<td th:text="${#temporals.format(score.exam.examDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(score.exam.examDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<a th:href="@{/exams/{id}(id=${score.exam.id})}" th:text="${score.exam.name}">測驗名稱</a>
 					</td>

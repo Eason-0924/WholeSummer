@@ -73,7 +73,7 @@
 					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountDue, 1, 'COMMA')}">NT$ 0</td>
 					<td th:text="${'NT$ ' + #numbers.formatInteger(record.amountPaid, 1, 'COMMA')}">NT$ 0</td>
 					<td th:text="${'NT$ ' + #numbers.formatInteger(record.outstandingAmount, 1, 'COMMA')}">NT$ 0</td>
-					<td th:text="${#temporals.format(record.dueDate, 'yyyy-MM-dd')}">2026-01-01</td>
+					<td th:text="${#temporals.format(record.dueDate, 'yyyy/MM/dd')}">2026/01/01</td>
 					<td>
 						<span th:if="${record.overdue}" class="badge text-bg-danger">逾期未繳</span>
 						<span th:unless="${record.overdue}"

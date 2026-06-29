@@ -40,19 +40,19 @@
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">發派日期</div>
-				<div th:text="${#temporals.format(homework.assignedDate, 'yyyy-MM-dd')}">2026-01-01</div>
+				<div th:text="${#temporals.format(homework.assignedDate, 'yyyy/MM/dd')}">2026/01/01</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">截止日期</div>
-				<div th:text="${#temporals.format(homework.dueDate, 'yyyy-MM-dd')}">2026-01-01</div>
+				<div th:text="${#temporals.format(homework.dueDate, 'yyyy/MM/dd')}">2026/01/01</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">建立時間</div>
-				<div th:text="${#temporals.format(homework.createdAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(homework.createdAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-md-6">
 				<div class="text-secondary small">更新時間</div>
-				<div th:text="${#temporals.format(homework.updatedAt, 'yyyy-MM-dd HH:mm')}">-</div>
+				<div th:text="${#temporals.format(homework.updatedAt, 'yyyy/MM/dd HH:mm')}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">備註</div>
@@ -94,7 +94,7 @@
 						<span th:class="${record.status.name() == 'NOT_SUBMITTED' ? 'badge text-bg-danger' : 'badge text-bg-success'}"
 								th:text="${record.status.displayName}">狀態</span>
 					</td>
-					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy-MM-dd HH:mm')}">-</td>
+					<td th:text="${record.submittedAt == null ? '-' : #temporals.format(record.submittedAt, 'yyyy/MM/dd HH:mm')}">-</td>
 					<td th:text="${record.teacherComment ?: '-'}">-</td>
 				</tr>
 				</tbody>

@@ -36,6 +36,7 @@ public class ClassStatisticsExportService {
 
 	private static final DateTimeFormatter FILE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
 	private static final DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
+	private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 	private static final Set<String> VALID_SECTIONS = Set.of("attendance", "homework", "exam");
 	private static final Set<String> VALID_RANGES = Set.of("month", "all");
 
@@ -105,7 +106,7 @@ public class ClassStatisticsExportService {
 		List<ExportRow> rows = new ArrayList<>();
 		for (Map.Entry<LocalDate, Map<Long, StudentAttendance>> entry : attendancesByDate.entrySet()) {
 			List<String> values = new ArrayList<>();
-			values.add(entry.getKey().toString());
+			values.add(formatDate(entry.getKey()));
 			for (ClassStudent classStudent : classStudents) {
 				StudentAttendance attendance = entry.getValue().get(classStudent.getStudent().getId());
 				if (attendance == null) {
@@ -133,8 +134,8 @@ public class ClassStatisticsExportService {
 		List<ExportRow> rows = homeworks.stream()
 				.map(homework -> new ExportRow(homework.getAssignedDate(), List.of(
 						homework.getTitle(),
-						String.valueOf(homework.getAssignedDate()),
-						String.valueOf(homework.getDueDate()),
+						formatDate(homework.getAssignedDate()),
+						formatDate(homework.getDueDate()),
 						String.format(Locale.ROOT, "%.1f%%", completionRates.getOrDefault(homework.getId(), 0.0)))))
 				.toList();
 		return new ExportData("作業紀錄", sheets(List.of("作業內容", "發派日期", "截止日期", "完成率"), rows, range));
@@ -151,7 +152,7 @@ public class ClassStatisticsExportService {
 				.map(exam -> {
 					ScoreStats stats = statsByExamId.get(exam.getId());
 					return new ExportRow(exam.getExamDate(), List.of(
-							String.valueOf(exam.getExamDate()),
+							formatDate(exam.getExamDate()),
 							exam.getName(),
 							String.valueOf(exam.getFullScore()),
 							stats.getAverage() == null ? "-" : String.format(Locale.ROOT, "%.1f", stats.getAverage()),
@@ -165,7 +166,7 @@ public class ClassStatisticsExportService {
 				.map(exam -> {
 					ScoreStats stats = statsByExamId.get(exam.getId());
 					return new ExportRow(exam.getExamDate(), List.of(
-							String.valueOf(exam.getExamDate()),
+							formatDate(exam.getExamDate()),
 							exam.getName(),
 							stats.getCompletedCount() + " / " + stats.getTotalCount()));
 				})
@@ -261,6 +262,10 @@ public class ClassStatisticsExportService {
 
 	private String monthName(LocalDate date) {
 		return date == null ? "未指定月份" : date.format(MONTH_FORMATTER);
+	}
+
+	private String formatDate(LocalDate date) {
+		return date == null ? "-" : date.format(DISPLAY_DATE_FORMATTER);
 	}
 
 	private Path exportFolder(ClassRoom classRoom, String section) {
