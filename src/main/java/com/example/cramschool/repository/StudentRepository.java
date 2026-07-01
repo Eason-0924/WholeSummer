@@ -19,7 +19,11 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
 	Optional<Student> findByUrlSlug(String urlSlug);
 
+	Optional<Student> findByCardId(String cardId);
+
 	boolean existsByUrlSlug(String urlSlug);
 
 	boolean existsByUrlSlugAndIdNot(String urlSlug, Long id);
+
+	boolean existsByCardIdAndIdNot(String cardId, Long id);
 }

@@ -1,5 +1,6 @@
 package com.example.cramschool.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ import com.example.cramschool.repository.TeacherLeaveRepository;
 import com.example.cramschool.repository.TeacherMonthlySalaryRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TeacherPermissionRepository;
+import com.example.cramschool.repository.StudentRepository;
 
 @Service
 @Transactional
@@ -29,6 +31,7 @@ public class TeacherService {
 	private final TeacherRepository teacherRepository;
 	private final ClassRoomRepository classRoomRepository;
 	private final SubjectRepository subjectRepository;
+	private final StudentRepository studentRepository;
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherAccountRepository teacherAccountRepository;
 	private final TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
@@ -40,7 +43,8 @@ public class TeacherService {
 	private final TeacherUrlSlugService teacherUrlSlugService;
 
 	public TeacherService(TeacherRepository teacherRepository, ClassRoomRepository classRoomRepository,
-			SubjectRepository subjectRepository, TeacherAttendanceService teacherAttendanceService,
+			SubjectRepository subjectRepository, StudentRepository studentRepository,
+			TeacherAttendanceService teacherAttendanceService,
 			TeacherAccountRepository teacherAccountRepository,
 			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository,
 			BugReportRepository bugReportRepository,
@@ -52,6 +56,7 @@ public class TeacherService {
 		this.teacherRepository = teacherRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
+		this.studentRepository = studentRepository;
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherAccountRepository = teacherAccountRepository;
 		this.teacherMonthlySalaryRepository = teacherMonthlySalaryRepository;
@@ -136,6 +141,29 @@ public class TeacherService {
 			teacher.setEmail(originalEmail);
 		}
 		teacher.setUrlSlug(teacherUrlSlugService.generateUniqueSlug(teacher));
+		return teacherRepository.save(teacher);
+	}
+
+	public Teacher bindCard(Long teacherId, String cardId, boolean overwriteExisting, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
+		String normalizedCardId = CardIdNormalizer.normalize(cardId);
+		if (normalizedCardId == null) {
+			throw new IllegalArgumentException("請輸入卡號");
+		}
+		Teacher teacher = findById(teacherId);
+		if (teacherRepository.existsByCardIdAndIdNot(normalizedCardId, teacherId)) {
+			throw new IllegalArgumentException("此卡已綁定其他教師，請確認卡片或先解除原綁定");
+		}
+		if (studentRepository.findByCardId(normalizedCardId).isPresent()) {
+			throw new IllegalArgumentException("此卡已綁定學生，請確認卡片或先解除原綁定");
+		}
+		if (teacher.getCardId() != null && !teacher.getCardId().isBlank()
+				&& !teacher.getCardId().equals(normalizedCardId) && !overwriteExisting) {
+			throw new IllegalArgumentException("此教師已有綁定卡片，請確認是否覆蓋");
+		}
+		teacher.setCardId(normalizedCardId);
+		teacher.setCardBoundAt(LocalDateTime.now());
+		teacher.setCardStatus("ACTIVE");
 		return teacherRepository.save(teacher);
 	}
 

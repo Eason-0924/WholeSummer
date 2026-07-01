@@ -17,6 +17,8 @@
 		</div>
 	</div>
 
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">班級資料無法儲存</div>
+
 	<form class="bg-white border rounded p-4" th:action="@{${formAction}}" th:object="${classRoomForm}" method="post">
 		<div class="row g-3">
 			<div class="col-md-6">
@@ -135,8 +137,7 @@
 			const grades = option.dataset.grades || '';
 			const isEmptyOption = option.value === '';
 			const supportsGrade = grades.split(',').includes(selectedGrade);
-			const preservesCollegeClassSubject = selectedGrade === '大一' && option.value === currentSubjectId;
-			if (isEmptyOption || !selectedGrade || supportsGrade || preservesCollegeClassSubject) {
+			if (isEmptyOption || !selectedGrade || supportsGrade) {
 				const clonedOption = option.cloneNode(true);
 				clonedOption.selected = clonedOption.value === currentSubjectId;
 				subjectSelect.appendChild(clonedOption);

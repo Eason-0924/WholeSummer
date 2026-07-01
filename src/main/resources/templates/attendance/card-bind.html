@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div>
+			<div class="page-title-line mb-1">
+				<h1 class="h3 mb-0" th:text="${pageTitle}">卡片綁定</h1>
+				<span th:replace="~{fragments/layout :: help('將學生或教師與 NFC、RFID 或鍵盤模擬型讀卡機輸出的卡號綁定。\n同一張卡不能重複綁定。\n換卡時請勾選覆蓋原卡號。')}"></span>
+			</div>
+		</div>
+		<div class="d-flex align-items-center gap-2">
+			<a class="btn btn-outline-secondary" th:href="@{/attendance/card-check-in}">返回刷卡點名</a>
+		</div>
+	</div>
+
+	<div class="row g-3">
+		<section class="col-lg-7">
+			<form class="bg-white border rounded p-4" th:action="@{/attendance/card-bind}"
+					th:object="${cardBindForm}" method="post" id="cardBindForm">
+				<div class="mb-3">
+					<label for="targetId" class="form-label">學生/教師 <span class="text-danger">*</span></label>
+					<select id="targetId" class="form-select" th:field="*{targetKey}"
+							th:classappend="${#fields.hasErrors('targetKey')} ? 'is-invalid'">
+						<option value="">請選擇</option>
+						<optgroup label="學生">
+							<option th:each="student : ${students}" th:value="${'STUDENT:' + student.id}"
+									th:attr="data-kind='學生',
+											data-display-name=${student.displayName},
+											data-card-id=${student.cardId ?: ''},
+											data-card-status=${student.cardStatus ?: ''},
+											data-card-bound-at=${student.cardBoundAt == null ? '' : #temporals.format(student.cardBoundAt, 'yyyy/MM/dd HH:mm')}"
+									th:text="${student.displayName + (student.grade == null ? '' : ' - ' + student.grade)}">學生</option>
+						</optgroup>
+						<optgroup label="教師">
+							<option th:each="teacher : ${teachers}" th:value="${'TEACHER:' + teacher.id}"
+									th:attr="data-kind='教師',
+											data-display-name=${teacher.displayName},
+											data-card-id=${teacher.cardId ?: ''},
+											data-card-status=${teacher.cardStatus ?: ''},
+											data-card-bound-at=${teacher.cardBoundAt == null ? '' : #temporals.format(teacher.cardBoundAt, 'yyyy/MM/dd HH:mm')}"
+									th:text="${teacher.displayName}">教師</option>
+						</optgroup>
+					</select>
+					<div class="invalid-feedback" th:errors="*{targetKey}">請選擇學生或教師</div>
+				</div>
+				<div class="mb-3">
+					<label for="cardId" class="form-label">卡號 <span class="text-danger">*</span></label>
+					<input type="text" id="cardId" class="form-control" th:field="*{cardId}"
+							autocomplete="off" autofocus
+							th:classappend="${#fields.hasErrors('cardId')} ? 'is-invalid'">
+					<div class="invalid-feedback" th:errors="*{cardId}">請輸入卡號</div>
+				</div>
+				<input type="hidden" id="overwriteExisting" th:field="*{overwriteExisting}">
+				<div class="d-flex justify-content-end gap-2">
+					<button class="btn btn-primary" type="submit">綁定卡片</button>
+				</div>
+			</form>
+		</section>
+
+		<section class="col-lg-5">
+			<div class="bg-white border rounded p-4 h-100">
+				<h2 class="h5 mb-3">目前綁定狀態</h2>
+				<div class="row g-0 align-items-stretch">
+					<div class="col-md-5 pe-md-4 mb-3 mb-md-0">
+						<div class="mb-3">
+							<div class="text-secondary small">類型</div>
+							<div id="bindStatusKind">-</div>
+						</div>
+						<div>
+							<div class="text-secondary small">姓名</div>
+							<div id="bindStatusName" class="fw-semibold">請選擇學生或教師</div>
+						</div>
+					</div>
+					<div class="col-md-7 ps-md-4 border-top pt-3 border-md-top-0 border-md-start pt-md-0">
+						<div class="mb-3">
+							<div class="text-secondary small">卡號</div>
+							<div id="bindStatusCardId" class="font-monospace">-</div>
+						</div>
+						<div class="mb-3">
+							<div class="text-secondary small">狀態</div>
+							<span id="bindStatusBadge" class="badge text-bg-secondary">-</span>
+						</div>
+						<div>
+							<div class="text-secondary small">綁定時間</div>
+							<div id="bindStatusBoundAt">-</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+</main>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<style>
+	@media (min-width: 768px) {
+		.border-md-top-0 {
+			border-top: 0 !important;
+		}
+
+		.border-md-start {
+			border-left: 1px solid var(--bs-border-color) !important;
+		}
+	}
+</style>
+<script>
+	(() => {
+		const form = document.getElementById('cardBindForm');
+		const targetId = document.getElementById('targetId');
+		const cardId = document.getElementById('cardId');
+		const overwriteExisting = document.getElementById('overwriteExisting');
+		const statusKind = document.getElementById('bindStatusKind');
+		const statusName = document.getElementById('bindStatusName');
+		const statusCardId = document.getElementById('bindStatusCardId');
+		const statusBadge = document.getElementById('bindStatusBadge');
+		const statusBoundAt = document.getElementById('bindStatusBoundAt');
+
+		const updateBindStatus = () => {
+			const selected = targetId?.selectedOptions[0];
+			overwriteExisting.value = 'false';
+			if (!selected || !selected.value) {
+				statusKind.textContent = '-';
+				statusName.textContent = '請選擇學生或教師';
+				statusCardId.textContent = '-';
+				statusBadge.textContent = '-';
+				statusBadge.className = 'badge text-bg-secondary';
+				statusBoundAt.textContent = '-';
+				return;
+			}
+			const cardStatus = selected.dataset.cardStatus || '-';
+			statusKind.textContent = selected.dataset.kind || '-';
+			statusName.textContent = selected.dataset.displayName || selected.textContent.trim();
+			statusCardId.textContent = selected.dataset.cardId || '尚未綁定';
+			statusBadge.textContent = cardStatus;
+			statusBadge.className = cardStatus === 'ACTIVE' ? 'badge text-bg-success' : 'badge text-bg-secondary';
+			statusBoundAt.textContent = selected.dataset.cardBoundAt || '-';
+		};
+
+		targetId?.addEventListener('change', updateBindStatus);
+		form?.addEventListener('submit', (event) => {
+			const selected = targetId?.selectedOptions[0];
+			const existingCardId = selected?.dataset.cardId?.trim();
+			overwriteExisting.value = 'false';
+			if (selected?.value && existingCardId) {
+				const confirmed = window.confirm('此對象目前已綁定卡號，是否覆蓋原卡號？');
+				if (!confirmed) {
+					event.preventDefault();
+					cardId?.focus();
+					return;
+				}
+				overwriteExisting.value = 'true';
+			}
+		});
+		updateBindStatus();
+		cardId?.focus();
+	})();
+</script>
+</body>
+</html>

@@ -16,6 +16,9 @@ public interface ClassStudentRepository extends JpaRepository<ClassStudent, Long
 	@EntityGraph(attributePaths = { "classRoom", "classRoom.teacher", "classRoom.schedules", "student" })
 	List<ClassStudent> findByStudentIdInAndActiveTrue(List<Long> studentIds);
 
+	@EntityGraph(attributePaths = { "classRoom", "classRoom.subject", "classRoom.teacher", "classRoom.schedules", "student" })
+	List<ClassStudent> findByStudentIdAndActiveTrue(Long studentId);
+
 	Optional<ClassStudent> findByClassRoomIdAndStudentId(Long classRoomId, Long studentId);
 
 	boolean existsByClassRoomIdAndStudentIdAndActiveTrue(Long classRoomId, Long studentId);

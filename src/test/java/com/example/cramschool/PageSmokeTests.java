@@ -407,6 +407,27 @@ class PageSmokeTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("calculated")));
 	}
 
+	@Test
+	void makeUpIndexRendersPendingAndScheduledColumns() throws Exception {
+		MockHttpSession session = (MockHttpSession) mockMvc.perform(post("/login")
+				.param("username", testUsername)
+				.param("password", TEST_PASSWORD))
+				.andExpect(status().is3xxRedirection())
+				.andReturn()
+				.getRequest()
+				.getSession(false);
+		makeUpRequest = createMakeUpRequest();
+
+		mockMvc.perform(get("/make-up").session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("補課/調課")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("我的補課需求")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("補課紀錄")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("安排補課時間")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("重新安排時間")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("忽略補課")));
+	}
+
 	private MakeUpClassRequest createMakeUpRequest() {
 		makeUpSubject = new Subject();
 		makeUpSubject.setName("補課頁測試科目");

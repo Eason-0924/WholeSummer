@@ -1,5 +1,6 @@
 package com.example.cramschool.service;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -15,6 +16,7 @@ import com.example.cramschool.repository.HomeworkRecordRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
+import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TuitionRecordRepository;
 
 @Service
@@ -27,6 +29,7 @@ public class StudentService {
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final TuitionRecordRepository tuitionRecordRepository;
+	private final TeacherRepository teacherRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final StudentUrlSlugService studentUrlSlugService;
 
@@ -34,6 +37,7 @@ public class StudentService {
 			ScoreRepository scoreRepository, HomeworkRecordRepository homeworkRecordRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
 			TuitionRecordRepository tuitionRecordRepository,
+			TeacherRepository teacherRepository,
 			TeacherPermissionService teacherPermissionService, StudentUrlSlugService studentUrlSlugService) {
 		this.studentRepository = studentRepository;
 		this.classStudentRepository = classStudentRepository;
@@ -41,6 +45,7 @@ public class StudentService {
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.tuitionRecordRepository = tuitionRecordRepository;
+		this.teacherRepository = teacherRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.studentUrlSlugService = studentUrlSlugService;
 	}
@@ -48,6 +53,11 @@ public class StudentService {
 	@Transactional(readOnly = true)
 	public List<Student> findAll() {
 		return studentRepository.findAllByOrderByIdDesc();
+	}
+
+	@Transactional(readOnly = true)
+	public List<Student> findAllSortedByGrade() {
+		return sortByGradeThenName(studentRepository.findAll());
 	}
 
 	@Transactional(readOnly = true)
@@ -107,6 +117,33 @@ public class StudentService {
 		return studentRepository.save(student);
 	}
 
+	public Student bindCard(Long studentId, String cardId, boolean overwriteExisting, Long currentTeacherId) {
+		requireUpdatePermission(currentTeacherId);
+		String normalizedCardId = CardIdNormalizer.normalize(cardId);
+		if (normalizedCardId == null) {
+			throw new IllegalArgumentException("請輸入卡號");
+		}
+		Student student = findById(studentId);
+		if (studentRepository.existsByCardIdAndIdNot(normalizedCardId, studentId)) {
+			throw new IllegalArgumentException("此卡已綁定其他學生，請確認卡片或先解除原綁定");
+		}
+		if (teacherRepository.existsByCardId(normalizedCardId)) {
+			throw new IllegalArgumentException("此卡已綁定教師，請確認卡片或先解除原綁定");
+		}
+		if (student.getCardId() != null && !student.getCardId().isBlank()
+				&& !student.getCardId().equals(normalizedCardId) && !overwriteExisting) {
+			throw new IllegalArgumentException("此學生已有綁定卡片，請確認是否覆蓋");
+		}
+		student.setCardId(normalizedCardId);
+		student.setCardBoundAt(LocalDateTime.now());
+		student.setCardStatus("ACTIVE");
+		return studentRepository.save(student);
+	}
+
+	public String normalizeCardId(String cardId) {
+		return CardIdNormalizer.normalize(cardId);
+	}
+
 	public void deactivate(Long id, Long currentTeacherId) {
 		requireUpdatePermission(currentTeacherId);
 		Student student = findById(id);
@@ -145,6 +182,9 @@ public class StudentService {
 	}
 
 	private int gradeOrder(String grade) {
+		if (grade == null) {
+			return SchoolOptions.STUDENT_GRADES.size();
+		}
 		int index = SchoolOptions.STUDENT_GRADES.indexOf(grade);
 		return index >= 0 ? index : SchoolOptions.STUDENT_GRADES.size();
 	}

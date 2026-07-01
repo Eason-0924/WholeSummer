@@ -59,6 +59,9 @@ public class ClassStudentService {
 	}
 
 	private int gradeOrder(String grade) {
+		if (grade == null) {
+			return SchoolOptions.STUDENT_GRADES.size();
+		}
 		int index = SchoolOptions.STUDENT_GRADES.indexOf(grade);
 		return index >= 0 ? index : SchoolOptions.STUDENT_GRADES.size();
 	}

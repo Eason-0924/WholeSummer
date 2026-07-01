@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
+import java.lang.reflect.Proxy;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import com.example.cramschool.dto.TeacherDailySchedule.TimeRange;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAttendance;
 import com.example.cramschool.entity.TeacherAttendanceStatus;
+import com.example.cramschool.repository.TeacherAttendanceRepository;
 
 class TeacherAttendanceServiceTests {
 
@@ -142,6 +145,34 @@ class TeacherAttendanceServiceTests {
 	}
 
 	@Test
+	void monthlySalaryLookupKeepsStoredMatchedCourseMinutes() {
+		TeacherAttendance attendance = attendanceWithoutCourse();
+		attendance.setMatchedCourseId(5L);
+		attendance.setMatchedCourseTimeText("18:00 ~ 20:00");
+		attendance.setWorkMinutes(120L);
+		TeacherAttendanceRepository repository = repositoryReturning(attendance);
+		TeacherScheduleService changedScheduleService = new TeacherScheduleService(null) {
+			@Override
+			public TeacherDailySchedule findDailySchedule(Long teacherId, LocalDate date) {
+				return TeacherDailySchedule.empty();
+			}
+
+			@Override
+			public com.example.cramschool.dto.TeacherScheduleMatch findMatchedSchedule(
+					Long teacherId, LocalDate date, LocalTime clockInTime, LocalTime clockOutTime) {
+				throw new AssertionError("已配對課程的打卡紀錄不應因課程時間異動而重新套用課表");
+			}
+		};
+		TeacherAttendanceService service = new TeacherAttendanceService(
+				repository, null, changedScheduleService);
+
+		List<TeacherAttendance> attendances = service.findByTeacherIdAndMonth(8L, YearMonth.of(2026, 6));
+
+		assertThat(attendances).singleElement()
+				.satisfies(record -> assertThat(record.getWorkMinutes()).isEqualTo(120));
+	}
+
+	@Test
 	void manualHoursMustBeBetweenZeroAndTwentyFour() {
 		TeacherAttendanceService service = new TeacherAttendanceService(null, null, null);
 
@@ -164,5 +195,29 @@ class TeacherAttendanceServiceTests {
 		attendance.setDate(LocalDate.of(2026, 6, 25));
 		attendance.setStatus(TeacherAttendanceStatus.WORKING);
 		return attendance;
+	}
+
+	@SuppressWarnings("unchecked")
+	private TeacherAttendanceRepository repositoryReturning(TeacherAttendance attendance) {
+		return (TeacherAttendanceRepository) Proxy.newProxyInstance(
+				TeacherAttendanceRepository.class.getClassLoader(),
+				new Class<?>[] { TeacherAttendanceRepository.class },
+				(proxy, method, args) -> {
+					if (method.getDeclaringClass() == Object.class) {
+						return switch (method.getName()) {
+							case "toString" -> "TeacherAttendanceRepositoryTestProxy";
+							case "hashCode" -> System.identityHashCode(proxy);
+							case "equals" -> proxy == args[0];
+							default -> null;
+						};
+					}
+					if ("findByTeacherIdAndDateBetweenOrderByDateAsc".equals(method.getName())) {
+						return List.of(attendance);
+					}
+					if ("saveAll".equals(method.getName())) {
+						return args[0];
+					}
+					throw new UnsupportedOperationException(method.getName());
+				});
 	}
 }

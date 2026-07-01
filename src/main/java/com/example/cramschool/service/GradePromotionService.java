@@ -32,8 +32,7 @@ public class GradePromotionService {
 			"國二", "國三",
 			"國三", "高一",
 			"高一", "高二",
-			"高二", "高三",
-			"高三", "大一");
+			"高二", "高三");
 
 	private final StudentRepository studentRepository;
 	private final ClassRoomRepository classRoomRepository;

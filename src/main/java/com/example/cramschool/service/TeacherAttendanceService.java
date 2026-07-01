@@ -129,6 +129,30 @@ public class TeacherAttendanceService {
 		return teacherAttendanceRepository.save(attendance);
 	}
 
+	public TeacherAttendance cardClock(Teacher teacher, String cardId, String deviceName, LocalDateTime clockAt) {
+		if (teacher == null || teacher.getId() == null) {
+			throw new IllegalArgumentException("找不到教師資料");
+		}
+		LocalDateTime targetTime = clockAt == null ? LocalDateTime.now() : clockAt;
+		LocalDate today = targetTime.toLocalDate();
+		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(teacher.getId(), today)
+				.orElseGet(TeacherAttendance::new);
+		attendance.setTeacher(teacher);
+		attendance.setDate(today);
+		if (attendance.getClockInTime() == null) {
+			attendance.setClockInTime(targetTime.toLocalTime().withSecond(0).withNano(0));
+		} else if (attendance.getClockOutTime() == null) {
+			attendance.setClockOutTime(targetTime.toLocalTime().withSecond(0).withNano(0));
+		} else {
+			throw new IllegalStateException("今日已完成上下班打卡");
+		}
+		attendance.setCheckMethod("CARD");
+		attendance.setDeviceName(normalizeDeviceName(deviceName));
+		attendance.setCardId(cardId);
+		applySchedule(attendance, TeacherAttendanceStatus.WORKING);
+		return teacherAttendanceRepository.save(attendance);
+	}
+
 	public void clockIn(Long teacherId) {
 		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(teacherId, LocalDate.now())
 				.orElse(null);
@@ -286,6 +310,14 @@ public class TeacherAttendanceService {
 		attendance.setMatchedCourseId(null);
 		attendance.setMatchedCourseName(null);
 		attendance.setMatchedCourseTimeText(null);
+	}
+
+	private String normalizeDeviceName(String deviceName) {
+		if (deviceName == null || deviceName.isBlank()) {
+			return null;
+		}
+		String normalized = deviceName.trim();
+		return normalized.length() > 100 ? normalized.substring(0, 100) : normalized;
 	}
 
 	TeacherAttendanceStatus resolveWorkingStatus(LocalTime clockInTime, LocalTime firstClassStart) {

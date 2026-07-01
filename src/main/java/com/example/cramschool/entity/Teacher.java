@@ -54,6 +54,21 @@ public class Teacher {
 	@Column(length = 1000)
 	private String note;
 
+	@Column(name = "card_id", length = 100, unique = true)
+	private String cardId;
+
+	@Column(name = "card_bound_at")
+	private LocalDateTime cardBoundAt;
+
+	@Column(name = "card_status", length = 20, nullable = false)
+	private String cardStatus = "ACTIVE";
+
+	@Column(name = "home_shortcuts", length = 1000)
+	private String homeShortcuts;
+
+	@Column(name = "home_shortcut_show_description", nullable = false)
+	private boolean homeShortcutShowDescription = true;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
@@ -157,6 +172,46 @@ public class Teacher {
 
 	public void setNote(String note) {
 		this.note = note;
+	}
+
+	public String getCardId() {
+		return cardId;
+	}
+
+	public void setCardId(String cardId) {
+		this.cardId = cardId;
+	}
+
+	public LocalDateTime getCardBoundAt() {
+		return cardBoundAt;
+	}
+
+	public void setCardBoundAt(LocalDateTime cardBoundAt) {
+		this.cardBoundAt = cardBoundAt;
+	}
+
+	public String getCardStatus() {
+		return cardStatus;
+	}
+
+	public void setCardStatus(String cardStatus) {
+		this.cardStatus = cardStatus;
+	}
+
+	public String getHomeShortcuts() {
+		return homeShortcuts;
+	}
+
+	public void setHomeShortcuts(String homeShortcuts) {
+		this.homeShortcuts = homeShortcuts;
+	}
+
+	public boolean isHomeShortcutShowDescription() {
+		return homeShortcutShowDescription;
+	}
+
+	public void setHomeShortcutShowDescription(boolean homeShortcutShowDescription) {
+		this.homeShortcutShowDescription = homeShortcutShowDescription;
 	}
 
 	public LocalDateTime getCreatedAt() {

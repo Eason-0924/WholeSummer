@@ -19,12 +19,172 @@
 			flex: 0 0 auto;
 			width: 100%;
 		}
+		.workbench-grid {
+			display: grid;
+			grid-template-columns: repeat(1, minmax(0, 1fr));
+			gap: 1rem;
+		}
+		.workbench-card {
+			padding: 0.25rem 0;
+			height: 100%;
+		}
+		.workbench-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+		.workbench-item {
+			border: 1px solid var(--bs-border-color);
+			border-radius: 0.375rem;
+			padding: 0.75rem;
+			background: var(--bs-light);
+		}
+		.workbench-stats {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.75rem;
+		}
+		.workbench-stat {
+			border: 1px solid var(--bs-border-color);
+			border-radius: 0.375rem;
+			padding: 0.85rem;
+			background: var(--bs-light);
+		}
+		.workbench-names {
+			margin-top: 0.5rem;
+			font-size: 0.9rem;
+			color: var(--bs-secondary-color);
+			word-break: break-word;
+		}
+		.workbench-empty {
+			border: 1px dashed var(--bs-border-color);
+			border-radius: 0.375rem;
+			padding: 1rem;
+			text-align: center;
+			color: var(--bs-secondary-color);
+		}
 		.notification-homework { border-left-color: #f0ad00; }
 		.notification-exam { border-left-color: #0d6efd; }
 		.notification-tuition { border-left-color: #dc3545; }
 		.notification-update { border-left-color: #6f42c1; }
 		.notification-birthday { border-left-color: #d63384; }
 		.notification-makeup { border-left-color: #fd7e14; }
+		.home-collapse-heading {
+			background: transparent;
+			border: 0;
+			color: inherit;
+		}
+		.home-collapse-heading:hover h2,
+		.home-collapse-heading:focus h2 {
+			color: var(--bs-primary);
+		}
+		.home-collapse-toggle {
+			background: transparent;
+			border: 0;
+			color: var(--bs-secondary-color);
+			font-size: 1.2rem;
+			height: 1.5rem;
+			line-height: 0;
+			margin-right: -0.25rem;
+			min-width: 1.5rem;
+			transform: scaleY(0.65) rotate(-90deg);
+			transform-origin: center;
+			transition: color 0.2s ease, transform 0.2s ease;
+			width: 1.5rem;
+		}
+		.home-collapse-heading:hover .home-collapse-toggle,
+		.home-collapse-heading:focus .home-collapse-toggle {
+			color: var(--bs-body-color);
+		}
+		.home-collapse-heading[aria-expanded="true"] .home-collapse-toggle {
+			transform: scaleY(0.65);
+		}
+		.home-collapsed {
+			display: none !important;
+		}
+		.shortcut-board {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: 1rem;
+		}
+		.shortcut-panel {
+			border: 1px solid var(--bs-border-color);
+			border-radius: 1rem;
+			background: #fff;
+			padding: 1rem;
+			min-height: 16rem;
+		}
+		.shortcut-panel.is-dragover {
+			outline: 2px dashed #0d6efd;
+			outline-offset: 0.35rem;
+		}
+		.shortcut-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.75rem;
+			min-height: 10rem;
+			height: 100%;
+		}
+		.shortcut-tile {
+			border: 1px solid var(--bs-border-color);
+			border-radius: 0.9rem;
+			padding: 1rem;
+			background: var(--bs-light);
+			cursor: move;
+		}
+		.shortcut-tile.dragging {
+			opacity: 0.55;
+		}
+		.shortcut-empty {
+			border: 1px dashed var(--bs-border-color);
+			border-radius: 0.9rem;
+			padding: 1rem;
+			color: var(--bs-secondary-color);
+			text-align: center;
+		}
+		.shortcut-preview-grid {
+			display: grid;
+			grid-template-columns: repeat(1, minmax(0, 1fr));
+			gap: 1rem;
+		}
+		.shortcut-card {
+			display: block;
+			height: 100%;
+			border: 1px solid var(--bs-border-color);
+			border-radius: 0.375rem;
+			padding: 1rem;
+			background: #fff;
+		}
+		.shortcut-edit-button {
+			width: 2.5rem;
+			height: 2.5rem;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			border-radius: 999px;
+			border: 1px solid var(--bs-border-color);
+			background: #fff;
+			color: var(--bs-body-color);
+		}
+		.shortcut-edit-button:hover {
+			background: var(--bs-light);
+		}
+		@media (min-width: 768px) {
+			.workbench-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+			.shortcut-preview-grid {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+		}
+		@media (min-width: 1200px) {
+			.workbench-grid {
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+			}
+			.shortcut-preview-grid {
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+			}
+		}
 	</style>
 	<div th:if="${message}" class="alert alert-success" th:text="${message}">已完成</div>
 	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
@@ -34,121 +194,230 @@
 	</div>
 
 	<section class="bg-white border rounded p-4 mb-4">
-		<div>
-			<div class="page-title-line mb-2">
+		<div class="d-flex justify-content-between align-items-center gap-3">
+			<div>
+				<div class="page-title-line mb-0">
 				<h1 class="h3 mb-0">補習班管理後台</h1>
+				</div>
 			</div>
+			<button type="button" class="shortcut-edit-button"
+					data-bs-toggle="modal" data-bs-target="#shortcutEditorModal"
+					aria-label="編輯快捷欄" title="編輯快捷欄">✎</button>
 		</div>
 	</section>
 
-	<section class="row g-3">
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/students}">
-				<div class="card-body">
-					<h2 class="h5">學生管理</h2>
-					<p class="text-secondary mb-0">新增、編輯與停用學生資料。</p>
+	<section class="mb-4">
+		<section class="bg-white border rounded p-4">
+			<div class="d-flex align-items-center gap-2 mb-3">
+				<h2 class="h5 mb-0">今日工作台</h2>
+				<span class="badge text-bg-secondary"
+						th:text="${#temporals.format(todayWorkbench.date, 'yyyy/MM/dd')}">2026/01/01</span>
+			</div>
+			<div class="workbench-grid">
+				<section class="workbench-card">
+				<div class="d-flex align-items-center gap-2 mb-3">
+					<h3 class="h6 mb-0">今日課程</h3>
+					<span class="badge text-bg-primary" th:text="${#lists.size(todayWorkbench.courses)}">0</span>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/classes}">
-				<div class="card-body">
-					<h2 class="h5">班級管理</h2>
-					<p class="text-secondary mb-0">建立班級並管理班級學生。</p>
+				<div th:if="${#lists.isEmpty(todayWorkbench.courses)}" class="workbench-empty">今天沒有課程。</div>
+				<div th:unless="${#lists.isEmpty(todayWorkbench.courses)}" class="workbench-list">
+					<a class="workbench-item text-decoration-none text-dark"
+							th:each="course : ${todayWorkbench.courses}"
+							th:href="${course.classRoomId == null ? '#' : '/classes/' + course.classRoomId}">
+						<div class="fw-semibold mb-1" th:text="${course.className}">班級名稱</div>
+						<div class="small text-secondary"
+								th:text="${course.teacherName + '｜' + #temporals.format(course.startTime, 'HH:mm') + ' - ' + #temporals.format(course.endTime, 'HH:mm')}">老師｜時間</div>
+						<div class="small mt-1" th:text="${course.scheduleTypeLabel}">原課程</div>
+					</a>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/subjects}">
-				<div class="card-body">
-					<h2 class="h5">科目管理</h2>
-					<p class="text-secondary mb-0">維護數學、英文等科目。</p>
+				</section>
+				<section class="workbench-card">
+				<div class="d-flex align-items-center gap-2 mb-3">
+					<h3 class="h6 mb-0">今日點名</h3>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/exams}">
-				<div class="card-body">
-					<h2 class="h5">測驗與分數</h2>
-					<p class="text-secondary mb-0">建立測驗並登記學生成績。</p>
+				<div class="workbench-stats">
+					<div class="workbench-stat">
+						<div class="text-secondary small">已到</div>
+						<div class="fs-5 fw-semibold" th:text="${todayWorkbench.attendance.presentCount}">0</div>
+						<div class="workbench-names">
+							<div th:if="${#lists.isEmpty(todayWorkbench.attendance.presentNames)}">-</div>
+							<div th:each="studentName : ${todayWorkbench.attendance.presentNames}"
+									th:text="${studentName}">學生姓名</div>
+						</div>
+					</div>
+					<div class="workbench-stat">
+						<div class="text-secondary small">未到</div>
+						<div class="fs-5 fw-semibold" th:text="${todayWorkbench.attendance.missingCount}">0</div>
+						<div class="workbench-names">
+							<div th:if="${#lists.isEmpty(todayWorkbench.attendance.missingNames)}">-</div>
+							<div th:each="studentName : ${todayWorkbench.attendance.missingNames}"
+									th:text="${studentName}">學生姓名</div>
+						</div>
+					</div>
+					<div class="workbench-stat">
+						<div class="text-secondary small">遲到</div>
+						<div class="fs-5 fw-semibold" th:text="${todayWorkbench.attendance.lateCount}">0</div>
+						<div class="workbench-names">
+							<div th:if="${#lists.isEmpty(todayWorkbench.attendance.lateNames)}">-</div>
+							<div th:each="studentName : ${todayWorkbench.attendance.lateNames}"
+									th:text="${studentName}">學生姓名</div>
+						</div>
+					</div>
+					<div class="workbench-stat">
+						<div class="text-secondary small">早退</div>
+						<div class="fs-5 fw-semibold" th:text="${todayWorkbench.attendance.earlyLeaveCount}">0</div>
+						<div class="workbench-names">
+							<div th:if="${#lists.isEmpty(todayWorkbench.attendance.earlyLeaveNames)}">-</div>
+							<div th:each="studentName : ${todayWorkbench.attendance.earlyLeaveNames}"
+									th:text="${studentName}">學生姓名</div>
+						</div>
+					</div>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/homeworks}">
-				<div class="card-body">
-					<h2 class="h5">作業管理</h2>
-					<p class="text-secondary mb-0">建立作業並追蹤學生繳交狀態。</p>
+				</section>
+				<section class="workbench-card">
+				<div class="d-flex align-items-center gap-2 mb-3">
+					<h3 class="h6 mb-0">今日作業</h3>
+					<span class="badge text-bg-warning" th:text="${#lists.size(todayWorkbench.homeworks)}">0</span>
 				</div>
-			</a>
-		</div>
-		<div th:if="${teacherPermissions.manageTuition}" class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/tuition}">
-				<div class="card-body">
-					<h2 class="h5">學費管理</h2>
-					<p class="text-secondary mb-0">記錄學生應繳費用與繳費狀況。</p>
+				<div th:if="${#lists.isEmpty(todayWorkbench.homeworks)}" class="workbench-empty">今天沒有應繳作業。</div>
+				<div th:unless="${#lists.isEmpty(todayWorkbench.homeworks)}" class="workbench-list">
+					<a class="workbench-item text-decoration-none text-dark"
+							th:each="homework : ${todayWorkbench.homeworks}"
+							th:href="@{/homeworks/{id}(id=${homework.homeworkId})}">
+						<div class="fw-semibold mb-1" th:text="${homework.title}">作業名稱</div>
+						<div class="small text-secondary"
+								th:text="${homework.className + '｜' + homework.teacherName}">班級｜老師</div>
+					</a>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/salary}">
-				<div class="card-body">
-					<h2 class="h5">薪資查詢</h2>
-					<p class="text-secondary mb-0">查看當月累積工時與薪資。</p>
+				</section>
+				<section class="workbench-card">
+				<div class="d-flex align-items-center gap-2 mb-3">
+					<h3 class="h6 mb-0">今日測驗</h3>
+					<span class="badge text-bg-info" th:text="${#lists.size(todayWorkbench.exams)}">0</span>
 				</div>
-			</a>
-		</div>
-		<div class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/settings}">
-				<div class="card-body">
-					<h2 class="h5">系統設定</h2>
-					<p class="text-secondary mb-0">調整畫面模式、個人密碼與其他選項。</p>
+				<div th:if="${#lists.isEmpty(todayWorkbench.exams)}" class="workbench-empty">今天沒有測驗。</div>
+				<div th:unless="${#lists.isEmpty(todayWorkbench.exams)}" class="workbench-list">
+					<a class="workbench-item text-decoration-none text-dark"
+							th:each="exam : ${todayWorkbench.exams}"
+							th:href="@{/exams/{id}(id=${exam.examId})}">
+						<div class="fw-semibold mb-1" th:text="${exam.name}">測驗名稱</div>
+						<div class="small text-secondary"
+								th:text="${exam.className + '｜' + exam.teacherName}">班級｜老師</div>
+					</a>
 				</div>
-			</a>
-		</div>
-		<div th:unless="${homeDirectorView}" class="col-md-6 col-lg-3">
-			<a class="card text-decoration-none text-dark h-100" th:href="@{/attendance/my}">
-				<div class="card-body">
-					<h2 class="h5">前往打卡</h2>
-					<p class="text-secondary mb-0">快速記錄今日上班、下班與請假。</p>
-				</div>
-			</a>
-		</div>
+				</section>
+			</div>
+		</section>
+	</section>
+
+	<section class="shortcut-preview-grid">
+		<a class="shortcut-card text-decoration-none text-dark"
+				th:each="shortcut : ${homeShortcutCards}"
+				th:href="${shortcut.href}">
+			<h2 class="h5" th:classappend="${homeShortcutShowDescription} ? 'mb-2' : 'mb-0'"
+					th:text="${shortcut.title}">學生管理</h2>
+			<p th:if="${homeShortcutShowDescription}" class="text-secondary mb-0" th:text="${shortcut.description}">說明</p>
+		</a>
 	</section>
 
 	<section class="mt-4">
 		<div class="d-flex align-items-center gap-2 mb-2">
-			<h2 class="h5 mb-0">通知</h2>
-			<span class="badge text-bg-primary" th:text="${#lists.size(notifications)}">0</span>
+			<button class="d-inline-flex align-items-center gap-2 p-0 home-collapse-heading"
+					type="button" data-home-section-collapse="notifications" aria-label="展開通知"
+					data-section-label="通知" aria-expanded="false">
+				<span class="d-inline-flex align-items-center justify-content-center p-0 home-collapse-toggle">⌄</span>
+				<h2 class="h5 mb-0">通知</h2>
+			</button>
+			<span class="badge text-bg-danger" th:text="${#lists.size(notifications)}">0</span>
 		</div>
-		<div th:if="${#lists.isEmpty(notifications)}"
-				class="bg-white border rounded text-center text-secondary py-4">
-			目前沒有通知。
-		</div>
-		<div th:unless="${#lists.isEmpty(notifications)}" class="notification-scroll">
-			<a class="card text-decoration-none text-dark notification-card"
-					th:each="notification : ${notifications}"
-					th:classappend="${'notification-' + notification.type}"
-					th:href="${notification.link}">
-				<div class="card-body">
-					<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-						<span class="badge"
-								th:classappend="${notification.type == 'homework' ? 'text-bg-warning' :
-										(notification.type == 'exam' ? 'text-bg-primary' :
-										(notification.type == 'tuition' ? 'text-bg-danger' :
-										(notification.type == 'update' ? 'text-bg-info' :
-										(notification.type == 'makeup' ? 'text-bg-warning' : 'text-bg-success'))))}"
-								th:text="${notification.typeLabel}">通知</span>
-						<span class="small text-secondary"
-								th:text="${#temporals.format(notification.date, 'yyyy/MM/dd')}">2026/01/01</span>
+		<div data-home-collapsible-section="notifications" class="home-collapsed">
+			<div th:if="${#lists.isEmpty(notifications)}"
+					class="bg-white border rounded text-center text-secondary py-4">
+				目前沒有通知。
+			</div>
+			<div th:unless="${#lists.isEmpty(notifications)}" class="notification-scroll">
+				<a class="card text-decoration-none text-dark notification-card"
+						th:each="notification : ${notifications}"
+						th:classappend="${'notification-' + notification.type}"
+						th:href="${notification.link}">
+					<div class="card-body">
+						<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+							<span class="badge"
+									th:classappend="${notification.type == 'homework' ? 'text-bg-warning' :
+											(notification.type == 'exam' ? 'text-bg-primary' :
+											(notification.type == 'tuition' ? 'text-bg-danger' :
+											(notification.type == 'update' ? 'text-bg-info' :
+											(notification.type == 'makeup' ? 'text-bg-warning' : 'text-bg-success'))))}"
+									th:text="${notification.typeLabel}">通知</span>
+							<span class="small text-secondary"
+									th:text="${#temporals.format(notification.date, 'yyyy/MM/dd')}">2026/01/01</span>
+						</div>
+						<h3 class="h6 mb-2" th:text="${notification.title}">通知標題</h3>
+						<div class="small text-secondary mb-2" th:text="${notification.detail}">詳細資訊</div>
+						<div class="small" th:text="${notification.supplementary}">補充資訊</div>
 					</div>
-					<h3 class="h6 mb-2" th:text="${notification.title}">通知標題</h3>
-					<div class="small text-secondary mb-2" th:text="${notification.detail}">詳細資訊</div>
-					<div class="small" th:text="${notification.supplementary}">補充資訊</div>
-				</div>
-			</a>
+				</a>
+			</div>
 		</div>
 	</section>
+
+	<div class="modal fade" id="shortcutEditorModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable">
+			<div class="modal-content">
+				<form th:action="@{/home/shortcuts}" method="post" id="shortcutForm">
+					<div class="modal-header">
+						<h2 class="modal-title fs-5">編輯快捷欄</h2>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+					</div>
+					<div class="modal-body">
+						<div id="shortcutInputs"></div>
+						<div class="shortcut-board">
+							<section class="shortcut-panel" data-shortcut-panel="selected">
+								<div class="d-flex justify-content-between align-items-center mb-3">
+									<h3 class="h6 mb-0">已顯示快捷欄</h3>
+									<span class="badge text-bg-primary" id="selectedShortcutCount"
+											th:text="${#lists.size(homeShortcutCards)}">0</span>
+								</div>
+								<div class="shortcut-list" id="selectedShortcutList" data-shortcut-list="selected">
+									<article class="shortcut-tile" draggable="true" th:each="shortcut : ${homeShortcutCards}"
+											th:attr="data-shortcut-id=${shortcut.id}">
+										<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
+										<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+									</article>
+									<div class="shortcut-empty" id="selectedShortcutEmpty"
+											th:if="${#lists.isEmpty(homeShortcutCards)}">將功能拖曳到這裡，就會顯示在首頁。</div>
+								</div>
+							</section>
+							<section class="shortcut-panel" data-shortcut-panel="available">
+								<div class="d-flex justify-content-between align-items-center mb-3">
+									<h3 class="h6 mb-0">可新增功能</h3>
+									<span class="badge text-bg-secondary" th:text="${#lists.size(homeShortcutAvailableCards)}">0</span>
+								</div>
+								<div class="shortcut-list" id="availableShortcutList" data-shortcut-list="available">
+									<article class="shortcut-tile" draggable="true" th:each="shortcut : ${homeShortcutAvailableCards}"
+											th:attr="data-shortcut-id=${shortcut.id}">
+										<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
+										<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+									</article>
+									<div class="shortcut-empty" id="availableShortcutEmpty"
+											th:if="${#lists.isEmpty(homeShortcutAvailableCards)}">目前所有可用功能都已加入快捷欄。</div>
+								</div>
+							</section>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<div class="form-check me-auto">
+							<input class="form-check-input" type="checkbox" id="showDescription"
+									name="showDescription" th:checked="${homeShortcutShowDescription}">
+							<label class="form-check-label" for="showDescription">顯示描述</label>
+						</div>
+						<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+						<button class="btn btn-primary" type="submit">儲存快捷欄</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
@@ -156,6 +425,120 @@
 	if (document.getElementById('updateCheckingNotice')) {
 		window.setTimeout(() => window.location.reload(), 3000);
 	}
+
+	(() => {
+		const selectedList = document.getElementById('selectedShortcutList');
+		const availableList = document.getElementById('availableShortcutList');
+		const selectedPanel = document.querySelector('[data-shortcut-panel="selected"]');
+		const availablePanel = document.querySelector('[data-shortcut-panel="available"]');
+		const inputs = document.getElementById('shortcutInputs');
+		const selectedCount = document.getElementById('selectedShortcutCount');
+		if (!selectedList || !availableList || !selectedPanel || !availablePanel || !inputs || !selectedCount) {
+			return;
+		}
+
+		let draggingCard = null;
+
+		function refreshEmptyState(list, emptyId, message) {
+			const existingEmpty = document.getElementById(emptyId);
+			const hasCard = list.querySelector('.shortcut-tile') !== null;
+			if (hasCard && existingEmpty) {
+				existingEmpty.remove();
+				return;
+			}
+			if (!hasCard && !existingEmpty) {
+				const empty = document.createElement('div');
+				empty.id = emptyId;
+				empty.className = 'shortcut-empty';
+				empty.textContent = message;
+				list.appendChild(empty);
+			}
+		}
+
+		function syncInputs() {
+			inputs.innerHTML = '';
+			const selectedCards = selectedList.querySelectorAll('.shortcut-tile');
+			selectedCount.textContent = String(selectedCards.length);
+			selectedCards.forEach((card) => {
+				const input = document.createElement('input');
+				input.type = 'hidden';
+				input.name = 'shortcutIds';
+				input.value = card.dataset.shortcutId || '';
+				inputs.appendChild(input);
+			});
+			refreshEmptyState(selectedList, 'selectedShortcutEmpty', '將功能拖曳到這裡，就會顯示在首頁。');
+			refreshEmptyState(availableList, 'availableShortcutEmpty', '目前所有可用功能都已加入快捷欄。');
+		}
+
+		function bindCard(card) {
+			card.addEventListener('dragstart', () => {
+				draggingCard = card;
+				card.classList.add('dragging');
+			});
+			card.addEventListener('dragend', () => {
+				card.classList.remove('dragging');
+				draggingCard = null;
+				document.querySelectorAll('[data-shortcut-panel]').forEach((panel) => panel.classList.remove('is-dragover'));
+				syncInputs();
+			});
+		}
+
+		function insertCard(list, event) {
+			if (!draggingCard) {
+				return;
+			}
+			const siblings = [...list.querySelectorAll('.shortcut-tile:not(.dragging)')];
+			const nextCard = siblings.find((card) => {
+				const rect = card.getBoundingClientRect();
+				return event.clientY <= rect.top + rect.height / 2;
+			});
+			if (nextCard) {
+				list.insertBefore(draggingCard, nextCard);
+			} else {
+				list.appendChild(draggingCard);
+			}
+		}
+
+		function panelList(panel) {
+			return panel.querySelector('.shortcut-list');
+		}
+
+		document.querySelectorAll('.shortcut-tile').forEach(bindCard);
+		[selectedPanel, availablePanel].forEach((panel) => {
+			panel.addEventListener('dragover', (event) => {
+				event.preventDefault();
+				panel.classList.add('is-dragover');
+				insertCard(panelList(panel), event);
+			});
+			panel.addEventListener('dragleave', (event) => {
+				if (!panel.contains(event.relatedTarget)) {
+					panel.classList.remove('is-dragover');
+				}
+			});
+			panel.addEventListener('drop', (event) => {
+				event.preventDefault();
+				panel.classList.remove('is-dragover');
+				insertCard(panelList(panel), event);
+				syncInputs();
+			});
+		});
+
+		syncInputs();
+	})();
+
+	document.querySelectorAll('[data-home-section-collapse]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const section = button.dataset.homeSectionCollapse;
+			const content = document.querySelector(`[data-home-collapsible-section="${section}"]`);
+			if (!content) {
+				return;
+			}
+			const collapsed = !content.classList.contains('home-collapsed');
+			content.classList.toggle('home-collapsed', collapsed);
+			button.setAttribute('aria-expanded', String(!collapsed));
+			button.setAttribute('aria-label', `${collapsed ? '展開' : '收合'}${button.dataset.sectionLabel || ''}`);
+		});
+	});
 
 </script>
 </body>

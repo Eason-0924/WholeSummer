@@ -44,6 +44,21 @@ public class StudentAttendance {
 	@Column(length = 1000)
 	private String note;
 
+	@Column(name = "check_method", nullable = false, length = 30)
+	private String checkMethod = "MANUAL";
+
+	@Column(name = "device_name", length = 100)
+	private String deviceName;
+
+	@Column(name = "card_id", length = 100)
+	private String cardId;
+
+	@Column(name = "check_in_time")
+	private LocalDateTime checkInTime;
+
+	@Column(name = "check_out_time")
+	private LocalDateTime checkOutTime;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
@@ -108,6 +123,46 @@ public class StudentAttendance {
 
 	public void setNote(String note) {
 		this.note = note;
+	}
+
+	public String getCheckMethod() {
+		return checkMethod;
+	}
+
+	public void setCheckMethod(String checkMethod) {
+		this.checkMethod = checkMethod;
+	}
+
+	public String getDeviceName() {
+		return deviceName;
+	}
+
+	public void setDeviceName(String deviceName) {
+		this.deviceName = deviceName;
+	}
+
+	public String getCardId() {
+		return cardId;
+	}
+
+	public void setCardId(String cardId) {
+		this.cardId = cardId;
+	}
+
+	public LocalDateTime getCheckInTime() {
+		return checkInTime;
+	}
+
+	public void setCheckInTime(LocalDateTime checkInTime) {
+		this.checkInTime = checkInTime;
+	}
+
+	public LocalDateTime getCheckOutTime() {
+		return checkOutTime;
+	}
+
+	public void setCheckOutTime(LocalDateTime checkOutTime) {
+		this.checkOutTime = checkOutTime;
 	}
 
 	public LocalDateTime getCreatedAt() {

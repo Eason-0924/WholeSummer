@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -152,9 +153,17 @@ public class ClassRoomController {
 			return "classes/form";
 		}
 
-		ClassRoom classRoom = classRoomService.create(classRoomForm, currentTeacherId(session));
-		redirectAttributes.addFlashAttribute("message", "已新增班級：" + classRoom.getDisplayName());
-		return redirectToClassRoom(classRoom);
+		try {
+			ClassRoom classRoom = classRoomService.create(classRoomForm, currentTeacherId(session));
+			redirectAttributes.addFlashAttribute("message", "已新增班級：" + classRoom.getDisplayName());
+			return redirectToClassRoom(classRoom);
+		} catch (IllegalArgumentException | DataIntegrityViolationException ex) {
+			model.addAttribute("pageTitle", "新增班級");
+			model.addAttribute("formAction", "/classes");
+			model.addAttribute("submitLabel", "新增");
+			model.addAttribute("errorMessage", classRoomSaveErrorMessage(ex));
+			return "classes/form";
+		}
 	}
 
 	@GetMapping("/{slug}")
@@ -224,9 +233,25 @@ public class ClassRoomController {
 			return "classes/form";
 		}
 
-		ClassRoom classRoom = classRoomService.update(existingClassRoom.getId(), classRoomForm, currentTeacherId(session));
-		redirectAttributes.addFlashAttribute("message", "已更新班級：" + classRoom.getDisplayName());
-		return redirectToClassRoom(classRoom);
+		try {
+			ClassRoom classRoom = classRoomService.update(existingClassRoom.getId(), classRoomForm, currentTeacherId(session));
+			redirectAttributes.addFlashAttribute("message", "已更新班級：" + classRoom.getDisplayName());
+			return redirectToClassRoom(classRoom);
+		} catch (IllegalArgumentException | DataIntegrityViolationException ex) {
+			model.addAttribute("pageTitle", "編輯班級");
+			model.addAttribute("classRoom", existingClassRoom);
+			model.addAttribute("formAction", "/classes/" + existingClassRoom.getUrlSlug());
+			model.addAttribute("submitLabel", "儲存");
+			model.addAttribute("errorMessage", classRoomSaveErrorMessage(ex));
+			return "classes/form";
+		}
+	}
+
+	private String classRoomSaveErrorMessage(Exception ex) {
+		if (ex instanceof DataIntegrityViolationException) {
+			return "班級資料無法儲存：既有課表已被調課、補課或請假紀錄使用，請先確認相關紀錄後再調整上課時間。";
+		}
+		return ex.getMessage() == null ? "班級資料無法儲存，請確認填寫內容。" : ex.getMessage();
 	}
 
 	@PostMapping("/{slug}/deactivate")
@@ -260,9 +285,20 @@ public class ClassRoomController {
 			return "redirect:/classes";
 		}
 		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
-		classRoomService.delete(classRoom.getId(), currentTeacherId(session));
-		redirectAttributes.addFlashAttribute("message", "已刪除班級：" + classRoom.getDisplayName());
+		try {
+			classRoomService.delete(classRoom.getId(), currentTeacherId(session));
+			redirectAttributes.addFlashAttribute("message", "已刪除班級：" + classRoom.getDisplayName());
+		} catch (IllegalArgumentException | DataIntegrityViolationException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", classRoomDeleteErrorMessage(ex));
+		}
 		return "redirect:/classes";
+	}
+
+	private String classRoomDeleteErrorMessage(Exception ex) {
+		if (ex instanceof DataIntegrityViolationException) {
+			return "班級無法刪除：仍有調課、補課、請假或其他紀錄引用此班級課表。";
+		}
+		return ex.getMessage() == null ? "班級無法刪除，請確認相關紀錄。" : ex.getMessage();
 	}
 
 	@PostMapping("/{slug}/export")

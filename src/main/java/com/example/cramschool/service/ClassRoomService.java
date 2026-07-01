@@ -8,14 +8,19 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import com.example.cramschool.config.SchoolOptions;
 import com.example.cramschool.entity.ClassRoom;
+import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.ClassRoomForm;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.ClassRoomRepository;
+import com.example.cramschool.repository.ClassScheduleRepository;
 import com.example.cramschool.repository.ExamRepository;
 import com.example.cramschool.repository.HomeworkRecordRepository;
 import com.example.cramschool.repository.HomeworkRepository;
@@ -42,7 +47,11 @@ public class ClassRoomService {
 	private final TeacherPermissionService teacherPermissionService;
 	private final TeacherLeaveRepository teacherLeaveRepository;
 	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
+	private final ClassScheduleRepository classScheduleRepository;
 	private final ClassRoomUrlSlugService classRoomUrlSlugService;
+
+	@PersistenceContext
+	private EntityManager entityManager;
 
 	public ClassRoomService(ClassRoomRepository classRoomRepository, SubjectRepository subjectRepository,
 			TeacherRepository teacherRepository, ClassStudentRepository classStudentRepository,
@@ -51,6 +60,7 @@ public class ClassRoomService {
 			TeacherPermissionService teacherPermissionService,
 			TeacherLeaveRepository teacherLeaveRepository,
 			MakeUpClassRequestRepository makeUpClassRequestRepository,
+			ClassScheduleRepository classScheduleRepository,
 			ClassRoomUrlSlugService classRoomUrlSlugService) {
 		this.classRoomRepository = classRoomRepository;
 		this.subjectRepository = subjectRepository;
@@ -64,6 +74,7 @@ public class ClassRoomService {
 		this.teacherPermissionService = teacherPermissionService;
 		this.teacherLeaveRepository = teacherLeaveRepository;
 		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
+		this.classScheduleRepository = classScheduleRepository;
 		this.classRoomUrlSlugService = classRoomUrlSlugService;
 	}
 
@@ -161,9 +172,23 @@ public class ClassRoomService {
 		homeworkRepository.deleteByClassRoomId(id);
 		studentAttendanceRepository.deleteByClassRoomId(id);
 		makeUpClassRequestRepository.deleteByClassRoomId(id);
+		makeUpClassRequestRepository.flush();
 		teacherLeaveRepository.deleteByCourseScheduleClassRoomId(id);
+		teacherLeaveRepository.flush();
+		classScheduleRepository.deleteEventSchedulesByClassRoomId(id);
+		classScheduleRepository.deleteBaseSchedulesByClassRoomId(id);
+		classScheduleRepository.flush();
 		classStudentRepository.deleteByClassRoomId(id);
-		classRoomRepository.delete(classRoom);
+		classStudentRepository.flush();
+		clearPersistenceContext();
+		classRoomRepository.deleteById(id);
+	}
+
+	private void clearPersistenceContext() {
+		if (entityManager != null) {
+			entityManager.flush();
+			entityManager.clear();
+		}
 	}
 
 	private void requireUpdatePermission(Long currentTeacherId) {
@@ -198,7 +223,26 @@ public class ClassRoomService {
 
 	private void applySchedules(ClassRoom classRoom, ClassRoomForm form) {
 		var schedules = form.toSchedules();
+		if (sameEffectiveSchedules(classRoom.getEffectiveSchedules(), schedules)) {
+			return;
+		}
 		classRoom.setSchedules(schedules);
+	}
+
+	private boolean sameEffectiveSchedules(List<ClassSchedule> currentSchedules, List<ClassSchedule> newSchedules) {
+		if (currentSchedules.size() != newSchedules.size()) {
+			return false;
+		}
+		for (int index = 0; index < currentSchedules.size(); index++) {
+			ClassSchedule current = currentSchedules.get(index);
+			ClassSchedule updated = newSchedules.get(index);
+			if (!java.util.Objects.equals(current.getWeekday(), updated.getWeekday())
+					|| !java.util.Objects.equals(current.getStartTime(), updated.getStartTime())
+					|| !java.util.Objects.equals(current.getEndTime(), updated.getEndTime())) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private java.util.Optional<Long> parseId(String value) {

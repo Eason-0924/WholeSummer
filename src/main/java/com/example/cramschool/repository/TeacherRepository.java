@@ -19,6 +19,12 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
 	List<Teacher> findByStatusOrderByNameAsc(TeacherStatus status);
 
+	Optional<Teacher> findByCardId(String cardId);
+
+	boolean existsByCardId(String cardId);
+
+	boolean existsByCardIdAndIdNot(String cardId, Long id);
+
 	boolean existsByPositionAndStatus(TeacherPosition position, TeacherStatus status);
 
 	long countByPositionAndStatus(TeacherPosition position, TeacherStatus status);

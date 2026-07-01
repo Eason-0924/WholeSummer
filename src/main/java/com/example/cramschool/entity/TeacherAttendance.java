@@ -67,6 +67,15 @@ public class TeacherAttendance {
 	@Column(name = "manual_adjusted", nullable = false)
 	private boolean manualAdjusted;
 
+	@Column(name = "check_method", nullable = false, length = 30)
+	private String checkMethod = "MANUAL";
+
+	@Column(name = "device_name", length = 100)
+	private String deviceName;
+
+	@Column(name = "card_id", length = 100)
+	private String cardId;
+
 	@Column(name = "adjusted_by_teacher_id")
 	private Long adjustedByTeacherId;
 
@@ -231,6 +240,30 @@ public class TeacherAttendance {
 
 	public void setManualAdjusted(boolean manualAdjusted) {
 		this.manualAdjusted = manualAdjusted;
+	}
+
+	public String getCheckMethod() {
+		return checkMethod;
+	}
+
+	public void setCheckMethod(String checkMethod) {
+		this.checkMethod = checkMethod;
+	}
+
+	public String getDeviceName() {
+		return deviceName;
+	}
+
+	public void setDeviceName(String deviceName) {
+		this.deviceName = deviceName;
+	}
+
+	public String getCardId() {
+		return cardId;
+	}
+
+	public void setCardId(String cardId) {
+		this.cardId = cardId;
 	}
 
 	public Long getAdjustedByTeacherId() {

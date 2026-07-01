@@ -51,10 +51,10 @@
 
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div class="page-title-line mb-1">
-			<h1 class="h3 mb-0">安排補課時間</h1>
+			<h1 class="h3 mb-0" th:text="${makeUpEditMode ? '重新設定補課時間' : '安排補課時間'}">安排補課時間</h1>
 			<span th:replace="~{fragments/layout :: help('以月曆檢視這堂課近一月可補課時段。點選日期可查看當日所有候選時段。')}"></span>
 		</div>
-		<a class="btn btn-outline-secondary" th:href="@{/make-up}">返回補課需求</a>
+		<a class="btn btn-outline-secondary" th:href="@{/make-up}">返回補課/調課</a>
 	</div>
 
 	<section class="card">
@@ -134,14 +134,15 @@
 							<div id="makeUpSlotsList" class="list-group d-none">
 							</div>
 							<form id="makeUpScheduleForm" class="d-none" method="post"
-									th:action="@{/make-up/{id}/schedule(id=${view.request.id})}">
+									th:action="${makeUpEditMode} ? @{/make-up/{id}/reschedule(id=${view.request.id})} : @{/make-up/{id}/schedule(id=${view.request.id})}">
 								<input type="hidden" name="start" id="makeUpScheduleStart">
 								<input type="hidden" name="end" id="makeUpScheduleEnd">
 								<input type="hidden" name="allowTeacherConflict" id="makeUpAllowTeacherConflict" value="false">
 							</form>
 						</div>
 						<div class="modal-footer">
-							<button type="button" class="btn btn-primary" id="makeUpScheduleSubmit" disabled>安排</button>
+							<button type="button" class="btn btn-primary" id="makeUpScheduleSubmit" disabled
+									th:text="${makeUpEditMode ? '重新設定' : '安排'}">安排</button>
 							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
 						</div>
 					</div>

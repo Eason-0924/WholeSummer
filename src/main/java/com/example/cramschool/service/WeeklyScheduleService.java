@@ -21,13 +21,11 @@ import com.example.cramschool.dto.MakeUpSlotStatus;
 import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
-import com.example.cramschool.entity.CourseReschedule;
 import com.example.cramschool.entity.MakeUpClassRequest;
 import com.example.cramschool.entity.MakeUpStatus;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ClassScheduleRepository;
-import com.example.cramschool.repository.CourseRescheduleRepository;
 import com.example.cramschool.repository.MakeUpClassRequestRepository;
 
 @Service
@@ -43,20 +41,17 @@ public class WeeklyScheduleService {
 
 	private final ClassScheduleRepository classScheduleRepository;
 	private final ClassRoomRepository classRoomRepository;
-	private final CourseRescheduleRepository courseRescheduleRepository;
 	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
 	private final ScheduleConflictService scheduleConflictService;
 	private final MakeUpClassService makeUpClassService;
 
 	public WeeklyScheduleService(ClassScheduleRepository classScheduleRepository,
 			ClassRoomRepository classRoomRepository,
-			CourseRescheduleRepository courseRescheduleRepository,
 			MakeUpClassRequestRepository makeUpClassRequestRepository,
 			ScheduleConflictService scheduleConflictService,
 			MakeUpClassService makeUpClassService) {
 		this.classScheduleRepository = classScheduleRepository;
 		this.classRoomRepository = classRoomRepository;
-		this.courseRescheduleRepository = courseRescheduleRepository;
 		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
 		this.scheduleConflictService = scheduleConflictService;
 		this.makeUpClassService = makeUpClassService;
@@ -178,20 +173,8 @@ public class WeeklyScheduleService {
 				originalStart, originalEnd, normalizedReason, currentTeacherId);
 		ClassSchedule rescheduled = eventSchedule(original, ScheduleType.RESCHEDULED,
 				newStart, newEnd, normalizedReason, currentTeacherId);
-		cancelled = classScheduleRepository.save(cancelled);
-		rescheduled = classScheduleRepository.save(rescheduled);
-
-		CourseReschedule record = new CourseReschedule();
-		record.setOriginalSchedule(original);
-		record.setCancelledSchedule(cancelled);
-		record.setNewSchedule(rescheduled);
-		record.setOriginalStartAt(originalStart);
-		record.setOriginalEndAt(originalEnd);
-		record.setNewStartAt(newStart);
-		record.setNewEndAt(newEnd);
-		record.setReason(normalizedReason);
-		record.setCreatedByTeacherId(currentTeacherId);
-		courseRescheduleRepository.save(record);
+		classScheduleRepository.save(cancelled);
+		classScheduleRepository.save(rescheduled);
 	}
 
 	public List<LocalDate> buildRescheduleCalendarDates(LocalDate baseDate) {
@@ -286,6 +269,7 @@ public class WeeklyScheduleService {
 		return new WeeklyScheduleDto(
 				schedule.getId(),
 				null,
+				classRoom.getId(),
 				classRoom.getSubjectName(),
 				classRoom.getDisplayName(),
 				classRoom.getTeacherName(),
@@ -305,6 +289,7 @@ public class WeeklyScheduleService {
 		return new WeeklyScheduleDto(
 				schedule.getId(),
 				schedule.getOriginalSchedule() == null ? null : schedule.getOriginalSchedule().getId(),
+				classRoom == null ? null : classRoom.getId(),
 				classRoom == null ? "" : classRoom.getSubjectName(),
 				classRoom == null ? "未指定班級" : classRoom.getDisplayName(),
 				classRoom == null ? "未指定教師" : classRoom.getTeacherName(),
@@ -326,6 +311,7 @@ public class WeeklyScheduleService {
 		return new WeeklyScheduleDto(
 				original.getId(),
 				original.getId(),
+				classRoom == null ? null : classRoom.getId(),
 				classRoom == null ? "" : classRoom.getSubjectName(),
 				classRoom == null ? "未指定班級" : classRoom.getDisplayName(),
 				request.getTeacher() == null ? (classRoom == null ? "未指定教師" : classRoom.getTeacherName())

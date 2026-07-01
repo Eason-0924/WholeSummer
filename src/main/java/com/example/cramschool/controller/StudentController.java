@@ -60,6 +60,11 @@ public class StudentController {
 		return "students/list";
 	}
 
+	@GetMapping("/card-bind")
+	public String legacyCardBindRedirect() {
+		return "redirect:/attendance/card-bind";
+	}
+
 	@GetMapping("/new")
 	public String newForm(HttpSession session, Model model, RedirectAttributes redirectAttributes) {
 		if (!hasPermission(session, TeacherPermissionType.STUDENT_CREATE)) {

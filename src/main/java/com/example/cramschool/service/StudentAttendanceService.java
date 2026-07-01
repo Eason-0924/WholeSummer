@@ -1,24 +1,38 @@
 package com.example.cramschool.service;
 
 import java.time.DayOfWeek;
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.dto.AttendanceStats;
+import com.example.cramschool.dto.CardCheckInRequest;
+import com.example.cramschool.dto.CardCheckInResponse;
 import com.example.cramschool.entity.AttendanceStatus;
 import com.example.cramschool.entity.ClassRoom;
+import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.StudentAttendance;
+import com.example.cramschool.entity.Teacher;
+import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.form.StudentAttendanceEntryForm;
 import com.example.cramschool.form.StudentAttendanceForm;
+import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
+import com.example.cramschool.repository.TeacherRepository;
 
 @Service
 @Transactional
@@ -32,19 +46,28 @@ public class StudentAttendanceService {
 			DayOfWeek.FRIDAY, "星期五",
 			DayOfWeek.SATURDAY, "星期六",
 			DayOfWeek.SUNDAY, "星期日");
+	private static final DateTimeFormatter ARRIVAL_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final StudentRepository studentRepository;
 	private final ClassRoomService classRoomService;
 	private final ClassStudentService classStudentService;
+	private final ClassStudentRepository classStudentRepository;
+	private final TeacherRepository teacherRepository;
+	private final TeacherAttendanceService teacherAttendanceService;
+	private Clock clock = Clock.systemDefaultZone();
 
 	public StudentAttendanceService(StudentAttendanceRepository studentAttendanceRepository,
 			StudentRepository studentRepository, ClassRoomService classRoomService,
-			ClassStudentService classStudentService) {
+			ClassStudentService classStudentService, ClassStudentRepository classStudentRepository,
+			TeacherRepository teacherRepository, TeacherAttendanceService teacherAttendanceService) {
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.studentRepository = studentRepository;
 		this.classRoomService = classRoomService;
 		this.classStudentService = classStudentService;
+		this.classStudentRepository = classStudentRepository;
+		this.teacherRepository = teacherRepository;
+		this.teacherAttendanceService = teacherAttendanceService;
 	}
 
 	@Transactional(readOnly = true)
@@ -148,6 +171,131 @@ public class StudentAttendanceService {
 		}
 	}
 
+	public CardCheckInResponse cardCheckIn(CardCheckInRequest request) {
+		String normalizedCardId = CardIdNormalizer.normalize(request == null ? null : request.getCardId());
+		if (normalizedCardId == null) {
+			CardCheckInResponse response = CardCheckInResponse.fail("INVALID_CARD_ID", "請輸入卡號");
+			response.setCardId(request == null ? null : request.getCardId());
+			return response;
+		}
+		Optional<Student> studentOptional = studentRepository.findByCardId(normalizedCardId);
+		if (studentOptional.isEmpty()) {
+			return teacherCardCheckIn(normalizedCardId, request);
+		}
+
+		Student student = studentOptional.get();
+		if (!"ACTIVE".equals(student.getCardStatus())) {
+			CardCheckInResponse response = CardCheckInResponse.fail("CARD_DISABLED", student.getDisplayName() + " 的卡片已停用");
+			response.setStudentId(student.getId());
+			response.setStudentName(student.getDisplayName());
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+
+		LocalDateTime cardTime = LocalDateTime.now(clock);
+		LocalDate attendanceDate = cardTime.toLocalDate();
+		Optional<StudentAttendance> openAttendance = studentAttendanceRepository
+				.findByStudentIdAndAttendanceDateOrderByIdDesc(student.getId(), attendanceDate)
+				.stream()
+				.filter(attendance -> attendance.getCheckInTime() != null && attendance.getCheckOutTime() == null)
+				.findFirst();
+		if (openAttendance.isPresent()) {
+			StudentAttendance attendance = openAttendance.get();
+			attendance.setCheckOutTime(cardTime);
+			attendance.setCheckMethod("CARD");
+			attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
+			attendance.setCardId(normalizedCardId);
+			studentAttendanceRepository.save(attendance);
+
+			CardCheckInResponse response = CardCheckInResponse.studentCheckOut(
+					student.getId(), student.getDisplayName(), attendance.getClassRoom().getDisplayName(),
+					attendance.getCheckInTime(), cardTime);
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+
+		Optional<CardClassMatch> matchOptional = findTodayCardClass(student, cardTime);
+		if (matchOptional.isEmpty()) {
+			CardCheckInResponse response = CardCheckInResponse.fail("NO_CLASS_TODAY",
+					student.getDisplayName() + " 今日沒有需要點名的課程");
+			response.setStudentId(student.getId());
+			response.setStudentName(student.getDisplayName());
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+
+		CardClassMatch match = matchOptional.get();
+		Optional<StudentAttendance> existingAttendance = studentAttendanceRepository
+				.findByClassRoomIdAndStudentIdAndAttendanceDate(match.classRoom().getId(), student.getId(), attendanceDate);
+		if (existingAttendance.isPresent()) {
+			CardCheckInResponse response = CardCheckInResponse.fail("DUPLICATE_CHECK_IN",
+					student.getDisplayName() + "已完成本堂課點名與簽退，請勿重複刷卡");
+			response.setStudentId(student.getId());
+			response.setStudentName(student.getDisplayName());
+			response.setClassName(match.classRoom().getDisplayName());
+			response.setCardId(normalizedCardId);
+			response.setCheckInTime(existingAttendance.get().getCheckInTime());
+			response.setCheckOutTime(existingAttendance.get().getCheckOutTime());
+			return response;
+		}
+
+		StudentAttendance attendance = new StudentAttendance();
+		attendance.setStudent(student);
+		attendance.setClassRoom(match.classRoom());
+		attendance.setAttendanceDate(attendanceDate);
+		attendance.setStatus(resolveCardAttendanceStatus(match.schedule(), cardTime));
+		attendance.setNote("到班時間：" + cardTime.toLocalTime().format(ARRIVAL_TIME_FORMATTER));
+		attendance.setCheckMethod("CARD");
+		attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
+		attendance.setCardId(normalizedCardId);
+		attendance.setCheckInTime(cardTime);
+		studentAttendanceRepository.save(attendance);
+
+		CardCheckInResponse response = CardCheckInResponse.success(
+				student.getId(), student.getDisplayName(), match.classRoom().getDisplayName(), cardTime);
+		response.setCardId(normalizedCardId);
+		return response;
+	}
+
+	private CardCheckInResponse teacherCardCheckIn(String normalizedCardId, CardCheckInRequest request) {
+		Optional<Teacher> teacherOptional = teacherRepository.findByCardId(normalizedCardId);
+		if (teacherOptional.isEmpty()) {
+			CardCheckInResponse response = CardCheckInResponse.fail("CARD_NOT_BOUND", "此卡尚未綁定學生或教師");
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+		Teacher teacher = teacherOptional.get();
+		if (teacher.getStatus() != TeacherStatus.ACTIVE || !"ACTIVE".equals(teacher.getCardStatus())) {
+			CardCheckInResponse response = CardCheckInResponse.fail("CARD_DISABLED", teacher.getDisplayName() + " 的卡片已停用");
+			response.setTeacherId(teacher.getId());
+			response.setTeacherName(teacher.getDisplayName());
+			response.setPersonType("TEACHER");
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+		LocalDateTime checkInTime = LocalDateTime.now(clock);
+		try {
+			var attendance = teacherAttendanceService.cardClock(teacher, normalizedCardId,
+					request == null ? null : request.getDeviceName(), checkInTime);
+			boolean clockedOut = attendance.getClockOutTime() != null;
+			CardCheckInResponse response = CardCheckInResponse.teacherSuccess(
+					teacher.getId(),
+					teacher.getDisplayName(),
+					clockedOut ? "CLOCKED_OUT" : "CLOCKED_IN",
+					teacher.getDisplayName() + (clockedOut ? " 下班打卡成功" : " 上班打卡成功"),
+					checkInTime);
+			response.setCardId(normalizedCardId);
+			return response;
+		} catch (IllegalStateException ex) {
+			CardCheckInResponse response = CardCheckInResponse.fail("DUPLICATE_CHECK_IN", ex.getMessage());
+			response.setTeacherId(teacher.getId());
+			response.setTeacherName(teacher.getDisplayName());
+			response.setPersonType("TEACHER");
+			response.setCardId(normalizedCardId);
+			return response;
+		}
+	}
+
 	@Transactional(readOnly = true)
 	public AttendanceStats calculateStatsByClassRoomId(Long classRoomId) {
 		return calculateStats(findByClassRoomId(classRoomId));
@@ -200,5 +348,60 @@ public class StudentAttendanceService {
 			}
 		}
 		return null;
+	}
+
+	void setClock(Clock clock) {
+		this.clock = clock == null ? Clock.systemDefaultZone() : clock;
+	}
+
+	private Optional<CardClassMatch> findTodayCardClass(Student student, LocalDateTime checkInTime) {
+		String weekdayName = WEEKDAY_NAMES.get(checkInTime.getDayOfWeek());
+		return classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
+				.map(ClassStudent::getClassRoom)
+				.filter(ClassRoom::isActive)
+				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> weekdayName.equals(schedule.getWeekday()))
+						.filter(schedule -> isWithinCardCheckInWindow(schedule, checkInTime))
+						.map(schedule -> new CardClassMatch(classRoom, schedule, distanceFromSchedule(schedule, checkInTime))))
+				.min(Comparator.comparingLong(CardClassMatch::distanceSeconds));
+	}
+
+	private boolean isWithinCardCheckInWindow(ClassSchedule schedule, LocalDateTime checkInTime) {
+		LocalDate date = checkInTime.toLocalDate();
+		LocalDateTime start = LocalDateTime.of(date, schedule.getStartTime()).minusMinutes(30);
+		LocalDateTime end = LocalDateTime.of(date, schedule.getEndTime()).plusMinutes(30);
+		return !checkInTime.isBefore(start) && !checkInTime.isAfter(end);
+	}
+
+	private long distanceFromSchedule(ClassSchedule schedule, LocalDateTime checkInTime) {
+		LocalDate date = checkInTime.toLocalDate();
+		LocalTime checkInLocalTime = checkInTime.toLocalTime();
+		if (!checkInLocalTime.isBefore(schedule.getStartTime()) && !checkInLocalTime.isAfter(schedule.getEndTime())) {
+			return 0;
+		}
+		LocalDateTime start = LocalDateTime.of(date, schedule.getStartTime());
+		LocalDateTime end = LocalDateTime.of(date, schedule.getEndTime());
+		return Math.min(
+				Math.abs(ChronoUnit.SECONDS.between(checkInTime, start)),
+				Math.abs(ChronoUnit.SECONDS.between(checkInTime, end)));
+	}
+
+	private AttendanceStatus resolveCardAttendanceStatus(ClassSchedule schedule, LocalDateTime checkInTime) {
+		if (schedule != null && schedule.getStartTime() != null
+				&& checkInTime.toLocalTime().isAfter(schedule.getStartTime())) {
+			return AttendanceStatus.LATE;
+		}
+		return AttendanceStatus.PRESENT;
+	}
+
+	private String normalizeDeviceName(String deviceName) {
+		if (deviceName == null || deviceName.isBlank()) {
+			return null;
+		}
+		String normalized = deviceName.trim();
+		return normalized.length() > 100 ? normalized.substring(0, 100) : normalized;
+	}
+
+	private record CardClassMatch(ClassRoom classRoom, ClassSchedule schedule, long distanceSeconds) {
 	}
 }

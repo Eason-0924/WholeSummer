@@ -144,7 +144,13 @@ public class ScheduleConflictService {
 
 	public boolean hasMakeUpConflict(ScheduleConflictContext context, Long classId, Long teacherId,
 			LocalDateTime start, LocalDateTime end) {
+		return hasMakeUpConflict(context, classId, teacherId, start, end, null);
+	}
+
+	public boolean hasMakeUpConflict(ScheduleConflictContext context, Long classId, Long teacherId,
+			LocalDateTime start, LocalDateTime end, Long excludedRequestId) {
 		return context.scheduledMakeUps().stream()
+				.filter(request -> excludedRequestId == null || !excludedRequestId.equals(request.getId()))
 				.filter(request -> (classId != null && request.getClassRoom() != null
 						&& classId.equals(request.getClassRoom().getId()))
 						|| (teacherId != null && request.getTeacher() != null
@@ -158,8 +164,14 @@ public class ScheduleConflictService {
 	}
 
 	public boolean hasRescheduleConflict(Long classId, Long teacherId, LocalDateTime start, LocalDateTime end) {
+		return hasRescheduleConflict(classId, teacherId, start, end, null);
+	}
+
+	public boolean hasRescheduleConflict(Long classId, Long teacherId, LocalDateTime start, LocalDateTime end,
+			Long excludedScheduleId) {
 		return classScheduleRepository.findByScheduledStartAtBetweenOrderByScheduledStartAtAsc(
 				start.minusDays(1), end.plusDays(1)).stream()
+				.filter(schedule -> excludedScheduleId == null || !excludedScheduleId.equals(schedule.getId()))
 				.filter(schedule -> schedule.getScheduleType() != ScheduleType.CANCELLED)
 				.filter(schedule -> schedule.getScheduledStartAt() != null && schedule.getScheduledEndAt() != null)
 				.filter(schedule -> (classId != null && schedule.getClassRoom() != null

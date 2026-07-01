@@ -6,8 +6,13 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.entity.ClassSchedule;
+import com.example.cramschool.entity.ScheduleType;
 
 public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Long> {
 
@@ -31,4 +36,17 @@ public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Lo
 	})
 	List<ClassSchedule> findByClassRoomTeacherIdAndScheduledStartAtBetweenOrderByScheduledStartAtAsc(
 			Long teacherId, LocalDateTime start, LocalDateTime end);
+
+	Optional<ClassSchedule> findFirstByOriginalScheduleIdAndScheduleTypeAndScheduledStartAtAndScheduledEndAt(
+			Long originalScheduleId, ScheduleType scheduleType, LocalDateTime scheduledStartAt, LocalDateTime scheduledEndAt);
+
+	@Transactional
+	@Modifying
+	@Query("delete from ClassSchedule schedule where schedule.classRoom.id = :classRoomId and schedule.originalSchedule is not null")
+	void deleteEventSchedulesByClassRoomId(@Param("classRoomId") Long classRoomId);
+
+	@Transactional
+	@Modifying
+	@Query("delete from ClassSchedule schedule where schedule.classRoom.id = :classRoomId and schedule.originalSchedule is null")
+	void deleteBaseSchedulesByClassRoomId(@Param("classRoomId") Long classRoomId);
 }

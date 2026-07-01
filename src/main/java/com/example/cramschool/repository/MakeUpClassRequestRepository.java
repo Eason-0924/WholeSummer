@@ -51,6 +51,31 @@ public interface MakeUpClassRequestRepository extends JpaRepository<MakeUpClassR
 	List<MakeUpClassRequest> findByTeacherIdAndStatusOrderByOriginalCourseDateAscIdAsc(
 			Long teacherId, MakeUpStatus status);
 
+	@EntityGraph(attributePaths = {
+			"originalCourseSchedule",
+			"originalCourseSchedule.classRoom",
+			"originalCourseSchedule.classRoom.subject",
+			"originalCourseSchedule.classRoom.teacher",
+			"teacher",
+			"classRoom",
+			"classRoom.subject",
+			"classRoom.teacher"
+	})
+	List<MakeUpClassRequest> findByStatusOrderBySelectedMakeUpStartAscIdAsc(MakeUpStatus status);
+
+	@EntityGraph(attributePaths = {
+			"originalCourseSchedule",
+			"originalCourseSchedule.classRoom",
+			"originalCourseSchedule.classRoom.subject",
+			"originalCourseSchedule.classRoom.teacher",
+			"teacher",
+			"classRoom",
+			"classRoom.subject",
+			"classRoom.teacher"
+	})
+	List<MakeUpClassRequest> findByTeacherIdAndStatusOrderBySelectedMakeUpStartAscIdAsc(
+			Long teacherId, MakeUpStatus status);
+
 	long countByStatus(MakeUpStatus status);
 
 	long countByTeacherIdAndStatus(Long teacherId, MakeUpStatus status);

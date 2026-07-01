@@ -115,7 +115,9 @@ public class MakeUpClassService {
 		LocalDate baseDate = LocalDate.now();
 		List<LocalDate> dates = buildCalendarDateRange(baseDate);
 		for (MakeUpClassRequest request : requests) {
-			if (request == null || request.getId() == null || request.getStatus() != MakeUpStatus.PENDING) {
+			if (request == null || request.getId() == null
+					|| request.getStatus() != MakeUpStatus.PENDING
+							&& request.getStatus() != MakeUpStatus.SCHEDULED) {
 				continue;
 			}
 			for (LocalDate date : dates) {
@@ -134,14 +136,27 @@ public class MakeUpClassService {
 	}
 
 	@Transactional(readOnly = true)
+	public List<MakeUpClassRequest> findScheduledRequests(Long teacherId, boolean director) {
+		return director
+				? makeUpClassRequestRepository.findByStatusOrderBySelectedMakeUpStartAscIdAsc(MakeUpStatus.SCHEDULED)
+				: makeUpClassRequestRepository.findByTeacherIdAndStatusOrderBySelectedMakeUpStartAscIdAsc(
+						teacherId, MakeUpStatus.SCHEDULED);
+	}
+
+	@Transactional(readOnly = true)
 	public MakeUpRequestView findPendingView(Long requestId, Long teacherId, boolean director) {
-		MakeUpClassRequest request = makeUpClassRequestRepository.findById(requestId)
-				.orElseThrow(() -> new IllegalArgumentException("找不到補課需求"));
+		MakeUpClassRequest request = findAllowedRequest(requestId, teacherId, director);
 		if (request.getStatus() != MakeUpStatus.PENDING) {
 			throw new IllegalArgumentException("此補課需求目前不需安排");
 		}
-		if (!director && (request.getTeacher() == null || !teacherId.equals(request.getTeacher().getId()))) {
-			throw new IllegalArgumentException("無權查看此補課需求");
+		return new MakeUpRequestView(request, buildCalendarDates(request, LocalDate.now()));
+	}
+
+	@Transactional(readOnly = true)
+	public MakeUpRequestView findScheduledView(Long requestId, Long teacherId, boolean director) {
+		MakeUpClassRequest request = findAllowedRequest(requestId, teacherId, director);
+		if (request.getStatus() != MakeUpStatus.SCHEDULED) {
+			throw new IllegalArgumentException("此補課紀錄目前不可編輯");
 		}
 		return new MakeUpRequestView(request, buildCalendarDates(request, LocalDate.now()));
 	}
@@ -155,14 +170,14 @@ public class MakeUpClassService {
 
 	@Transactional(readOnly = true)
 	public List<MakeUpCalendarDate> findCalendarDates(Long requestId, Long teacherId, boolean director) {
-		MakeUpClassRequest request = findAllowedPendingRequest(requestId, teacherId, director);
+		MakeUpClassRequest request = findAllowedSchedulableRequest(requestId, teacherId, director);
 		return buildCalendarDates(request, LocalDate.now());
 	}
 
 	@Transactional(readOnly = true)
 	public List<MakeUpSlotOption> findSlotOptions(Long requestId, LocalDate date,
 			Long teacherId, boolean director) {
-		MakeUpClassRequest request = findAllowedPendingRequest(requestId, teacherId, director);
+		MakeUpClassRequest request = findAllowedSchedulableRequest(requestId, teacherId, director);
 		LocalDate targetDate = date == null ? LocalDate.now().plusDays(1) : date;
 		DailySlotCacheKey cacheKey = new DailySlotCacheKey(requestId, targetDate);
 		return dailySlotCache.computeIfAbsent(cacheKey, ignored -> calculateDailySlotOptions(request, targetDate));
@@ -172,6 +187,40 @@ public class MakeUpClassService {
 	public void scheduleMakeUpClass(Long makeUpRequestId, LocalDateTime start,
 			LocalDateTime end, Long currentTeacherId, boolean director, boolean allowTeacherConflict) {
 		MakeUpClassRequest request = findAllowedPendingRequest(makeUpRequestId, currentTeacherId, director);
+		scheduleMakeUpClass(request, start, end, currentTeacherId, allowTeacherConflict);
+	}
+
+	@Transactional
+	public void rescheduleMakeUpClass(Long makeUpRequestId, LocalDateTime start,
+			LocalDateTime end, Long currentTeacherId, boolean director, boolean allowTeacherConflict) {
+		MakeUpClassRequest request = findAllowedScheduledRequest(makeUpRequestId, currentTeacherId, director);
+		deleteSelectedMakeUpSchedule(request);
+		classScheduleRepository.flush();
+		scheduleMakeUpClass(request, start, end, currentTeacherId, allowTeacherConflict);
+	}
+
+	@Transactional
+	public void reopenScheduledMakeUp(Long makeUpRequestId, Long currentTeacherId, boolean director) {
+		MakeUpClassRequest request = findAllowedScheduledRequest(makeUpRequestId, currentTeacherId, director);
+		deleteSelectedMakeUpSchedule(request);
+		request.setStatus(MakeUpStatus.PENDING);
+		clearSelectedMakeUp(request);
+		makeUpClassRequestRepository.save(request);
+		clearMakeUpCaches(makeUpRequestId);
+	}
+
+	@Transactional
+	public void ignoreScheduledMakeUp(Long makeUpRequestId, Long currentTeacherId, boolean director) {
+		MakeUpClassRequest request = findAllowedScheduledRequest(makeUpRequestId, currentTeacherId, director);
+		deleteSelectedMakeUpSchedule(request);
+		request.setStatus(MakeUpStatus.CANCELLED);
+		clearSelectedMakeUp(request);
+		makeUpClassRequestRepository.save(request);
+		clearMakeUpCaches(makeUpRequestId);
+	}
+
+	private void scheduleMakeUpClass(MakeUpClassRequest request, LocalDateTime start,
+			LocalDateTime end, Long currentTeacherId, boolean allowTeacherConflict) {
 		ClassSchedule originalSchedule = request.getOriginalCourseSchedule();
 		if (originalSchedule == null || request.getClassRoom() == null || request.getTeacher() == null) {
 			throw new IllegalArgumentException("補課需求缺少原課程資料");
@@ -211,7 +260,7 @@ public class MakeUpClassService {
 		request.setSelectedByTeacherId(currentTeacherId);
 		request.setSelectedAt(LocalDateTime.now());
 		makeUpClassRequestRepository.save(request);
-		clearMakeUpCaches(makeUpRequestId);
+		clearMakeUpCaches(request.getId());
 	}
 
 	private void validateMakeUpDuration(ClassSchedule originalSchedule, LocalDateTime start, LocalDateTime end) {
@@ -223,15 +272,58 @@ public class MakeUpClassService {
 	}
 
 	private MakeUpClassRequest findAllowedPendingRequest(Long requestId, Long teacherId, boolean director) {
-		MakeUpClassRequest request = makeUpClassRequestRepository.findById(requestId)
-				.orElseThrow(() -> new IllegalArgumentException("找不到補課需求"));
+		MakeUpClassRequest request = findAllowedRequest(requestId, teacherId, director);
 		if (request.getStatus() != MakeUpStatus.PENDING) {
 			throw new IllegalArgumentException("此補課需求目前不需安排");
 		}
+		return request;
+	}
+
+	private MakeUpClassRequest findAllowedScheduledRequest(Long requestId, Long teacherId, boolean director) {
+		MakeUpClassRequest request = findAllowedRequest(requestId, teacherId, director);
+		if (request.getStatus() != MakeUpStatus.SCHEDULED) {
+			throw new IllegalArgumentException("此補課紀錄目前不可編輯");
+		}
+		return request;
+	}
+
+	private MakeUpClassRequest findAllowedSchedulableRequest(Long requestId, Long teacherId, boolean director) {
+		MakeUpClassRequest request = findAllowedRequest(requestId, teacherId, director);
+		if (request.getStatus() != MakeUpStatus.PENDING && request.getStatus() != MakeUpStatus.SCHEDULED) {
+			throw new IllegalArgumentException("此補課需求目前不需安排");
+		}
+		return request;
+	}
+
+	private MakeUpClassRequest findAllowedRequest(Long requestId, Long teacherId, boolean director) {
+		MakeUpClassRequest request = makeUpClassRequestRepository.findById(requestId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到補課需求"));
 		if (!director && (request.getTeacher() == null || !teacherId.equals(request.getTeacher().getId()))) {
 			throw new IllegalArgumentException("無權查看此補課需求");
 		}
 		return request;
+	}
+
+	private void deleteSelectedMakeUpSchedule(MakeUpClassRequest request) {
+		if (request.getOriginalCourseSchedule() == null
+				|| request.getSelectedMakeUpStart() == null
+				|| request.getSelectedMakeUpEnd() == null) {
+			return;
+		}
+		classScheduleRepository
+				.findFirstByOriginalScheduleIdAndScheduleTypeAndScheduledStartAtAndScheduledEndAt(
+						request.getOriginalCourseSchedule().getId(),
+						ScheduleType.MAKE_UP,
+						request.getSelectedMakeUpStart(),
+						request.getSelectedMakeUpEnd())
+				.ifPresent(classScheduleRepository::delete);
+	}
+
+	private void clearSelectedMakeUp(MakeUpClassRequest request) {
+		request.setSelectedMakeUpStart(null);
+		request.setSelectedMakeUpEnd(null);
+		request.setSelectedByTeacherId(null);
+		request.setSelectedAt(null);
 	}
 
 	private List<MakeUpCalendarDate> buildCalendarDates(MakeUpClassRequest request, LocalDate baseDate) {
@@ -303,6 +395,7 @@ public class MakeUpClassService {
 		Long classId = request.getClassRoom() == null ? null : request.getClassRoom().getId();
 		Long teacherId = request.getTeacher() == null ? null : request.getTeacher().getId();
 		ScheduleConflictContext conflictContext = scheduleConflictService.buildContext(classId, teacherId);
+		Long excludedMakeUpScheduleId = selectedMakeUpScheduleId(request);
 		List<MakeUpCalendarDay> days = new ArrayList<>();
 		LocalDate startDate = baseDate.plusDays(1);
 		for (int dayOffset = 0; dayOffset < SEARCH_DAYS; dayOffset++) {
@@ -314,7 +407,14 @@ public class MakeUpClassService {
 				LocalDateTime start = LocalDateTime.of(date, candidateStart);
 				LocalDateTime end = start.plus(duration);
 				slots.add(new MakeUpAvailableSlot(start, end,
-						resolveSlotStatus(conflictContext, classId, teacherId, start, end)));
+						resolveSlotStatus(
+								conflictContext,
+								request.getId(),
+								excludedMakeUpScheduleId,
+								classId,
+								teacherId,
+								start,
+								end)));
 				candidateStart = candidateStart.plusMinutes(SLOT_STEP_MINUTES);
 			}
 			days.add(new MakeUpCalendarDay(date, slots));
@@ -334,13 +434,21 @@ public class MakeUpClassService {
 		Long classId = request.getClassRoom() == null ? null : request.getClassRoom().getId();
 		Long teacherId = request.getTeacher() == null ? null : request.getTeacher().getId();
 		ScheduleConflictContext conflictContext = scheduleConflictService.buildContext(classId, teacherId);
+		Long excludedMakeUpScheduleId = selectedMakeUpScheduleId(request);
 		List<MakeUpSlotOption> slots = new ArrayList<>();
 		LocalTime candidateStart = businessStart(date);
 		LocalTime businessEnd = businessEnd(date);
 		while (!candidateStart.plus(duration).isAfter(businessEnd)) {
 			LocalDateTime start = LocalDateTime.of(date, candidateStart);
 			LocalDateTime end = start.plus(duration);
-			MakeUpSlotStatus status = resolveSlotStatus(conflictContext, classId, teacherId, start, end);
+			MakeUpSlotStatus status = resolveSlotStatus(
+					conflictContext,
+					request.getId(),
+					excludedMakeUpScheduleId,
+					classId,
+					teacherId,
+					start,
+					end);
 			MakeUpAvailableSlot slot = new MakeUpAvailableSlot(start, end, status);
 			slots.add(new MakeUpSlotOption(
 					start.toString(),
@@ -357,19 +465,39 @@ public class MakeUpClassService {
 	}
 
 	private MakeUpSlotStatus resolveSlotStatus(ScheduleConflictContext conflictContext,
-			Long classId, Long teacherId,
+			Long excludedRequestId, Long excludedMakeUpScheduleId, Long classId, Long teacherId,
 			LocalDateTime start, LocalDateTime end) {
 		if (scheduleConflictService.hasStudentClassConflict(conflictContext, start, end)
-				|| scheduleConflictService.hasMakeUpConflict(conflictContext, classId, null, start, end)
-				|| scheduleConflictService.hasRescheduleConflict(classId, null, start, end)) {
+				|| scheduleConflictService.hasMakeUpConflict(
+						conflictContext, classId, null, start, end, excludedRequestId)
+				|| scheduleConflictService.hasRescheduleConflict(
+						classId, null, start, end, excludedMakeUpScheduleId)) {
 			return MakeUpSlotStatus.STUDENT_CONFLICT;
 		}
 		if (scheduleConflictService.hasTeacherConflict(conflictContext, start, end)
-				|| scheduleConflictService.hasMakeUpConflict(conflictContext, null, teacherId, start, end)
-				|| scheduleConflictService.hasRescheduleConflict(null, teacherId, start, end)) {
+				|| scheduleConflictService.hasMakeUpConflict(
+						conflictContext, null, teacherId, start, end, excludedRequestId)
+				|| scheduleConflictService.hasRescheduleConflict(
+						null, teacherId, start, end, excludedMakeUpScheduleId)) {
 			return MakeUpSlotStatus.TEACHER_CONFLICT;
 		}
 		return MakeUpSlotStatus.AVAILABLE;
+	}
+
+	private Long selectedMakeUpScheduleId(MakeUpClassRequest request) {
+		if (request == null || request.getOriginalCourseSchedule() == null
+				|| request.getSelectedMakeUpStart() == null
+				|| request.getSelectedMakeUpEnd() == null) {
+			return null;
+		}
+		return classScheduleRepository
+				.findFirstByOriginalScheduleIdAndScheduleTypeAndScheduledStartAtAndScheduledEndAt(
+						request.getOriginalCourseSchedule().getId(),
+						ScheduleType.MAKE_UP,
+						request.getSelectedMakeUpStart(),
+						request.getSelectedMakeUpEnd())
+				.map(ClassSchedule::getId)
+				.orElse(null);
 	}
 
 	private MakeUpClassRequest createRequiredMakeUp(ClassSchedule schedule, LocalDate originalDate,
