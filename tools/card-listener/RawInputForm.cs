@@ -14,6 +14,7 @@ internal sealed class RawInputForm : Form
     private const ushort VK_RETURN = 0x0D;
 
     private readonly CardInputBuffer inputBuffer;
+    private bool registered;
 
     public RawInputForm(CardInputBuffer inputBuffer)
     {
@@ -21,14 +22,25 @@ internal sealed class RawInputForm : Form
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.FixedToolWindow;
         Opacity = 0;
-        Width = 0;
-        Height = 0;
+        StartPosition = FormStartPosition.Manual;
+        Location = new System.Drawing.Point(-32000, -32000);
+        Width = 1;
+        Height = 1;
     }
 
-    protected override void SetVisibleCore(bool value)
-    {
-        base.SetVisibleCore(false);
-    }
+    public bool Registered => registered;
+
+    public int RawInputMessageCount { get; private set; }
+
+    public int UnsupportedKeyCount { get; private set; }
+
+    public ushort? LastVirtualKey { get; private set; }
+
+    public ushort? LastMakeCode { get; private set; }
+
+    public ushort? LastFlags { get; private set; }
+
+    public char? LastResolvedKey { get; private set; }
 
     protected override void OnHandleCreated(EventArgs e)
     {
@@ -40,10 +52,22 @@ internal sealed class RawInputForm : Form
     {
         if (message.Msg == WM_INPUT)
         {
-            char? key = ReadRawKey(message.LParam);
-            if (key.HasValue)
+            RawInputMessageCount += 1;
+            RawKeyInfo? keyInfo = ReadRawKey(message.LParam);
+            if (keyInfo.HasValue)
             {
-                inputBuffer.Push(key.Value);
+                LastVirtualKey = keyInfo.Value.VirtualKey;
+                LastMakeCode = keyInfo.Value.MakeCode;
+                LastFlags = keyInfo.Value.Flags;
+                LastResolvedKey = keyInfo.Value.Key;
+                if (keyInfo.Value.Key.HasValue)
+                {
+                    inputBuffer.Push(keyInfo.Value.Key.Value);
+                }
+                else
+                {
+                    UnsupportedKeyCount += 1;
+                }
             }
         }
         base.WndProc(ref message);
@@ -62,13 +86,14 @@ internal sealed class RawInputForm : Form
             }
         ];
 
-        if (!RegisterRawInputDevices(devices, (uint)devices.Length, (uint)Marshal.SizeOf<RAWINPUTDEVICE>()))
+        registered = RegisterRawInputDevices(devices, (uint)devices.Length, (uint)Marshal.SizeOf<RAWINPUTDEVICE>());
+        if (!registered)
         {
             throw new InvalidOperationException("無法註冊鍵盤型刷卡機背景監聽");
         }
     }
 
-    private static char? ReadRawKey(IntPtr rawInputHandle)
+    private static RawKeyInfo? ReadRawKey(IntPtr rawInputHandle)
     {
         uint size = 0;
         GetRawInputData(rawInputHandle, RID_INPUT, IntPtr.Zero, ref size,
@@ -94,7 +119,11 @@ internal sealed class RawInputForm : Form
             {
                 return null;
             }
-            return VirtualKeyToChar(rawInput.keyboard.VKey);
+            return new RawKeyInfo(
+                rawInput.keyboard.VKey,
+                rawInput.keyboard.MakeCode,
+                rawInput.keyboard.Flags,
+                VirtualKeyToChar(rawInput.keyboard.VKey));
         }
         finally
         {
@@ -176,4 +205,6 @@ internal sealed class RawInputForm : Form
         public RAWINPUTHEADER header;
         public RAWKEYBOARD keyboard;
     }
+
+    private readonly record struct RawKeyInfo(ushort VirtualKey, ushort MakeCode, ushort Flags, char? Key);
 }

@@ -123,13 +123,13 @@ while [ "$LOCAL_TAG_EXISTS" = true ] || [ "$REMOTE_TAG_EXISTS" = true ]; do
       ;;
     2)
       while true; do
-        read -p "請輸入新版本號（格式 x.y.z，例如 1.0.2）： " NEW_VERSION
+        read -p "請輸入新版本號（格式 x.y.z 或 x.y.z.n，例如 1.0.2 或 1.0.2.1）： " NEW_VERSION
 
-        if [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        if [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
           break
         fi
 
-        echo "版本格式不正確，請使用 x.y.z 格式。"
+        echo "版本格式不正確，請使用 x.y.z 或 x.y.z.n 格式。"
       done
 
       if [ "$NEW_VERSION" = "$VERSION" ]; then

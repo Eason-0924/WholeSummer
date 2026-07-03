@@ -1,5 +1,5 @@
 name: Build Windows EXE
-run-name: Release 1.2.1.1
+run-name: Release 1.2.1.2
 
 on:
   workflow_dispatch:
@@ -34,9 +34,20 @@ jobs:
             $version = $pomVersion
           }
 
+          $versionParts = $version.Split(".")
+          if ($versionParts.Count -eq 4) {
+            $windowsPatch = ([int]$versionParts[2] * 100) + [int]$versionParts[3]
+            $windowsAppVersion = "$($versionParts[0]).$($versionParts[1]).$windowsPatch"
+          } else {
+            $windowsAppVersion = $version
+          }
+
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
+          echo "WINDOWS_APP_VERSION=$windowsAppVersion" >> $env:GITHUB_ENV
           echo "EXE_NAME=WholeSummer-Windows-Installer-v$version.exe" >> $env:GITHUB_ENV
           echo "CARD_LISTENER_ZIP=WholeSummer-CardListener-v$version.zip" >> $env:GITHUB_ENV
+          Write-Host "Release version: $version"
+          Write-Host "Windows installer internal version: $windowsAppVersion"
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -97,7 +108,7 @@ jobs:
           jpackage ^
             --type exe ^
             --name WholeSummer ^
-            --app-version %APP_VERSION% ^
+            --app-version %WINDOWS_APP_VERSION% ^
             --input input ^
             --main-jar WholeSummer.jar ^
             --dest dist ^
@@ -108,7 +119,7 @@ jobs:
             --win-dir-chooser ^
             --win-upgrade-uuid "6f3c08df-767c-4b13-9d6c-e7bf77709561" ^
             --vendor "WholeSummer" ^
-            --description "霍爾夏天補習班管理系統" ^
+            --description "WholeSummer cram school management system" ^
             --java-options "-Dwholesummer.external-config.enabled=true" ^
             --java-options "-Dwholesummer.app-exe=$APPDIR/../WholeSummer.exe"
 

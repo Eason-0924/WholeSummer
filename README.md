@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.2.1.1**
+目前版本：**1.2.1.2**
 
 ## 使用者操作教學與須知
 
@@ -309,6 +309,14 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.2.1.2 更新內容
+
+- 1.2.1.2 修正版發布。
+- Windows installer 內部安裝版本改用 Windows Installer 相容的遞增三段式版本，避免同版號重發或四段版本造成安裝被擋。
+- Windows installer 描述改為英文，避免安裝錯誤訊息出現 `??????` 亂碼。
+- 刷卡監聽器的 Raw Input 隱藏視窗改以螢幕外 1x1 視窗註冊，提升背景鍵盤輸入監聽穩定性。
+- 刷卡監聽器狀態視窗新增 Raw Input 註冊狀態、訊息數、未支援按鍵數與最近按鍵資訊。
 
 ## 1.2.1.1 更新內容
 
@@ -671,7 +679,7 @@ Windows 指令已列於本文件最前方。設定後需完全關閉並重新啟
 1. 確認目前位於 `main` 分支。
 2. 讀取 `pom.xml` 版本。
 3. 在版本已存在時選擇覆蓋、變更版本或取消。
-4. 從 README 的 `## x.y.z 更新內容` 章節自動讀取 Release 說明。
+4. 從 README 的 `## x.y.z 更新內容` 或 `## x.y.z.n 更新內容` 章節自動讀取 Release 說明。
 5. 建置專案、建立 commit 與 Git tag。
 6. 推送至 GitHub。
 7. 由 GitHub Actions 產生 Windows installer 並建立 Release。
@@ -683,6 +691,7 @@ Windows 指令已列於本文件最前方。設定後需完全關閉並重新啟
 
 ```text
 x.y.z
+x.y.z.n
 ```
 
 Git tag 與 `pom.xml` 版本必須一致。
