@@ -9,15 +9,20 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 
 import com.example.cramschool.dto.TeacherDailySchedule;
 import com.example.cramschool.dto.TeacherDailySchedule.TimeRange;
+import com.example.cramschool.dto.TeacherScheduleMatch;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAttendance;
 import com.example.cramschool.entity.TeacherAttendanceStatus;
+import com.example.cramschool.form.TeacherAttendanceForm;
 import com.example.cramschool.repository.TeacherAttendanceRepository;
+import com.example.cramschool.repository.TeacherRepository;
 
 class TeacherAttendanceServiceTests {
 
@@ -170,6 +175,82 @@ class TeacherAttendanceServiceTests {
 
 		assertThat(attendances).singleElement()
 				.satisfies(record -> assertThat(record.getWorkMinutes()).isEqualTo(120));
+	}
+
+	@Test
+	void manualSaveRemovesAbsenceMakeUpWhenAbsentRecordBecomesWorking() {
+		Teacher teacher = new Teacher();
+		teacher.setId(8L);
+		teacher.setName("王老師");
+		TeacherAttendance existingAbsent = new TeacherAttendance();
+		existingAbsent.setId(188L);
+		existingAbsent.setTeacher(teacher);
+		existingAbsent.setDate(LocalDate.of(2026, 6, 30));
+		existingAbsent.setStatus(TeacherAttendanceStatus.ABSENT);
+		TeacherAttendanceRepository attendanceRepository = (TeacherAttendanceRepository) Proxy.newProxyInstance(
+				TeacherAttendanceRepository.class.getClassLoader(),
+				new Class<?>[] { TeacherAttendanceRepository.class },
+				(proxy, method, args) -> {
+					if (method.getDeclaringClass() == Object.class) {
+						return switch (method.getName()) {
+							case "toString" -> "TeacherAttendanceRepositoryTestProxy";
+							case "hashCode" -> System.identityHashCode(proxy);
+							case "equals" -> proxy == args[0];
+							default -> null;
+						};
+					}
+					if ("findByTeacherIdAndDate".equals(method.getName())) {
+						return Optional.of(existingAbsent);
+					}
+					if ("save".equals(method.getName())) {
+						return args[0];
+					}
+					throw new UnsupportedOperationException(method.getName());
+				});
+		TeacherRepository teacherRepository = (TeacherRepository) Proxy.newProxyInstance(
+				TeacherRepository.class.getClassLoader(),
+				new Class<?>[] { TeacherRepository.class },
+				(proxy, method, args) -> {
+					if (method.getDeclaringClass() == Object.class) {
+						return switch (method.getName()) {
+							case "toString" -> "TeacherRepositoryTestProxy";
+							case "hashCode" -> System.identityHashCode(proxy);
+							case "equals" -> proxy == args[0];
+							default -> null;
+						};
+					}
+					if ("findById".equals(method.getName())) {
+						return Optional.of(teacher);
+					}
+					throw new UnsupportedOperationException(method.getName());
+				});
+		TeacherScheduleService scheduleService = new TeacherScheduleService(null) {
+			@Override
+			public TeacherScheduleMatch findMatchedSchedule(
+					Long teacherId, LocalDate date, LocalTime clockInTime, LocalTime clockOutTime) {
+				return new TeacherScheduleMatch(5L, "高一數學", "19:00 ~ 21:00", 120, LocalTime.of(19, 0));
+			}
+		};
+		AtomicLong deletedAttendanceId = new AtomicLong();
+		MakeUpClassService makeUpClassService = new MakeUpClassService(null, null, null) {
+			@Override
+			public void deleteAbsenceMakeUpForAttendance(Long attendanceId) {
+				deletedAttendanceId.set(attendanceId);
+			}
+		};
+		TeacherAttendanceService service = new TeacherAttendanceService(
+				attendanceRepository, teacherRepository, scheduleService, makeUpClassService);
+		TeacherAttendanceForm form = new TeacherAttendanceForm();
+		form.setTeacherId(teacher.getId());
+		form.setDate(existingAbsent.getDate());
+		form.setClockInTime(LocalTime.of(18, 55));
+		form.setClockOutTime(LocalTime.of(21, 0));
+		form.setStatus(TeacherAttendanceStatus.WORKING);
+
+		TeacherAttendance saved = service.save(form);
+
+		assertThat(saved.getStatus()).isEqualTo(TeacherAttendanceStatus.WORKING);
+		assertThat(deletedAttendanceId.get()).isEqualTo(188L);
 	}
 
 	@Test

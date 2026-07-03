@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<style>
+		.analysis-accordion .accordion-button {
+			font-weight: 600;
+		}
+		.analysis-header-tools {
+			align-items: center;
+			display: flex;
+			gap: 0.5rem;
+		}
+		.analysis-header-actions {
+			align-items: center;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+			justify-content: flex-end;
+		}
+		.analysis-export-button {
+			white-space: nowrap;
+		}
+		.analysis-month-switch {
+			align-items: center;
+			display: inline-flex;
+			gap: 0.5rem;
+		}
+		.analysis-month-switch a {
+			flex: 0 0 1.5rem;
+			height: 1.5rem;
+			line-height: 1;
+			min-width: 1.5rem;
+			padding: 0;
+		}
+		.analysis-legend {
+			align-items: center;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem 1rem;
+			justify-content: flex-start;
+		}
+		.analysis-toolbar {
+			align-items: center;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem 1rem;
+			justify-content: space-between;
+			margin-bottom: 1rem;
+		}
+		.analysis-legend-item {
+			align-items: center;
+			display: inline-flex;
+			gap: 0.45rem;
+		}
+		.analysis-sort-control {
+			align-items: center;
+			display: inline-flex;
+			gap: 0.45rem;
+		}
+		.analysis-sort-button {
+			background: transparent;
+			border: 0;
+			border-radius: 999px;
+			color: #6c757d;
+			font-size: 0.9rem;
+			line-height: 1;
+			padding: 0.1rem 0.25rem;
+		}
+		.analysis-sort-button.active {
+			background: rgba(13, 110, 253, 0.12);
+			color: #0d6efd;
+		}
+		.analysis-legend-swatch {
+			border-radius: 999px;
+			display: inline-block;
+			height: 0.75rem;
+			width: 1.5rem;
+		}
+		.analysis-legend-swatch.present {
+			background: #198754;
+		}
+		.analysis-legend-swatch.late {
+			background: #ffc107;
+		}
+		.analysis-legend-swatch.absent {
+			background: #dc3545;
+		}
+		.analysis-legend-swatch.homework-submitted {
+			background: #198754;
+		}
+		.analysis-legend-swatch.homework-late {
+			background: #ffc107;
+		}
+		.analysis-legend-swatch.homework-not-submitted {
+			background: #dc3545;
+		}
+		.analysis-attendance-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.85rem;
+		}
+		.analysis-attendance-item {
+			background: transparent;
+			border: 0;
+			padding: 0;
+			text-align: left;
+			width: fit-content;
+		}
+		.analysis-attendance-item:hover .analysis-attendance-bar,
+		.analysis-attendance-item:focus-visible .analysis-attendance-bar {
+			box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.32);
+			filter: brightness(0.92);
+		}
+		.analysis-attendance-row {
+			align-items: center;
+			display: grid;
+			gap: 0.85rem;
+			grid-template-columns: 1000px auto;
+		}
+		.analysis-attendance-bar {
+			background: #e9ecef;
+			border-radius: 999px;
+			display: flex;
+			min-height: 2.25rem;
+			overflow: hidden;
+			position: relative;
+			width: 1000px;
+		}
+		.analysis-attendance-segment {
+			align-items: center;
+			display: flex;
+			font-size: 0.78rem;
+			justify-content: center;
+			padding: 0;
+			white-space: nowrap;
+		}
+		.analysis-attendance-segment.present {
+			background: #198754;
+			color: #fff;
+		}
+		.analysis-attendance-segment.late {
+			background: #ffc107;
+			color: #212529;
+		}
+		.analysis-attendance-segment.absent {
+			background: #dc3545;
+			color: #fff;
+		}
+		.analysis-attendance-segment.homework-submitted {
+			background: #198754;
+			color: #fff;
+		}
+		.analysis-attendance-segment.homework-late {
+			background: #ffc107;
+			color: #212529;
+		}
+		.analysis-attendance-segment.homework-not-submitted {
+			background: #dc3545;
+			color: #fff;
+		}
+		.analysis-attendance-name {
+			font-weight: 600;
+			text-align: left;
+			white-space: nowrap;
+		}
+		.analysis-attendance-item:focus-visible {
+			outline: none;
+		}
+		.analysis-attendance-meta {
+			display: none;
+		}
+		.analysis-empty {
+			background: #fff;
+			border: 1px dashed #ced4da;
+			border-radius: 0.75rem;
+			color: #6c757d;
+			padding: 1rem;
+			text-align: center;
+		}
+		.analysis-chart-card {
+			background: #fff;
+			border-radius: 0.75rem;
+			margin-bottom: 1rem;
+			padding: 1rem;
+		}
+		.analysis-exam-table {
+			table-layout: fixed;
+			width: 100%;
+		}
+		.analysis-exam-table th,
+		.analysis-exam-table td {
+			vertical-align: middle;
+		}
+		.analysis-chart-wrap {
+			height: 420px;
+			position: relative;
+		}
+		.analysis-chart-toolbar {
+			align-items: center;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.75rem;
+			margin-bottom: 1rem;
+		}
+		.analysis-chart-filter {
+			align-items: center;
+			display: inline-flex;
+			gap: 0.5rem;
+		}
+		.analysis-chart-filter .form-label {
+			margin-bottom: 0;
+			white-space: nowrap;
+		}
+		.analysis-chart-filter[hidden] {
+			display: none;
+		}
+		@media (max-width: 767.98px) {
+			.analysis-header-actions {
+				justify-content: flex-start;
+			}
+			.analysis-chart-toolbar {
+				align-items: stretch;
+			}
+			.analysis-chart-filter {
+				width: 100%;
+			}
+			.analysis-chart-filter .form-select {
+				flex: 1 1 auto;
+			}
+			.analysis-chart-wrap {
+				height: 320px;
+			}
+			.analysis-attendance-row {
+				grid-template-columns: 1fr;
+			}
+			.analysis-attendance-bar {
+				width: 100%;
+			}
+			.analysis-attendance-name {
+				text-align: left;
+			}
+			.analysis-attendance-segment {
+				font-size: 0.72rem;
+			}
+		}
+	</style>
+
+	<div class="page-title-line mb-3">
+		<h1 class="h3 mb-0">分析</h1>
+		<span th:replace="~{fragments/layout :: help('查看學生出席率、作業完成率與測驗成績\n∙ 學生出席率：顯示本月各學生出席、遲到與缺席比例\n∙ 作業完成率：查看學生完成率高低排行\n∙ 測驗成績：查看各測驗平均、最高、最低與缺考情況')}"></span>
+	</div>
+	<div th:if="${message}" class="alert alert-success" th:text="${message}">已完成</div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}">發生錯誤</div>
+
+	<div class="accordion analysis-accordion" id="analysisAccordion">
+		<section class="accordion-item border rounded mb-3 overflow-hidden">
+			<h2 class="accordion-header">
+				<button class="accordion-button" th:classappend="${activePanel != 'attendance'} ? ' collapsed' : ''"
+						type="button" data-bs-toggle="collapse"
+						data-bs-target="#attendancePanel" aria-expanded="true" aria-controls="attendancePanel">
+					學生出席率
+				</button>
+			</h2>
+			<div id="attendancePanel" class="accordion-collapse collapse"
+					th:classappend="${activePanel == 'attendance'} ? ' show' : ''"
+					data-bs-parent="#analysisAccordion">
+				<div class="accordion-body">
+					<div class="analysis-toolbar">
+						<div class="analysis-legend">
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch present"></span>出席
+							</span>
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch late"></span>遲到
+							</span>
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch absent"></span>缺席（含請假）
+							</span>
+							<div class="analysis-sort-control">
+								<span class="text-secondary small">依出席率排序</span>
+								<button type="button" id="analysisAttendanceSortButton" class="analysis-sort-button active"
+										data-sort-key="present" data-sort-direction="desc"
+										aria-label="以出席率由高至低排序">↓</button>
+							</div>
+						</div>
+						<div class="analysis-header-actions">
+							<div class="analysis-month-switch" th:if="${attendanceRange == 'month'}">
+								<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
+										th:href="@{/analysis(attendanceRange='month',year=${previousAttendanceMonth.year},month=${previousAttendanceMonth.monthValue},homeworkRange=${homeworkRange},homeworkYear=${homeworkYear},homeworkMonth=${homeworkMonth},activePanel='attendance')}">‹</a>
+								<span class="h5 mb-0" th:text="${attendanceMonthLabel}">2026/07</span>
+								<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
+										th:href="@{/analysis(attendanceRange='month',year=${nextAttendanceMonth.year},month=${nextAttendanceMonth.monthValue},homeworkRange=${homeworkRange},homeworkYear=${homeworkYear},homeworkMonth=${homeworkMonth},activePanel='attendance')}">›</a>
+							</div>
+							<form id="analysisAttendanceFilterForm" th:action="@{/analysis}" method="get" class="analysis-header-tools">
+								<input type="hidden" name="year" th:value="${attendanceYear}">
+								<input type="hidden" name="month" th:value="${attendanceMonth}">
+								<input type="hidden" name="homeworkRange" th:value="${homeworkRange}">
+								<input type="hidden" name="homeworkYear" th:value="${homeworkYear}">
+								<input type="hidden" name="homeworkMonth" th:value="${homeworkMonth}">
+								<input type="hidden" name="activePanel" value="attendance">
+								<select id="analysisAttendanceRange" name="attendanceRange" class="form-select form-select-sm">
+									<option value="month" th:selected="${attendanceRange == 'month'}">當月</option>
+									<option value="all" th:selected="${attendanceRange == 'all'}">全部</option>
+								</select>
+							</form>
+							<form th:action="@{/analysis/attendance/export}" method="post">
+								<input type="hidden" name="attendanceRange" th:value="${attendanceRange}">
+								<input type="hidden" name="attendanceYear" th:value="${attendanceYear}">
+								<input type="hidden" name="attendanceMonth" th:value="${attendanceMonth}">
+								<input type="hidden" name="homeworkRange" th:value="${homeworkRange}">
+								<input type="hidden" name="homeworkYear" th:value="${homeworkYear}">
+								<input type="hidden" name="homeworkMonth" th:value="${homeworkMonth}">
+								<input type="hidden" name="activePanel" value="attendance">
+								<button type="submit" class="btn btn-sm btn-outline-secondary analysis-export-button">匯出</button>
+							</form>
+						</div>
+					</div>
+					<div th:if="${#lists.isEmpty(monthlyStudentAttendanceRates)}" class="analysis-empty">
+						本月目前尚無學生出席資料
+					</div>
+					<div th:unless="${#lists.isEmpty(monthlyStudentAttendanceRates)}" class="analysis-attendance-list" id="analysisAttendanceList">
+						<button th:each="rate : ${monthlyStudentAttendanceRates}" type="button" class="analysis-attendance-item"
+								data-bs-toggle="modal" data-bs-target="#attendanceDetailModal"
+								th:attr="data-student-id=${rate.studentId()},data-student-name=${rate.studentName()},data-present-rate=${rate.presentRate()},data-late-rate=${rate.lateRate()},data-absent-rate=${rate.absentRate()}">
+							<div class="analysis-attendance-row">
+								<div>
+									<div class="analysis-attendance-bar">
+										<div th:if="${rate.presentRate() > 0}" class="analysis-attendance-segment present"
+												th:style="|width:${rate.presentRate()}%;|"
+												th:title="|出席 ${#numbers.formatDecimal(rate.presentRate(), 1, 1)}%|"
+												th:text="${rate.presentRate() >= 12 ? #numbers.formatDecimal(rate.presentRate(), 1, 1) + '%' : ''}">
+											70.0%
+										</div>
+										<div th:if="${rate.lateRate() > 0}" class="analysis-attendance-segment late"
+												th:style="|width:${rate.lateRate()}%;|"
+												th:title="|遲到 ${#numbers.formatDecimal(rate.lateRate(), 1, 1)}%|"
+												th:text="${rate.lateRate() >= 12 ? #numbers.formatDecimal(rate.lateRate(), 1, 1) + '%' : ''}">
+											20.0%
+										</div>
+										<div th:if="${rate.absentRate() > 0}" class="analysis-attendance-segment absent"
+												th:style="|width:${rate.absentRate()}%;|"
+												th:title="|缺席（含請假） ${#numbers.formatDecimal(rate.absentRate(), 1, 1)}%|"
+												th:text="${rate.absentRate() >= 12 ? #numbers.formatDecimal(rate.absentRate(), 1, 1) + '%' : ''}">
+											10.0%
+										</div>
+									</div>
+								</div>
+								<div class="analysis-attendance-name">
+									<span th:text="${rate.studentName()}">學生姓名</span>
+								</div>
+							</div>
+						</button>
+						<div class="d-none">
+							<template th:each="rate : ${monthlyStudentAttendanceRates}"
+									th:id="|attendanceDetailRows_${rate.studentId()}|">
+								<tr th:if="${#lists.isEmpty(attendanceDetailsByStudentId[rate.studentId()])}">
+									<td colspan="5" class="text-center text-secondary py-4">目前沒有出席資料</td>
+								</tr>
+								<tr th:each="detail : ${attendanceDetailsByStudentId[rate.studentId()]}">
+									<td th:text="${#temporals.format(detail.attendanceDate(), 'yyyy/MM/dd')}">2026/07/02</td>
+									<td th:text="${detail.className()}">國文班</td>
+									<td th:text="${detail.classTime()}">18:00-20:00</td>
+									<td>
+										<span class="badge"
+												th:classappend="| ${detail.statusBadgeClass()}|"
+												th:text="${detail.statusLabel()}">出席</span>
+									</td>
+									<td th:text="${detail.note()}">-</td>
+								</tr>
+							</template>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="accordion-item border rounded mb-3 overflow-hidden">
+			<h2 class="accordion-header">
+				<button class="accordion-button" th:classappend="${activePanel != 'homework'} ? ' collapsed' : ''"
+						type="button" data-bs-toggle="collapse"
+						data-bs-target="#homeworkPanel" aria-expanded="false" aria-controls="homeworkPanel">
+					作業完成率
+				</button>
+			</h2>
+			<div id="homeworkPanel" class="accordion-collapse collapse"
+					th:classappend="${activePanel == 'homework'} ? ' show' : ''"
+					data-bs-parent="#analysisAccordion">
+				<div class="accordion-body">
+					<div class="analysis-toolbar">
+						<div class="analysis-legend">
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch homework-submitted"></span>已繳交
+							</span>
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch homework-late"></span>逾期補交
+							</span>
+							<span class="analysis-legend-item">
+								<span class="analysis-legend-swatch homework-not-submitted"></span>未繳交
+							</span>
+							<div class="analysis-sort-control">
+								<span class="text-secondary small">依完成率排行</span>
+								<button type="button" id="analysisHomeworkSortButton" class="analysis-sort-button active"
+										data-sort-direction="desc"
+										aria-label="以完成率由高至低排序">↓</button>
+							</div>
+						</div>
+						<div class="analysis-header-actions">
+							<div class="analysis-month-switch" th:if="${homeworkRange == 'month'}">
+								<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
+										th:href="@{/analysis(attendanceRange=${attendanceRange},year=${attendanceYear},month=${attendanceMonth},homeworkRange='month',homeworkYear=${previousHomeworkMonth.year},homeworkMonth=${previousHomeworkMonth.monthValue},activePanel='homework')}">‹</a>
+								<span class="h5 mb-0" th:text="${homeworkMonthLabel}">2026/07</span>
+								<a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center"
+										th:href="@{/analysis(attendanceRange=${attendanceRange},year=${attendanceYear},month=${attendanceMonth},homeworkRange='month',homeworkYear=${nextHomeworkMonth.year},homeworkMonth=${nextHomeworkMonth.monthValue},activePanel='homework')}">›</a>
+							</div>
+							<form id="analysisHomeworkFilterForm" th:action="@{/analysis}" method="get" class="analysis-header-tools">
+								<input type="hidden" name="attendanceRange" th:value="${attendanceRange}">
+								<input type="hidden" name="year" th:value="${attendanceYear}">
+								<input type="hidden" name="month" th:value="${attendanceMonth}">
+								<input type="hidden" name="homeworkYear" th:value="${homeworkYear}">
+								<input type="hidden" name="homeworkMonth" th:value="${homeworkMonth}">
+								<input type="hidden" name="activePanel" value="homework">
+								<select id="analysisHomeworkRange" name="homeworkRange" class="form-select form-select-sm">
+									<option value="month" th:selected="${homeworkRange == 'month'}">當月</option>
+									<option value="all" th:selected="${homeworkRange == 'all'}">全部</option>
+								</select>
+							</form>
+							<form th:action="@{/analysis/homework/export}" method="post">
+								<input type="hidden" name="attendanceRange" th:value="${attendanceRange}">
+								<input type="hidden" name="attendanceYear" th:value="${attendanceYear}">
+								<input type="hidden" name="attendanceMonth" th:value="${attendanceMonth}">
+								<input type="hidden" name="homeworkRange" th:value="${homeworkRange}">
+								<input type="hidden" name="homeworkYear" th:value="${homeworkYear}">
+								<input type="hidden" name="homeworkMonth" th:value="${homeworkMonth}">
+								<input type="hidden" name="activePanel" value="homework">
+								<button type="submit" class="btn btn-sm btn-outline-secondary analysis-export-button">匯出</button>
+							</form>
+						</div>
+					</div>
+					<div th:if="${#lists.isEmpty(studentHomeworkStatusRates)}" class="analysis-empty">
+						目前尚無學生作業資料
+					</div>
+					<div th:unless="${#lists.isEmpty(studentHomeworkStatusRates)}" class="analysis-attendance-list" id="analysisHomeworkList">
+						<div th:each="rate : ${studentHomeworkStatusRates}" class="analysis-attendance-item"
+								th:attr="data-submitted-rate=${rate.submittedRate()},data-not-submitted-rate=${rate.notSubmittedRate()},data-student-name=${rate.studentName()}">
+							<div class="analysis-attendance-row">
+								<div>
+									<div class="analysis-attendance-bar">
+										<div th:if="${rate.submittedRate() > 0}" class="analysis-attendance-segment homework-submitted"
+												th:style="|width:${rate.submittedRate()}%;|"
+												th:title="|已繳交 ${#numbers.formatDecimal(rate.submittedRate(), 1, 1)}%|"
+												th:text="${rate.submittedRate() >= 12 ? #numbers.formatDecimal(rate.submittedRate(), 1, 1) + '%' : ''}">
+											70.0%
+										</div>
+										<div th:if="${rate.lateRate() > 0}" class="analysis-attendance-segment homework-late"
+												th:style="|width:${rate.lateRate()}%;|"
+												th:title="|逾期補交 ${#numbers.formatDecimal(rate.lateRate(), 1, 1)}%|"
+												th:text="${rate.lateRate() >= 12 ? #numbers.formatDecimal(rate.lateRate(), 1, 1) + '%' : ''}">
+											20.0%
+										</div>
+										<div th:if="${rate.notSubmittedRate() > 0}" class="analysis-attendance-segment homework-not-submitted"
+												th:style="|width:${rate.notSubmittedRate()}%;|"
+												th:title="|未繳交 ${#numbers.formatDecimal(rate.notSubmittedRate(), 1, 1)}%|"
+												th:text="${rate.notSubmittedRate() >= 12 ? #numbers.formatDecimal(rate.notSubmittedRate(), 1, 1) + '%' : ''}">
+											10.0%
+										</div>
+									</div>
+								</div>
+								<div class="analysis-attendance-name">
+									<span th:text="${rate.studentName()}">學生姓名</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<section class="accordion-item border rounded overflow-hidden">
+			<h2 class="accordion-header">
+				<button class="accordion-button" th:classappend="${activePanel != 'exam'} ? ' collapsed' : ''" type="button" data-bs-toggle="collapse"
+						data-bs-target="#examPanel" aria-expanded="false" aria-controls="examPanel">
+					測驗成績
+				</button>
+			</h2>
+			<div id="examPanel" class="accordion-collapse collapse"
+					th:classappend="${activePanel == 'exam'} ? ' show' : ''"
+					data-bs-parent="#analysisAccordion">
+				<div class="accordion-body">
+					<div th:if="${#lists.isEmpty(scoredExams)}" class="analysis-empty mb-3">
+						目前尚無可繪製折線圖的計分測驗資料
+					</div>
+					<div th:unless="${#lists.isEmpty(scoredExams)}" class="analysis-chart-card">
+						<div class="analysis-chart-toolbar">
+							<div class="analysis-chart-filter">
+								<label for="analysisExamDisplayType" class="form-label mb-0 text-secondary small">顯示類別</label>
+								<select id="analysisExamDisplayType" class="form-select form-select-sm">
+									<option value="all" selected>全部</option>
+									<option value="class">依班級</option>
+									<option value="subject">依科目</option>
+									<option value="grade">依年級</option>
+									<option value="student">依學生</option>
+								</select>
+							</div>
+							<div class="analysis-chart-filter" id="analysisExamFilterWrap" hidden>
+								<label for="analysisExamFilterValue" id="analysisExamFilterLabel" class="form-label mb-0 text-secondary small">選擇</label>
+								<select id="analysisExamFilterValue" class="form-select form-select-sm"></select>
+							</div>
+						</div>
+						<div id="analysisScoreTrendEmpty" class="analysis-empty mb-3 d-none">
+							目前篩選條件下尚無可顯示的測驗成績資料
+						</div>
+						<div class="analysis-chart-wrap">
+							<canvas id="analysisScoreTrendChart"></canvas>
+						</div>
+					</div>
+					<div class="table-responsive bg-white border rounded mb-3">
+						<table class="table table-hover align-middle mb-0 analysis-exam-table">
+							<colgroup>
+								<col style="width: 16%;">
+								<col style="width: 24%;">
+								<col style="width: 16%;">
+								<col style="width: 11%;">
+								<col style="width: 11%;">
+								<col style="width: 11%;">
+								<col style="width: 11%;">
+							</colgroup>
+							<thead class="table-light">
+							<tr>
+								<th>測驗日期</th>
+								<th>測驗名稱</th>
+								<th>班級</th>
+								<th>平均</th>
+								<th>最高</th>
+								<th>最低</th>
+								<th>缺考</th>
+							</tr>
+							</thead>
+							<tbody id="analysisScoredExamTableBody">
+							<tr id="analysisScoredExamEmptyRow" th:if="${#lists.isEmpty(scoredExams)}">
+								<td colspan="7" class="text-center text-secondary py-4">目前尚無測驗資料</td>
+							</tr>
+							<tr th:each="exam : ${scoredExams}"
+									th:attr="data-exam-id=${exam.id},data-class-room-id=${exam.classRoom.id},data-subject-id=${exam.subject.id}">
+								<td th:text="${#temporals.format(exam.examDate, 'yyyy/MM/dd')}">2026/07/01</td>
+								<td><a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">測驗</a></td>
+								<td th:text="${exam.classRoom.displayName}">班級</td>
+								<td th:text="${scoreStatsByExam[exam.id].average == null ? '-' : #numbers.formatDecimal(scoreStatsByExam[exam.id].average, 1, 1)}">-</td>
+								<td th:text="${scoreStatsByExam[exam.id].highest ?: '-'}">-</td>
+								<td th:text="${scoreStatsByExam[exam.id].lowest ?: '-'}">-</td>
+								<td th:text="${scoreStatsByExam[exam.id].absentCount}">0</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<div class="table-responsive bg-white border rounded">
+						<table class="table table-hover align-middle mb-0 analysis-exam-table">
+							<colgroup>
+								<col style="width: 16%;">
+								<col style="width: 24%;">
+								<col style="width: 16%;">
+								<col style="width: 14.67%;">
+								<col style="width: 14.67%;">
+								<col style="width: 14.66%;">
+							</colgroup>
+							<thead class="table-light">
+							<tr>
+								<th>練習日期</th>
+								<th>練習名稱</th>
+								<th>班級</th>
+								<th>完成</th>
+								<th>總人數</th>
+								<th>完成率</th>
+							</tr>
+							</thead>
+							<tbody id="analysisPracticeExamTableBody">
+							<tr id="analysisPracticeExamEmptyRow" th:if="${#lists.isEmpty(practiceExams)}">
+								<td colspan="6" class="text-center text-secondary py-4">目前尚無練習資料</td>
+							</tr>
+							<tr th:each="exam : ${practiceExams}"
+									th:attr="data-exam-id=${exam.id},data-class-room-id=${exam.classRoom.id},data-subject-id=${exam.subject.id}">
+								<td th:text="${#temporals.format(exam.examDate, 'yyyy/MM/dd')}">2026/07/01</td>
+								<td><a th:href="@{/exams/{id}(id=${exam.id})}" th:text="${exam.name}">課堂練習</a></td>
+								<td th:text="${exam.classRoom.displayName}">班級</td>
+								<td th:text="${scoreStatsByExam[exam.id].completedCount}">0</td>
+								<td th:text="${scoreStatsByExam[exam.id].totalCount}">0</td>
+								<td th:text="${scoreStatsByExam[exam.id].totalCount == 0 ? '-' : #numbers.formatDecimal(scoreStatsByExam[exam.id].completedCount * 100.0 / scoreStatsByExam[exam.id].totalCount, 1, 1) + '%'}">-</td>
+							</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+</main>
+
+<div class="modal fade" id="attendanceDetailModal" tabindex="-1" aria-labelledby="attendanceDetailModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-scrollable">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h2 class="modal-title fs-5" id="attendanceDetailModalLabel">學生姓名</h2>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+			</div>
+			<div class="modal-body">
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover align-middle mb-0">
+						<thead class="table-light">
+						<tr>
+							<th>日期</th>
+							<th>課程</th>
+							<th>上課時間</th>
+							<th>出席狀況</th>
+							<th>備注</th>
+						</tr>
+						</thead>
+						<tbody id="attendanceDetailModalBody">
+						<tr>
+							<td colspan="5" class="text-center text-secondary py-4">請選擇學生</td>
+						</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script th:inline="javascript">
+	(() => {
+		function initSortList({ listId, buttonId, valueKey, tieKey, label }) {
+			const list = document.getElementById(listId);
+			const button = document.getElementById(buttonId);
+			if (!list || !button) {
+				return;
+			}
+
+			function updateButton() {
+				const direction = button.dataset.sortDirection === 'asc' ? 'asc' : 'desc';
+				button.textContent = direction === 'asc' ? '↑' : '↓';
+				button.setAttribute('aria-label', `以${label}${direction === 'asc' ? '由低至高' : '由高至低'}排序`);
+			}
+
+			function sortItems(direction) {
+				const items = Array.from(list.querySelectorAll('.analysis-attendance-item'));
+				items.sort((left, right) => {
+					const leftValue = Number(left.dataset[valueKey]);
+					const rightValue = Number(right.dataset[valueKey]);
+					if (leftValue !== rightValue) {
+						return direction === 'asc' ? leftValue - rightValue : rightValue - leftValue;
+					}
+					const leftTie = Number(left.dataset[tieKey]);
+					const rightTie = Number(right.dataset[tieKey]);
+					if (leftTie !== rightTie) {
+						return direction === 'asc' ? rightTie - leftTie : leftTie - rightTie;
+					}
+					return left.dataset.studentName.localeCompare(right.dataset.studentName, 'zh-Hant');
+				});
+				items.forEach((item) => list.appendChild(item));
+			}
+
+			button.addEventListener('click', () => {
+				const nextDirection = button.dataset.sortDirection === 'desc' ? 'asc' : 'desc';
+				button.dataset.sortDirection = nextDirection;
+				sortItems(nextDirection);
+				updateButton();
+			});
+
+			updateButton();
+		}
+
+		initSortList({
+			listId: 'analysisAttendanceList',
+			buttonId: 'analysisAttendanceSortButton',
+			valueKey: 'presentRate',
+			tieKey: 'absentRate',
+			label: '出席率'
+		});
+
+		initSortList({
+			listId: 'analysisHomeworkList',
+			buttonId: 'analysisHomeworkSortButton',
+			valueKey: 'submittedRate',
+			tieKey: 'notSubmittedRate',
+			label: '完成率'
+		});
+
+		document.getElementById('analysisAttendanceRange')?.addEventListener('change', () => {
+			document.getElementById('analysisAttendanceFilterForm')?.submit();
+		});
+		document.getElementById('analysisHomeworkRange')?.addEventListener('change', () => {
+			document.getElementById('analysisHomeworkFilterForm')?.submit();
+		});
+
+		const attendanceDetailModal = document.getElementById('attendanceDetailModal');
+		const attendanceDetailModalLabel = document.getElementById('attendanceDetailModalLabel');
+		const attendanceDetailModalBody = document.getElementById('attendanceDetailModalBody');
+		attendanceDetailModal?.addEventListener('show.bs.modal', (event) => {
+			const trigger = event.relatedTarget;
+			const studentId = trigger?.dataset.studentId;
+			const studentName = trigger?.dataset.studentName ?? '學生';
+			attendanceDetailModalLabel.textContent = studentName;
+			const source = studentId ? document.getElementById(`attendanceDetailRows_${studentId}`) : null;
+			attendanceDetailModalBody.innerHTML = source?.innerHTML
+				|| '<tr><td colspan="5" class="text-center text-secondary py-4">目前沒有出席資料</td></tr>';
+		});
+
+		const scoreTrendCanvas = document.getElementById('analysisScoreTrendChart');
+		if (scoreTrendCanvas && typeof Chart !== 'undefined') {
+			const scoreTrendEmpty = document.getElementById('analysisScoreTrendEmpty');
+			const displayTypeSelect = document.getElementById('analysisExamDisplayType');
+			const filterWrap = document.getElementById('analysisExamFilterWrap');
+			const filterLabel = document.getElementById('analysisExamFilterLabel');
+			const filterValueSelect = document.getElementById('analysisExamFilterValue');
+			const scoredExamRows = Array.from(document.querySelectorAll('#analysisScoredExamTableBody tr[data-exam-id]'));
+			const practiceExamRows = Array.from(document.querySelectorAll('#analysisPracticeExamTableBody tr[data-exam-id]'));
+			const scoredExamEmptyRow = document.getElementById('analysisScoredExamEmptyRow');
+			const practiceExamEmptyRow = document.getElementById('analysisPracticeExamEmptyRow');
+			const scoredExamParticipantMeta = /*[[${scoredExamParticipantMeta}]]*/ [];
+			const practiceExamParticipantMeta = /*[[${practiceExamParticipantMeta}]]*/ [];
+			const scoredExamParticipantMap = new Map(scoredExamParticipantMeta.map((meta) => [String(meta.examId), meta]));
+			const practiceExamParticipantMap = new Map(practiceExamParticipantMeta.map((meta) => [String(meta.examId), meta]));
+			const examMeta = /*[[${scoredExams.![{'id': id, 'label': #temporals.format(examDate, 'MM/dd') + ' ' + name, 'classRoomId': classRoom.id, 'classRoomName': classRoom.displayName, 'subjectId': subject.id, 'subjectName': subject.name, 'examDate': #temporals.format(examDate, 'yyyy/MM/dd')}]}]]*/ [];
+			const datasets = /*[[${studentScoreTrends.![{'studentId': studentId(), 'label': studentName(), 'grade': grade(), 'data': scores(), 'displayScores': displayScores(), 'comments': comments()}]}]]*/ [];
+			const classOptions = Array.from(new Map(examMeta
+				.filter((exam) => exam.classRoomId != null)
+				.map((exam) => [String(exam.classRoomId), { value: String(exam.classRoomId), label: exam.classRoomName }])).values());
+			const subjectOptions = Array.from(new Map(examMeta
+				.filter((exam) => exam.subjectId != null)
+				.map((exam) => [String(exam.subjectId), { value: String(exam.subjectId), label: exam.subjectName }])).values());
+			const gradeOptions = Array.from(new Map(datasets
+				.filter((dataset) => dataset.grade)
+				.map((dataset) => [dataset.grade, { value: dataset.grade, label: dataset.grade }])).values());
+			const studentOptions = datasets.map((dataset) => ({
+				value: String(dataset.studentId),
+				label: dataset.grade ? `${dataset.label}（${dataset.grade}）` : dataset.label
+			}));
+			const optionConfig = {
+				class: { label: '班級', options: classOptions },
+				subject: { label: '科目', options: subjectOptions },
+				grade: { label: '年級', options: gradeOptions },
+				student: { label: '學生', options: studentOptions }
+			};
+			const lastSelectedFilters = {
+				class: classOptions[0]?.value ?? '',
+				subject: subjectOptions[0]?.value ?? '',
+				grade: gradeOptions[0]?.value ?? '',
+				student: studentOptions[0]?.value ?? ''
+			};
+
+			const palette = ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#20c997', '#d63384', '#6610f2', '#0dcaf0', '#6c757d'];
+			datasets.forEach((dataset, index) => {
+				const color = palette[index % palette.length];
+				dataset.borderColor = color;
+				dataset.backgroundColor = color;
+				dataset.tension = 0.25;
+				dataset.pointRadius = 4;
+				dataset.pointHoverRadius = 6;
+				dataset.borderWidth = 2;
+				dataset.spanGaps = true;
+			});
+
+			const scoreTrendChart = new Chart(scoreTrendCanvas, {
+				type: 'line',
+				data: { labels: [], datasets: [] },
+				options: {
+					maintainAspectRatio: false,
+					interaction: {
+						mode: 'nearest',
+						intersect: false
+					},
+					plugins: {
+						legend: {
+							position: 'bottom'
+						},
+						tooltip: {
+							callbacks: {
+								label(context) {
+									const displayScore = context.dataset.displayScores?.[context.dataIndex];
+									const comment = context.dataset.comments?.[context.dataIndex]?.trim();
+									return comment
+										? `${context.dataset.label}：${displayScore ?? '-'}（${comment}）`
+										: `${context.dataset.label}：${displayScore ?? '-'}`;
+								}
+							}
+						}
+					},
+					scales: {
+						x: {
+							offset: true
+						},
+						y: {
+							beginAtZero: true,
+							ticks: {
+								precision: 0
+							},
+							title: {
+								display: true,
+								text: '分數'
+							}
+					}
+					}
+				}
+			});
+
+			function setFilterOptions(type) {
+				if (type === 'all') {
+					filterWrap.hidden = true;
+					filterValueSelect.innerHTML = '';
+					return;
+				}
+
+				const config = optionConfig[type];
+				filterLabel.textContent = config.label;
+				filterWrap.hidden = false;
+				filterValueSelect.innerHTML = config.options
+					.map((option) => `<option value="${option.value}">${option.label}</option>`)
+					.join('');
+
+				if (!config.options.some((option) => option.value === lastSelectedFilters[type])) {
+					lastSelectedFilters[type] = config.options[0]?.value ?? '';
+				}
+				filterValueSelect.value = lastSelectedFilters[type];
+			}
+
+			function buildFilteredChartData() {
+				const displayType = displayTypeSelect?.value ?? 'all';
+				const selectedValue = filterValueSelect?.value ?? '';
+				let filteredExamIndexes = examMeta.map((_, index) => index);
+				let filteredDatasets = datasets;
+
+				if (displayType === 'class' && selectedValue) {
+					filteredExamIndexes = filteredExamIndexes.filter((index) => String(examMeta[index].classRoomId) === selectedValue);
+				}
+				if (displayType === 'subject' && selectedValue) {
+					filteredExamIndexes = filteredExamIndexes.filter((index) => String(examMeta[index].subjectId) === selectedValue);
+				}
+				if (displayType === 'grade' && selectedValue) {
+					filteredDatasets = datasets.filter((dataset) => dataset.grade === selectedValue);
+				}
+				if (displayType === 'student' && selectedValue) {
+					filteredDatasets = datasets.filter((dataset) => String(dataset.studentId) === selectedValue);
+				}
+
+				filteredExamIndexes = filteredExamIndexes.filter((examIndex) =>
+					filteredDatasets.some((dataset) => dataset.data?.[examIndex] != null));
+
+				const labels = filteredExamIndexes.map((examIndex) => examMeta[examIndex].label);
+				const chartDatasets = filteredDatasets
+					.map((dataset) => ({
+						...dataset,
+						data: filteredExamIndexes.map((examIndex) => dataset.data?.[examIndex] ?? null),
+						displayScores: filteredExamIndexes.map((examIndex) => dataset.displayScores?.[examIndex] ?? null),
+						comments: filteredExamIndexes.map((examIndex) => dataset.comments?.[examIndex] ?? null)
+					}))
+					.filter((dataset) => dataset.data.some((value) => value != null));
+
+				return {
+					labels,
+					datasets: chartDatasets,
+					examIds: filteredExamIndexes.map((examIndex) => String(examMeta[examIndex].id))
+				};
+			}
+
+			function matchesParticipantFilter(metaMap, examId, displayType, selectedValue) {
+				const meta = metaMap.get(String(examId));
+				if (!meta) {
+					return false;
+				}
+				if (displayType === 'grade') {
+					return (meta.grades ?? []).includes(selectedValue);
+				}
+				if (displayType === 'student') {
+					return (meta.studentIds ?? []).map(String).includes(selectedValue);
+				}
+				return true;
+			}
+
+			function updateExamTableRows(rows, emptyRow, metaMap, visibleScoredExamIds) {
+				const displayType = displayTypeSelect?.value ?? 'all';
+				const selectedValue = filterValueSelect?.value ?? '';
+				let visibleCount = 0;
+
+				rows.forEach((row) => {
+					const examId = row.dataset.examId;
+					let visible = true;
+					if (displayType === 'class' && selectedValue) {
+						visible = row.dataset.classRoomId === selectedValue;
+					} else if (displayType === 'subject' && selectedValue) {
+						visible = row.dataset.subjectId === selectedValue;
+					} else if ((displayType === 'grade' || displayType === 'student') && selectedValue) {
+						visible = matchesParticipantFilter(metaMap, examId, displayType, selectedValue);
+					}
+					if (visibleScoredExamIds && visible && !visibleScoredExamIds.has(String(examId))) {
+						visible = false;
+					}
+					row.classList.toggle('d-none', !visible);
+					if (visible) {
+						visibleCount += 1;
+					}
+				});
+
+				if (emptyRow) {
+					emptyRow.classList.toggle('d-none', visibleCount > 0);
+				}
+			}
+
+			function renderFilteredChart() {
+				const filtered = buildFilteredChartData();
+				scoreTrendChart.data.labels = filtered.labels;
+				scoreTrendChart.data.datasets = filtered.datasets;
+				scoreTrendChart.update();
+
+				const hasData = filtered.labels.length > 0 && filtered.datasets.length > 0;
+				scoreTrendCanvas.parentElement?.classList.toggle('d-none', !hasData);
+				scoreTrendEmpty?.classList.toggle('d-none', hasData);
+				const visibleScoredExamIds = new Set(filtered.examIds);
+				updateExamTableRows(scoredExamRows, scoredExamEmptyRow, scoredExamParticipantMap, visibleScoredExamIds);
+				updateExamTableRows(practiceExamRows, practiceExamEmptyRow, practiceExamParticipantMap);
+			}
+
+			displayTypeSelect?.addEventListener('change', () => {
+				const displayType = displayTypeSelect.value;
+				setFilterOptions(displayType);
+				renderFilteredChart();
+			});
+
+			filterValueSelect?.addEventListener('change', () => {
+				const displayType = displayTypeSelect?.value;
+				if (displayType && displayType !== 'all') {
+					lastSelectedFilters[displayType] = filterValueSelect.value;
+				}
+				renderFilteredChart();
+			});
+
+			setFilterOptions(displayTypeSelect?.value ?? 'all');
+			renderFilteredChart();
+		}
+	})();
+</script>
+</body>
+</html>

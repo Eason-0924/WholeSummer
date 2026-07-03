@@ -169,6 +169,24 @@
 		.shortcut-edit-button:hover {
 			background: var(--bs-light);
 		}
+		#shortcutEditorModal .modal-content {
+			max-height: calc(100vh - 3.5rem);
+		}
+		.shortcut-editor-form {
+			display: flex;
+			flex-direction: column;
+			max-height: inherit;
+			min-height: 0;
+		}
+		.shortcut-editor-form .modal-header,
+		.shortcut-editor-form .modal-footer {
+			flex: 0 0 auto;
+		}
+		.shortcut-editor-form .modal-body {
+			flex: 1 1 auto;
+			min-height: 0;
+			overflow-y: auto;
+		}
 		@media (min-width: 768px) {
 			.workbench-grid {
 				grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -183,6 +201,14 @@
 			}
 			.shortcut-preview-grid {
 				grid-template-columns: repeat(4, minmax(0, 1fr));
+			}
+		}
+		@media (max-width: 575.98px) {
+			#shortcutEditorModal .modal-content {
+				max-height: 100vh;
+			}
+			#shortcutEditorModal .modal-footer {
+				gap: 0.5rem;
 			}
 		}
 	</style>
@@ -364,7 +390,7 @@
 	<div class="modal fade" id="shortcutEditorModal" tabindex="-1" aria-hidden="true">
 		<div class="modal-dialog modal-lg modal-dialog-scrollable">
 			<div class="modal-content">
-				<form th:action="@{/home/shortcuts}" method="post" id="shortcutForm">
+				<form th:action="@{/home/shortcuts}" method="post" id="shortcutForm" class="shortcut-editor-form">
 					<div class="modal-header">
 						<h2 class="modal-title fs-5">編輯快捷欄</h2>
 						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>

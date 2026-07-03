@@ -1,5 +1,6 @@
 package com.example.cramschool.repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,6 +86,15 @@ public interface MakeUpClassRequestRepository extends JpaRepository<MakeUpClassR
 			Long teacherId,
 			MakeUpSourceType sourceType,
 			Long sourceRecordId);
+
+	Optional<MakeUpClassRequest> findBySourceTypeAndSourceRecordId(
+			MakeUpSourceType sourceType,
+			Long sourceRecordId);
+
+	List<MakeUpClassRequest> findByOriginalCourseScheduleIdAndOriginalCourseDateAndStatusIn(
+			Long originalCourseScheduleId,
+			LocalDate originalCourseDate,
+			List<MakeUpStatus> statuses);
 
 	@Transactional
 	void deleteByTeacherId(Long teacherId);

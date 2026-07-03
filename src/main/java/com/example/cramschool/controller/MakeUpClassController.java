@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import com.example.cramschool.dto.DirectRescheduleView;
 import com.example.cramschool.dto.MakeUpCalendarDate;
 import com.example.cramschool.dto.MakeUpRequestView;
 import com.example.cramschool.dto.MakeUpSlotOption;
@@ -44,6 +45,7 @@ public class MakeUpClassController {
 		model.addAttribute("makeUpDirectorView", director);
 		model.addAttribute("makeUpRequests", makeUpClassService.findPendingRequests(teacherId, director));
 		model.addAttribute("scheduledMakeUpRequests", makeUpClassService.findScheduledRequests(teacherId, director));
+		model.addAttribute("makeUpRecords", makeUpClassService.findScheduledRecords(teacherId, director));
 		return "make-up/index";
 	}
 
@@ -93,6 +95,33 @@ public class MakeUpClassController {
 		Long teacherId = currentUserService.currentTeacherId(session);
 		boolean director = currentUserService.isDirector(session);
 		return makeUpClassService.findSlotOptions(requestId, date, teacherId, director);
+	}
+
+	@GetMapping("/reschedules/{scheduleId}/edit")
+	public String editDirectReschedule(@PathVariable Long scheduleId, HttpSession session, Model model,
+			RedirectAttributes redirectAttributes) {
+		Long teacherId = currentUserService.currentTeacherId(session);
+		boolean director = currentUserService.isDirector(session);
+		try {
+			DirectRescheduleView view = makeUpClassService.findDirectRescheduleView(scheduleId, teacherId, director);
+			model.addAttribute("pageTitle", "重新設定調課時間");
+			model.addAttribute("makeUpDirectorView", director);
+			model.addAttribute("view", view);
+			return "make-up/reschedule-detail";
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+			return "redirect:/make-up";
+		}
+	}
+
+	@GetMapping("/reschedules/{scheduleId}/slots")
+	@ResponseBody
+	public List<MakeUpSlotOption> directRescheduleSlots(@PathVariable Long scheduleId,
+			@RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date,
+			HttpSession session) {
+		Long teacherId = currentUserService.currentTeacherId(session);
+		boolean director = currentUserService.isDirector(session);
+		return makeUpClassService.findDirectRescheduleSlotOptions(scheduleId, date, teacherId, director);
 	}
 
 	@PostMapping("/{requestId}/schedule")
@@ -161,11 +190,53 @@ public class MakeUpClassController {
 		return "redirect:/make-up";
 	}
 
+	@PostMapping("/reschedules/{scheduleId}/update")
+	public String updateDirectReschedule(@PathVariable Long scheduleId,
+			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime newStart,
+			@RequestParam(required = false) String reason,
+			@RequestParam(defaultValue = "false") boolean allowTeacherConflict,
+			HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		Long teacherId = currentUserService.currentTeacherId(session);
+		boolean director = currentUserService.isDirector(session);
+		try {
+			makeUpClassService.updateDirectReschedule(
+					scheduleId, newStart, reason, teacherId, director, allowTeacherConflict);
+			redirectAttributes.addFlashAttribute("message", "已更新調課紀錄");
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+			return "redirect:/make-up/reschedules/" + scheduleId + "/edit";
+		}
+		return "redirect:/make-up";
+	}
+
+	@PostMapping("/reschedules/{scheduleId}/delete")
+	public String deleteDirectReschedule(@PathVariable Long scheduleId, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		Long teacherId = currentUserService.currentTeacherId(session);
+		boolean director = currentUserService.isDirector(session);
+		try {
+			makeUpClassService.deleteDirectReschedule(scheduleId, teacherId, director);
+			redirectAttributes.addFlashAttribute("message", "已刪除調課紀錄");
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return "redirect:/make-up";
+	}
+
 	@GetMapping("/{requestId}/calendar")
 	@ResponseBody
 	public List<MakeUpCalendarDate> calendar(@PathVariable Long requestId, HttpSession session) {
 		Long teacherId = currentUserService.currentTeacherId(session);
 		boolean director = currentUserService.isDirector(session);
 		return makeUpClassService.findCalendarDates(requestId, teacherId, director);
+	}
+
+	@GetMapping("/reschedules/{scheduleId}/calendar")
+	@ResponseBody
+	public List<MakeUpCalendarDate> directRescheduleCalendar(@PathVariable Long scheduleId, HttpSession session) {
+		Long teacherId = currentUserService.currentTeacherId(session);
+		boolean director = currentUserService.isDirector(session);
+		return makeUpClassService.findDirectRescheduleCalendarDates(scheduleId, teacherId, director);
 	}
 }

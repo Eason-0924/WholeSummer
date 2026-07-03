@@ -9,6 +9,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,12 +30,21 @@ public class TeacherAttendanceService {
 	private final TeacherAttendanceRepository teacherAttendanceRepository;
 	private final TeacherRepository teacherRepository;
 	private final TeacherScheduleService teacherScheduleService;
+	private final MakeUpClassService makeUpClassService;
 
+	@Autowired
 	public TeacherAttendanceService(TeacherAttendanceRepository teacherAttendanceRepository,
-			TeacherRepository teacherRepository, TeacherScheduleService teacherScheduleService) {
+			TeacherRepository teacherRepository, TeacherScheduleService teacherScheduleService,
+			MakeUpClassService makeUpClassService) {
 		this.teacherAttendanceRepository = teacherAttendanceRepository;
 		this.teacherRepository = teacherRepository;
 		this.teacherScheduleService = teacherScheduleService;
+		this.makeUpClassService = makeUpClassService;
+	}
+
+	TeacherAttendanceService(TeacherAttendanceRepository teacherAttendanceRepository,
+			TeacherRepository teacherRepository, TeacherScheduleService teacherScheduleService) {
+		this(teacherAttendanceRepository, teacherRepository, teacherScheduleService, null);
 	}
 
 	@Transactional(readOnly = true)
@@ -96,8 +106,12 @@ public class TeacherAttendanceService {
 		Teacher teacher = teacherRepository.findById(form.getTeacherId())
 				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
 		LocalDate date = form.getDate() == null ? LocalDate.now() : form.getDate();
-		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(form.getTeacherId(), date)
-				.orElseGet(TeacherAttendance::new);
+		Optional<TeacherAttendance> existingAttendance = teacherAttendanceRepository
+				.findByTeacherIdAndDate(form.getTeacherId(), date);
+		TeacherAttendance attendance = existingAttendance.orElseGet(TeacherAttendance::new);
+		TeacherAttendanceStatus previousStatus = existingAttendance
+				.map(TeacherAttendance::getStatus)
+				.orElse(null);
 		attendance.setTeacher(teacher);
 		attendance.setDate(date);
 		attendance.setClockInTime(form.getClockInTime());
@@ -107,15 +121,21 @@ public class TeacherAttendanceService {
 				? TeacherAttendanceStatus.WORKING
 				: form.getStatus();
 		applySchedule(attendance, requestedStatus);
-		return teacherAttendanceRepository.save(attendance);
+		TeacherAttendance savedAttendance = teacherAttendanceRepository.save(attendance);
+		reconcileAbsenceMakeUp(previousStatus, savedAttendance);
+		return savedAttendance;
 	}
 
 	public TeacherAttendance quickClock(Long currentTeacherId) {
 		Teacher teacher = teacherRepository.findById(currentTeacherId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到教師資料"));
 		LocalDate today = LocalDate.now();
-		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(currentTeacherId, today)
-				.orElseGet(TeacherAttendance::new);
+		Optional<TeacherAttendance> existingAttendance = teacherAttendanceRepository
+				.findByTeacherIdAndDate(currentTeacherId, today);
+		TeacherAttendance attendance = existingAttendance.orElseGet(TeacherAttendance::new);
+		TeacherAttendanceStatus previousStatus = existingAttendance
+				.map(TeacherAttendance::getStatus)
+				.orElse(null);
 		attendance.setTeacher(teacher);
 		attendance.setDate(today);
 		if (attendance.getClockInTime() == null) {
@@ -126,7 +146,9 @@ public class TeacherAttendanceService {
 			throw new IllegalStateException("今日已完成上下班打卡");
 		}
 		applySchedule(attendance, TeacherAttendanceStatus.WORKING);
-		return teacherAttendanceRepository.save(attendance);
+		TeacherAttendance savedAttendance = teacherAttendanceRepository.save(attendance);
+		reconcileAbsenceMakeUp(previousStatus, savedAttendance);
+		return savedAttendance;
 	}
 
 	public TeacherAttendance cardClock(Teacher teacher, String cardId, String deviceName, LocalDateTime clockAt) {
@@ -135,8 +157,12 @@ public class TeacherAttendanceService {
 		}
 		LocalDateTime targetTime = clockAt == null ? LocalDateTime.now() : clockAt;
 		LocalDate today = targetTime.toLocalDate();
-		TeacherAttendance attendance = teacherAttendanceRepository.findByTeacherIdAndDate(teacher.getId(), today)
-				.orElseGet(TeacherAttendance::new);
+		Optional<TeacherAttendance> existingAttendance = teacherAttendanceRepository
+				.findByTeacherIdAndDate(teacher.getId(), today);
+		TeacherAttendance attendance = existingAttendance.orElseGet(TeacherAttendance::new);
+		TeacherAttendanceStatus previousStatus = existingAttendance
+				.map(TeacherAttendance::getStatus)
+				.orElse(null);
 		attendance.setTeacher(teacher);
 		attendance.setDate(today);
 		if (attendance.getClockInTime() == null) {
@@ -150,7 +176,9 @@ public class TeacherAttendanceService {
 		attendance.setDeviceName(normalizeDeviceName(deviceName));
 		attendance.setCardId(cardId);
 		applySchedule(attendance, TeacherAttendanceStatus.WORKING);
-		return teacherAttendanceRepository.save(attendance);
+		TeacherAttendance savedAttendance = teacherAttendanceRepository.save(attendance);
+		reconcileAbsenceMakeUp(previousStatus, savedAttendance);
+		return savedAttendance;
 	}
 
 	public void clockIn(Long teacherId) {
@@ -310,6 +338,17 @@ public class TeacherAttendanceService {
 		attendance.setMatchedCourseId(null);
 		attendance.setMatchedCourseName(null);
 		attendance.setMatchedCourseTimeText(null);
+	}
+
+	private void reconcileAbsenceMakeUp(TeacherAttendanceStatus previousStatus, TeacherAttendance attendance) {
+		if (makeUpClassService == null || attendance == null || attendance.getId() == null) {
+			return;
+		}
+		if (previousStatus == TeacherAttendanceStatus.ABSENT
+				&& (attendance.getStatus() == TeacherAttendanceStatus.WORKING
+						|| attendance.getStatus() == TeacherAttendanceStatus.LATE)) {
+			makeUpClassService.deleteAbsenceMakeUpForAttendance(attendance.getId());
+		}
 	}
 
 	private String normalizeDeviceName(String deviceName) {

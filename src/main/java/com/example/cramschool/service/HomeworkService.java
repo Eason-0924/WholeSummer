@@ -1,6 +1,7 @@
 package com.example.cramschool.service;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,6 +20,7 @@ import com.example.cramschool.form.HomeworkForm;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.HomeworkRecordRepository;
 import com.example.cramschool.repository.HomeworkRepository;
+import com.example.cramschool.repository.StudentRepository;
 
 @Service
 @Transactional
@@ -26,6 +28,11 @@ public class HomeworkService {
 
 	public record StudentHomeworkCompletionRate(Long studentId, String studentSlug, String studentName, String grade,
 			long completedCount, long totalCount, double completionRate) {
+	}
+
+	public record StudentHomeworkStatusRate(Long studentId, String studentName, String grade,
+			double submittedRate, double lateRate, double notSubmittedRate,
+			long submittedCount, long lateCount, long notSubmittedCount, long excusedCount, long totalCount) {
 	}
 
 	public record UpcomingHomeworkSummary(Homework homework, List<HomeworkRecord> notSubmittedRecords) {
@@ -40,13 +47,16 @@ public class HomeworkService {
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final ClassRoomRepository classRoomRepository;
 	private final ClassStudentService classStudentService;
+	private final StudentRepository studentRepository;
 
 	public HomeworkService(HomeworkRepository homeworkRepository, HomeworkRecordRepository homeworkRecordRepository,
-			ClassRoomRepository classRoomRepository, ClassStudentService classStudentService) {
+			ClassRoomRepository classRoomRepository, ClassStudentService classStudentService,
+			StudentRepository studentRepository) {
 		this.homeworkRepository = homeworkRepository;
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.classRoomRepository = classRoomRepository;
 		this.classStudentService = classStudentService;
+		this.studentRepository = studentRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -126,6 +136,44 @@ public class HomeworkService {
 		}
 		return counters.values().stream()
 				.map(StudentHomeworkCounter::toRate)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<StudentHomeworkStatusRate> calculateStudentHomeworkStatusRates() {
+		return calculateStudentHomeworkStatusRates(null);
+	}
+
+	@Transactional(readOnly = true)
+	public List<StudentHomeworkStatusRate> calculateStudentHomeworkStatusRates(YearMonth month) {
+		Map<Long, StudentHomeworkStatusCounter> counters = new LinkedHashMap<>();
+		studentRepository.findByActiveTrueOrderByChineseNameAsc().forEach(student -> counters.put(student.getId(),
+				new StudentHomeworkStatusCounter(student.getId(), student.getDisplayName(), student.getGrade())));
+		for (HomeworkRecord record : homeworkRecordRepository.findAll()) {
+			if (month != null && (record.getHomework() == null || record.getHomework().getAssignedDate() == null
+					|| !YearMonth.from(record.getHomework().getAssignedDate()).equals(month))) {
+				continue;
+			}
+			StudentHomeworkStatusCounter counter = counters.computeIfAbsent(record.getStudent().getId(),
+					ignored -> new StudentHomeworkStatusCounter(record.getStudent().getId(),
+							record.getStudent().getDisplayName(), record.getStudent().getGrade()));
+			counter.add(record.getStatus());
+		}
+		return counters.values().stream()
+				.map(StudentHomeworkStatusCounter::toRate)
+				.filter(rate -> rate.totalCount() > 0)
+				.sorted(Comparator.comparingDouble(StudentHomeworkStatusRate::submittedRate).reversed()
+						.thenComparingDouble(StudentHomeworkStatusRate::notSubmittedRate)
+						.thenComparing(StudentHomeworkStatusRate::studentName, Comparator.nullsLast(String::compareTo)))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<HomeworkRecord> findAllForAnalysis(YearMonth month) {
+		return homeworkRecordRepository.findAll().stream()
+				.filter(record -> month == null || (record.getHomework() != null
+						&& record.getHomework().getAssignedDate() != null
+						&& YearMonth.from(record.getHomework().getAssignedDate()).equals(month)))
 				.toList();
 	}
 
@@ -227,6 +275,46 @@ public class HomeworkService {
 		StudentHomeworkCompletionRate toRate() {
 			double completionRate = totalCount == 0 ? 0 : completedCount * 100.0 / totalCount;
 			return new StudentHomeworkCompletionRate(studentId, studentSlug, studentName, grade, completedCount, totalCount, completionRate);
+		}
+	}
+
+	private static class StudentHomeworkStatusCounter {
+
+		private final Long studentId;
+		private final String studentName;
+		private final String grade;
+		private long submittedCount;
+		private long lateCount;
+		private long notSubmittedCount;
+		private long excusedCount;
+
+		StudentHomeworkStatusCounter(Long studentId, String studentName, String grade) {
+			this.studentId = studentId;
+			this.studentName = studentName;
+			this.grade = grade;
+		}
+
+		void add(HomeworkStatus status) {
+			if (status == null) {
+				notSubmittedCount++;
+				return;
+			}
+			switch (status) {
+				case SUBMITTED -> submittedCount++;
+				case LATE -> lateCount++;
+				case EXCUSED -> excusedCount++;
+				case NOT_SUBMITTED -> notSubmittedCount++;
+			}
+		}
+
+		StudentHomeworkStatusRate toRate() {
+			long totalCount = submittedCount + lateCount + notSubmittedCount;
+			double submittedRate = totalCount == 0 ? 0 : submittedCount * 100.0 / totalCount;
+			double lateRate = totalCount == 0 ? 0 : lateCount * 100.0 / totalCount;
+			double notSubmittedRate = totalCount == 0 ? 0 : notSubmittedCount * 100.0 / totalCount;
+			return new StudentHomeworkStatusRate(studentId, studentName, grade,
+					submittedRate, lateRate, notSubmittedRate,
+					submittedCount, lateCount, notSubmittedCount, excusedCount, totalCount);
 		}
 	}
 }

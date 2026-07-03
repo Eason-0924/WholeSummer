@@ -9,6 +9,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,7 @@ import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.MakeUpClassRequest;
+import com.example.cramschool.entity.MakeUpSourceType;
 import com.example.cramschool.entity.MakeUpStatus;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.repository.ClassRoomRepository;
@@ -129,7 +131,39 @@ public class WeeklyScheduleService {
 				.filter(request -> request.getOriginalCourseSchedule() != null
 						&& request.getOriginalCourseSchedule().getStartTime() != null
 						&& request.getOriginalCourseSchedule().getEndTime() != null)
+				.filter(this::isActualBlockedOriginalRequest)
+				.collect(Collectors.groupingBy(
+						request -> occurrenceKey(
+								request.getOriginalCourseSchedule().getId(), request.getOriginalCourseDate()),
+						java.util.LinkedHashMap::new,
+						Collectors.minBy(Comparator.comparingInt(this::blockedOriginalPriority))))
+				.values()
+				.stream()
+				.flatMap(Optional::stream)
 				.toList();
+	}
+
+	private int blockedOriginalPriority(MakeUpClassRequest request) {
+		return request.getSourceType() == MakeUpSourceType.ABSENCE ? 1 : 0;
+	}
+
+	private boolean isActualBlockedOriginalRequest(MakeUpClassRequest request) {
+		ClassSchedule schedule = request.getOriginalCourseSchedule();
+		LocalDate date = request.getOriginalCourseDate();
+		if (schedule == null || date == null) {
+			return false;
+		}
+		ScheduleType scheduleType = schedule.getScheduleType();
+		if (scheduleType == ScheduleType.CANCELLED) {
+			return false;
+		}
+		if (scheduleType == ScheduleType.MAKE_UP || scheduleType == ScheduleType.RESCHEDULED) {
+			LocalDate eventDate = schedule.getScheduledStartAt() == null
+					? schedule.getCourseDate()
+					: schedule.getScheduledStartAt().toLocalDate();
+			return date.equals(eventDate);
+		}
+		return true;
 	}
 
 	@Transactional

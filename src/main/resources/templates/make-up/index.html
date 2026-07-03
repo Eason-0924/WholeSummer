@@ -38,22 +38,24 @@
 									th:text="${request.classRoom == null ? '未指定班級' : request.classRoom.displayName}">
 								班級
 							</h3>
-							<div class="text-secondary small mb-3">
-								<div>
-									<span>原課程：</span>
-									<span th:text="${#temporals.format(request.originalCourseDate, 'yyyy/MM/dd')}">2026/06/26</span>
-									<span th:text="${request.originalCourseSchedule.timeRangeText}">18:00 ~ 20:00</span>
+							<div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-3">
+								<div class="text-secondary small flex-grow-1">
+									<div>
+										<span>原課程：</span>
+										<span th:text="${#temporals.format(request.originalCourseDate, 'yyyy/MM/dd')}">2026/06/26</span>
+										<span th:text="${request.originalCourseSchedule.timeRangeText}">18:00 ~ 20:00</span>
+									</div>
+									<div>
+										<span>教師：</span>
+										<span th:text="${request.teacher.displayName}">教師</span>
+									</div>
+									<div th:text="${'原因：' + (request.sourceType.name() == 'LEAVE' ? request.teacher.displayName + '老師請假' : (#strings.isEmpty(request.note) ? request.sourceType.displayName : request.note))}">
+										原因
+									</div>
 								</div>
-								<div>
-									<span>教師：</span>
-									<span th:text="${request.teacher.displayName}">教師</span>
-								</div>
-								<div th:text="${'原因：' + (request.sourceType.name() == 'LEAVE' ? request.teacher.displayName + '老師請假' : (#strings.isEmpty(request.note) ? request.sourceType.displayName : request.note))}">
-									原因
-								</div>
+								<a class="btn btn-primary btn-sm flex-shrink-0"
+										th:href="@{/make-up/{id}(id=${request.id})}">安排補課時間</a>
 							</div>
-							<a class="btn btn-primary btn-sm w-100"
-									th:href="@{/make-up/{id}(id=${request.id})}">安排補課時間</a>
 						</div>
 					</div>
 				</div>
@@ -64,52 +66,66 @@
 			<div class="card h-100">
 				<div class="card-body">
 					<div class="d-flex align-items-center gap-2 mb-3">
-						<h2 class="h5 mb-0">補課紀錄</h2>
-						<span class="badge text-bg-success" th:text="${#lists.size(scheduledMakeUpRequests)}">0</span>
+						<h2 class="h5 mb-0">補課紀錄 / 調課紀錄</h2>
+						<span class="badge text-bg-success" th:text="${#lists.size(makeUpRecords)}">0</span>
 					</div>
-					<div th:if="${#lists.isEmpty(scheduledMakeUpRequests)}"
+					<div th:if="${#lists.isEmpty(makeUpRecords)}"
 							class="border rounded text-center text-secondary py-4">
-						目前沒有已安排好的補課。
+						目前沒有已安排好的補課或調課。
 					</div>
-					<div class="table-responsive" th:unless="${#lists.isEmpty(scheduledMakeUpRequests)}">
+					<div class="table-responsive" th:unless="${#lists.isEmpty(makeUpRecords)}">
 						<table class="table align-middle">
 							<thead>
 							<tr>
 								<th>班級</th>
-								<th>補課時間</th>
+								<th>時間</th>
 								<th>來源</th>
 								<th class="text-end">操作</th>
 							</tr>
 							</thead>
 							<tbody>
-							<tr th:each="request : ${scheduledMakeUpRequests}">
+							<tr th:each="record : ${makeUpRecords}">
 								<td>
-									<div class="fw-semibold"
-											th:text="${request.classRoom == null ? '未指定班級' : request.classRoom.displayName}">
+									<div class="fw-semibold" th:text="${record.className}">
 										班級
 									</div>
-									<div class="text-secondary small" th:text="${request.teacher.displayName}">教師</div>
+									<div class="text-secondary small" th:text="${record.teacherName}">教師</div>
 								</td>
 								<td>
-									<div th:text="${#temporals.format(request.selectedMakeUpStart, 'yyyy/MM/dd HH:mm')}">2026/07/01 18:00</div>
+									<div th:text="${#temporals.format(record.scheduledStart, 'yyyy/MM/dd HH:mm')}">2026/07/01 18:00</div>
 									<div class="text-secondary small"
-											th:text="${#temporals.format(request.selectedMakeUpEnd, 'HH:mm')}">20:00</div>
+											th:text="${#temporals.format(record.scheduledEnd, 'HH:mm')}">20:00</div>
 								</td>
 								<td>
-									<span class="badge text-bg-light border" th:text="${request.sourceType.displayName}">請假</span>
-									<div class="text-secondary small"
-											th:text="${#temporals.format(request.originalCourseDate, 'yyyy/MM/dd') + ' ' + request.originalCourseSchedule.timeRangeText}">
+									<div class="d-flex flex-wrap gap-1 mb-1">
+										<span class="badge text-bg-success" th:text="${record.typeLabel}">補課</span>
+										<span class="badge text-bg-light border" th:text="${record.sourceLabel}">請假</span>
+										<span class="badge text-bg-secondary" th:text="${record.statusLabel}">已安排</span>
+									</div>
+									<div class="text-secondary small" th:text="${record.originalCourseText}">
 										原課程
 									</div>
 								</td>
 								<td class="text-end">
-									<div class="d-flex justify-content-end gap-2">
+									<div class="d-flex justify-content-end gap-2" th:if="${record.makeUpRequest}">
 										<a class="btn btn-outline-primary btn-sm"
-												th:href="@{/make-up/{id}/edit(id=${request.id})}">編輯</a>
+												th:href="@{/make-up/{id}/edit(id=${record.makeUpRequestId})}">編輯</a>
 										<button class="btn btn-outline-danger btn-sm" type="button"
 												data-bs-toggle="modal"
 												data-bs-target="#deleteMakeUpModal"
-												th:attr="data-reopen-action=@{/make-up/{id}/reopen(id=${request.id})},data-ignore-action=@{/make-up/{id}/ignore(id=${request.id})},data-title=${request.classRoom == null ? '未指定班級' : request.classRoom.displayName}">
+												th:attr="data-reopen-action=@{/make-up/{id}/reopen(id=${record.makeUpRequestId})},data-ignore-action=@{/make-up/{id}/ignore(id=${record.makeUpRequestId})},data-title=${record.className}">
+											刪除
+										</button>
+									</div>
+									<div class="d-flex justify-content-end gap-2" th:unless="${record.makeUpRequest}">
+										<a class="btn btn-outline-primary btn-sm"
+												th:href="@{/make-up/reschedules/{id}/edit(id=${record.rescheduleScheduleId})}">
+											編輯
+										</a>
+										<button class="btn btn-outline-danger btn-sm" type="button"
+												data-bs-toggle="modal"
+												data-bs-target="#deleteDirectRescheduleModal"
+												th:attr="data-delete-action=@{/make-up/reschedules/{id}/delete(id=${record.rescheduleScheduleId})},data-title=${record.className}">
 											刪除
 										</button>
 									</div>
@@ -146,6 +162,27 @@
 			</div>
 		</div>
 	</div>
+
+	<div class="modal fade" id="deleteDirectRescheduleModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h3 class="modal-title h5">刪除調課紀錄</h3>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-1">刪除後會恢復原課程。</p>
+					<p class="text-secondary mb-0" id="deleteDirectRescheduleTitle">調課紀錄</p>
+				</div>
+				<div class="modal-footer">
+					<form method="post" id="deleteDirectRescheduleForm">
+						<button type="submit" class="btn btn-danger">刪除調課</button>
+					</form>
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+				</div>
+			</div>
+		</div>
+	</div>
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
@@ -157,6 +194,15 @@
 			document.getElementById('deleteMakeUpTitle').textContent = button?.dataset.title || '補課紀錄';
 			document.getElementById('reopenMakeUpForm').action = button?.dataset.reopenAction || '#';
 			document.getElementById('ignoreMakeUpForm').action = button?.dataset.ignoreAction || '#';
+		});
+	}
+
+	const deleteDirectRescheduleModal = document.getElementById('deleteDirectRescheduleModal');
+	if (deleteDirectRescheduleModal) {
+		deleteDirectRescheduleModal.addEventListener('show.bs.modal', (event) => {
+			const button = event.relatedTarget;
+			document.getElementById('deleteDirectRescheduleTitle').textContent = button?.dataset.title || '調課紀錄';
+			document.getElementById('deleteDirectRescheduleForm').action = button?.dataset.deleteAction || '#';
 		});
 	}
 </script>

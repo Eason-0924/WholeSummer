@@ -24,6 +24,10 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
 	List<StudentAttendance> findByStudentIdAndAttendanceDateOrderByIdDesc(Long studentId, LocalDate attendanceDate);
 
+	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher",
+			"classRoom.schedules" })
+	List<StudentAttendance> findAllByOrderByAttendanceDateDescIdDesc();
+
 	Optional<StudentAttendance> findByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
 			LocalDate attendanceDate);
 

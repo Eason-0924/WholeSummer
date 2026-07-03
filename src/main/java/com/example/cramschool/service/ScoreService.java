@@ -1,8 +1,11 @@
 package com.example.cramschool.service;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +23,13 @@ import com.example.cramschool.repository.StudentRepository;
 @Service
 @Transactional
 public class ScoreService {
+
+	public record StudentScoreTrend(Long studentId, String studentName, String grade, List<Integer> scores,
+			List<String> displayScores, List<String> comments) {
+	}
+
+	public record ExamParticipantMeta(Long examId, List<Long> studentIds, List<String> grades) {
+	}
 
 	private final ScoreRepository scoreRepository;
 	private final StudentRepository studentRepository;
@@ -56,6 +66,50 @@ public class ScoreService {
 			statsByExamId.put(exam.getId(), calculateStatsForExam(exam.getId()));
 		}
 		return statsByExamId;
+	}
+
+	@Transactional(readOnly = true)
+	public List<StudentScoreTrend> buildStudentScoreTrends(List<Exam> exams) {
+		List<Exam> scoredExams = exams.stream()
+				.filter(exam -> exam.getFullScore() != null && exam.getFullScore() > 0)
+				.toList();
+		Map<Long, StudentTrendBuilder> trendsByStudentId = new LinkedHashMap<>();
+		for (int examIndex = 0; examIndex < scoredExams.size(); examIndex += 1) {
+			Exam exam = scoredExams.get(examIndex);
+			Map<Long, Score> scoresByStudentId = new LinkedHashMap<>();
+			for (Score score : findByExamId(exam.getId())) {
+				scoresByStudentId.put(score.getStudent().getId(), score);
+			}
+			for (Score score : scoresByStudentId.values()) {
+				StudentTrendBuilder builder = trendsByStudentId.computeIfAbsent(score.getStudent().getId(),
+						ignored -> new StudentTrendBuilder(score.getStudent().getId(),
+								score.getStudent().getDisplayName(), score.getStudent().getGrade(), scoredExams.size()));
+				builder.set(examIndex, score.getScore(), score.getDisplayScore(), score.getComment());
+			}
+		}
+		return trendsByStudentId.values().stream()
+				.map(StudentTrendBuilder::build)
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<ExamParticipantMeta> buildExamParticipantMeta(List<Exam> exams) {
+		return exams.stream()
+				.map(exam -> {
+					Set<Long> studentIds = new LinkedHashSet<>();
+					Set<String> grades = new LinkedHashSet<>();
+					for (Score score : findByExamId(exam.getId())) {
+						if (score.getStudent() == null || score.getStudent().getId() == null) {
+							continue;
+						}
+						studentIds.add(score.getStudent().getId());
+						if (score.getStudent().getGrade() != null && !score.getStudent().getGrade().isBlank()) {
+							grades.add(score.getStudent().getGrade().trim());
+						}
+					}
+					return new ExamParticipantMeta(exam.getId(), List.copyOf(studentIds), List.copyOf(grades));
+				})
+				.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -149,5 +203,35 @@ public class ScoreService {
 			stats.setAverage((double) sum / stats.getScoredCount());
 		}
 		return stats;
+	}
+
+	private static class StudentTrendBuilder {
+
+		private final Long studentId;
+		private final String studentName;
+		private final String grade;
+		private final Integer[] scores;
+		private final String[] displayScores;
+		private final String[] comments;
+
+		StudentTrendBuilder(Long studentId, String studentName, String grade, int examCount) {
+			this.studentId = studentId;
+			this.studentName = studentName;
+			this.grade = grade;
+			this.scores = new Integer[examCount];
+			this.displayScores = new String[examCount];
+			this.comments = new String[examCount];
+		}
+
+		void set(int examIndex, Integer score, String displayScore, String comment) {
+			scores[examIndex] = score;
+			displayScores[examIndex] = displayScore;
+			comments[examIndex] = comment;
+		}
+
+		StudentScoreTrend build() {
+			return new StudentScoreTrend(studentId, studentName, grade, Arrays.asList(scores),
+					Arrays.asList(displayScores), Arrays.asList(comments));
+		}
 	}
 }

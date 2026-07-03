@@ -14,6 +14,9 @@ import org.junit.jupiter.api.Test;
 import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
+import com.example.cramschool.entity.MakeUpClassRequest;
+import com.example.cramschool.entity.MakeUpSourceType;
+import com.example.cramschool.entity.MakeUpStatus;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.Teacher;
@@ -67,7 +70,47 @@ class WeeklyScheduleServiceTests {
 				});
 	}
 
+	@Test
+	void blockedOriginalRequestsAreDeduplicatedAndIgnoreNonActualEventDates() {
+		LocalDate tuesday = LocalDate.of(2026, 6, 30);
+		ClassRoom classRoom = classRoom(11L, 7L, "高一", "數學", "李老師");
+		ClassSchedule original = schedule(101L, "星期二", LocalTime.of(19, 0), LocalTime.of(21, 0),
+				ScheduleType.NORMAL, null, null);
+		classRoom.addSchedule(original);
+		MakeUpClassRequest rescheduleRequest = request(
+				201L, original, classRoom, MakeUpSourceType.RESCHEDULE, tuesday, MakeUpStatus.SCHEDULED);
+		MakeUpClassRequest absenceRequest = request(
+				202L, original, classRoom, MakeUpSourceType.ABSENCE, tuesday, MakeUpStatus.PENDING);
+		ClassSchedule makeUpEvent = schedule(301L, "星期三", LocalTime.of(18, 0), LocalTime.of(20, 0),
+				ScheduleType.MAKE_UP, LocalDate.of(2026, 7, 8),
+				LocalDateTime.of(2026, 7, 8, 18, 0));
+		makeUpEvent.setOriginalSchedule(original);
+		makeUpEvent.setClassRoom(classRoom);
+		MakeUpClassRequest wrongEventDateAbsence = request(
+				203L, makeUpEvent, classRoom, MakeUpSourceType.ABSENCE,
+				LocalDate.of(2026, 7, 1), MakeUpStatus.PENDING);
+
+		WeeklyScheduleService service = service(
+				List.of(classRoom), List.of(), List.of(rescheduleRequest, absenceRequest, wrongEventDateAbsence));
+
+		List<WeeklyScheduleDto> schedules = service.findWeeklySchedules(tuesday, 7L, true, null, null);
+
+		assertThat(schedules)
+				.filteredOn(schedule -> schedule.getScheduleType() == ScheduleType.CANCELLED)
+				.singleElement()
+				.satisfies(schedule -> {
+					assertThat(schedule.getScheduleId()).isEqualTo(original.getId());
+					assertThat(schedule.getCourseDate()).isEqualTo(tuesday);
+					assertThat(schedule.getNote()).isEqualTo("調課");
+				});
+	}
+
 	private WeeklyScheduleService service(List<ClassRoom> activeClassRooms, List<ClassSchedule> eventSchedules) {
+		return service(activeClassRooms, eventSchedules, List.of());
+	}
+
+	private WeeklyScheduleService service(List<ClassRoom> activeClassRooms, List<ClassSchedule> eventSchedules,
+			List<MakeUpClassRequest> requests) {
 		ClassScheduleRepository classScheduleRepository = proxy(ClassScheduleRepository.class, (method, args) -> {
 			if ("findByScheduledStartAtBetweenOrderByScheduledStartAtAsc".equals(method.getName())
 					|| "findByClassRoomTeacherIdAndScheduledStartAtBetweenOrderByScheduledStartAtAsc".equals(method.getName())) {
@@ -85,7 +128,9 @@ class WeeklyScheduleServiceTests {
 				(method, args) -> {
 					if (method.getName().startsWith("findByStatus")
 							|| method.getName().startsWith("findByTeacherIdAndStatus")) {
-						return List.of();
+						return requests.stream()
+								.filter(request -> request.getStatus() == args[0])
+								.toList();
 					}
 					throw new UnsupportedOperationException(method.getName());
 				});
@@ -123,6 +168,20 @@ class WeeklyScheduleServiceTests {
 		schedule.setScheduledStartAt(scheduledStartAt);
 		schedule.setScheduledEndAt(scheduledStartAt == null ? null : scheduledStartAt.plusHours(2));
 		return schedule;
+	}
+
+	private MakeUpClassRequest request(Long id, ClassSchedule originalSchedule, ClassRoom classRoom,
+			MakeUpSourceType sourceType, LocalDate originalDate, MakeUpStatus status) {
+		MakeUpClassRequest request = new MakeUpClassRequest();
+		request.setId(id);
+		request.setOriginalCourseSchedule(originalSchedule);
+		request.setClassRoom(classRoom);
+		request.setTeacher(classRoom.getTeacher());
+		request.setSourceType(sourceType);
+		request.setOriginalCourseDate(originalDate);
+		request.setStatus(status);
+		request.setNote(sourceType == MakeUpSourceType.RESCHEDULE ? "調課" : "系統自動記錄缺勤");
+		return request;
 	}
 
 	@SuppressWarnings("unchecked")

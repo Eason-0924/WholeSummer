@@ -37,6 +37,23 @@ public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Lo
 	List<ClassSchedule> findByClassRoomTeacherIdAndScheduledStartAtBetweenOrderByScheduledStartAtAsc(
 			Long teacherId, LocalDateTime start, LocalDateTime end);
 
+	@EntityGraph(attributePaths = {
+			"classRoom", "classRoom.teacher", "classRoom.subject", "originalSchedule"
+	})
+	List<ClassSchedule> findByScheduleTypeOrderByScheduledStartAtAsc(ScheduleType scheduleType);
+
+	@EntityGraph(attributePaths = {
+			"classRoom", "classRoom.teacher", "classRoom.subject", "originalSchedule"
+	})
+	List<ClassSchedule> findByClassRoomTeacherIdAndScheduleTypeOrderByScheduledStartAtAsc(
+			Long teacherId, ScheduleType scheduleType);
+
+	@EntityGraph(attributePaths = {
+			"classRoom", "classRoom.teacher", "classRoom.subject", "originalSchedule"
+	})
+	List<ClassSchedule> findByOriginalScheduleIdAndScheduleType(
+			Long originalScheduleId, ScheduleType scheduleType);
+
 	Optional<ClassSchedule> findFirstByOriginalScheduleIdAndScheduleTypeAndScheduledStartAtAndScheduledEndAt(
 			Long originalScheduleId, ScheduleType scheduleType, LocalDateTime scheduledStartAt, LocalDateTime scheduledEndAt);
 

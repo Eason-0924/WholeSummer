@@ -237,6 +237,21 @@
 			line-height: 1;
 			padding-top: 0.45rem;
 		}
+		.accordion-button {
+			align-items: center;
+			gap: 0.6rem;
+			justify-content: flex-start;
+		}
+		.accordion-button::after {
+			margin-left: 0;
+			margin-right: 0;
+			order: -1;
+			transform: rotate(-90deg);
+			transform-origin: center;
+		}
+		.accordion-button:not(.collapsed)::after {
+			transform: rotate(0deg);
+		}
 		[data-bs-theme="dark"] .brand-navbar {
 			background-color: #24306f;
 		}
@@ -844,6 +859,7 @@
 				</li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/exams}">測驗</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/homeworks}">作業</a></li>
+				<li class="nav-item"><a class="nav-link" th:href="@{/analysis}">分析</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/attendance/card-check-in}">刷卡點名</a></li>
 				<li class="nav-item"><a class="nav-link" th:href="@{/make-up}">補課/調課</a></li>
 				<li th:if="${teacherPermissions.manageTuition}" class="nav-item"><a class="nav-link" th:href="@{/tuition}">學費</a></li>

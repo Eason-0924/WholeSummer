@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 import org.apache.pdfbox.Loader;
@@ -27,6 +28,7 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.example.cramschool.repository.ClassRoomRepository;
+import com.example.cramschool.repository.ClassScheduleRepository;
 import com.example.cramschool.repository.ExamRepository;
 import com.example.cramschool.repository.HomeworkRepository;
 import com.example.cramschool.repository.MakeUpClassRequestRepository;
@@ -41,6 +43,7 @@ import com.example.cramschool.entity.Exam;
 import com.example.cramschool.entity.MakeUpClassRequest;
 import com.example.cramschool.entity.MakeUpSourceType;
 import com.example.cramschool.entity.MakeUpStatus;
+import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherAccount;
@@ -79,6 +82,9 @@ class PageSmokeTests {
 	private ClassRoomRepository classRoomRepository;
 
 	@Autowired
+	private ClassScheduleRepository classScheduleRepository;
+
+	@Autowired
 	private SubjectRepository subjectRepository;
 
 	@Autowired
@@ -93,6 +99,8 @@ class PageSmokeTests {
 	private ClassRoom makeUpClassRoom;
 	private MakeUpClassRequest makeUpRequest;
 	private Subject makeUpSubject;
+	private ClassSchedule directReschedule;
+	private ClassSchedule directRescheduleCancellation;
 	private ClassRoom uploadedExamClassRoom;
 	private Subject uploadedExamSubject;
 	private Exam uploadedExam;
@@ -137,6 +145,12 @@ class PageSmokeTests {
 		}
 		if (makeUpRequest != null) {
 			makeUpClassRequestRepository.deleteById(makeUpRequest.getId());
+		}
+		if (directReschedule != null) {
+			classScheduleRepository.findById(directReschedule.getId()).ifPresent(classScheduleRepository::delete);
+		}
+		if (directRescheduleCancellation != null) {
+			classScheduleRepository.findById(directRescheduleCancellation.getId()).ifPresent(classScheduleRepository::delete);
 		}
 		if (makeUpClassRoom != null) {
 			classRoomRepository.deleteById(makeUpClassRoom.getId());
@@ -417,6 +431,7 @@ class PageSmokeTests {
 				.getRequest()
 				.getSession(false);
 		makeUpRequest = createMakeUpRequest();
+		createDirectReschedule();
 
 		mockMvc.perform(get("/make-up").session(session))
 				.andExpect(status().isOk())
@@ -424,8 +439,44 @@ class PageSmokeTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("我的補課需求")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("補課紀錄")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("安排補課時間")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("段考調整")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("重新安排時間")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("忽略補課")));
+	}
+
+	@Test
+	void directRescheduleEditRendersCalendarAndLoadsSlots() throws Exception {
+		MockHttpSession session = (MockHttpSession) mockMvc.perform(post("/login")
+				.param("username", testUsername)
+				.param("password", TEST_PASSWORD))
+				.andExpect(status().is3xxRedirection())
+				.andReturn()
+				.getRequest()
+				.getSession(false);
+		createDirectReschedule();
+
+		mockMvc.perform(get("/make-up/reschedules/{id}/edit", directReschedule.getId()).session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("重新設定調課時間")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("data-calendar-url")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("data-slots-url")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("make-up-day-count-success")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"newStart\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("段考調整")));
+
+		mockMvc.perform(get("/make-up/reschedules/{id}/slots", directReschedule.getId())
+				.param("date", LocalDate.now().plusDays(1).toString())
+				.session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("timeText")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("statusLabel")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("statusClass")));
+
+		mockMvc.perform(get("/make-up/reschedules/{id}/calendar", directReschedule.getId()).session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("statusClass")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("availableCount")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("calculated")));
 	}
 
 	private MakeUpClassRequest createMakeUpRequest() {
@@ -450,6 +501,45 @@ class PageSmokeTests {
 		request.setSourceRecordId(System.nanoTime());
 		request.setStatus(MakeUpStatus.PENDING);
 		return makeUpClassRequestRepository.save(request);
+	}
+
+	private void createDirectReschedule() {
+		if (makeUpClassRoom == null) {
+			makeUpSubject = new Subject();
+			makeUpSubject.setName("調課頁測試科目");
+			makeUpSubject = subjectRepository.save(makeUpSubject);
+
+			makeUpClassRoom = new ClassRoom();
+			makeUpClassRoom.setGrade("頁測");
+			makeUpClassRoom.setSubject(makeUpSubject);
+			makeUpClassRoom.setClassType("調課測試");
+			makeUpClassRoom.setTeacher(testTeacher);
+			makeUpClassRoom.addSchedule(new ClassSchedule("星期二", LocalTime.of(18, 0), LocalTime.of(20, 0)));
+			makeUpClassRoom = classRoomRepository.save(makeUpClassRoom);
+		}
+		ClassSchedule original = makeUpClassRoom.getSchedules().getFirst();
+
+		LocalDate originalDate = LocalDate.now().plusDays(2);
+		directRescheduleCancellation = new ClassSchedule("星期二", LocalTime.of(18, 0), LocalTime.of(20, 0));
+		directRescheduleCancellation.setClassRoom(makeUpClassRoom);
+		directRescheduleCancellation.setScheduleType(ScheduleType.CANCELLED);
+		directRescheduleCancellation.setOriginalSchedule(original);
+		directRescheduleCancellation.setCourseDate(originalDate);
+		directRescheduleCancellation.setScheduledStartAt(LocalDateTime.of(originalDate, LocalTime.of(18, 0)));
+		directRescheduleCancellation.setScheduledEndAt(LocalDateTime.of(originalDate, LocalTime.of(20, 0)));
+		directRescheduleCancellation.setRescheduleReason("段考調整");
+		directRescheduleCancellation = classScheduleRepository.save(directRescheduleCancellation);
+
+		LocalDate rescheduleDate = LocalDate.now().plusDays(3);
+		directReschedule = new ClassSchedule("星期三", LocalTime.of(18, 0), LocalTime.of(20, 0));
+		directReschedule.setClassRoom(makeUpClassRoom);
+		directReschedule.setScheduleType(ScheduleType.RESCHEDULED);
+		directReschedule.setOriginalSchedule(original);
+		directReschedule.setCourseDate(rescheduleDate);
+		directReschedule.setScheduledStartAt(LocalDateTime.of(rescheduleDate, LocalTime.of(18, 0)));
+		directReschedule.setScheduledEndAt(LocalDateTime.of(rescheduleDate, LocalTime.of(20, 0)));
+		directReschedule.setRescheduleReason("段考調整");
+		directReschedule = classScheduleRepository.save(directReschedule);
 	}
 
 	private void createUploadedExamClassRoom() {

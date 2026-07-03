@@ -136,6 +136,86 @@ class TodayWorkbenchServiceTests {
 	}
 
 	@Test
+	void buildSummarizesAttendanceForEveryTodayCourseOccurrence() {
+		LocalDate today = LocalDate.of(2026, 7, 1);
+		Long teacherId = 7L;
+		Long classRoomId = 11L;
+		Student presentStudent = student(1L, "小明");
+
+		WeeklyScheduleDto firstCourse = new WeeklyScheduleDto(
+				101L, null, classRoomId,
+				"數學", "國一數學（A班）", "王老師",
+				today,
+				LocalDateTime.of(today, LocalTime.of(18, 0)),
+				LocalDateTime.of(today, LocalTime.of(19, 0)),
+				ScheduleType.NORMAL,
+				null, null,
+				"1", "7", "國一");
+		WeeklyScheduleDto secondCourse = new WeeklyScheduleDto(
+				102L, null, classRoomId,
+				"數學", "國一數學（A班）", "王老師",
+				today,
+				LocalDateTime.of(today, LocalTime.of(20, 0)),
+				LocalDateTime.of(today, LocalTime.of(21, 0)),
+				ScheduleType.NORMAL,
+				null, null,
+				"1", "7", "國一");
+
+		WeeklyScheduleService weeklyScheduleService = new WeeklyScheduleService(null, null, null, null, null) {
+			@Override
+			public List<WeeklyScheduleDto> findWeeklySchedules(LocalDate date, Long currentTeacherId,
+					boolean director, Long teacherFilterId, Long classFilterId) {
+				return List.of(firstCourse, secondCourse);
+			}
+		};
+		ClassStudentService classStudentService = new ClassStudentService(null, null, null, null) {
+			@Override
+			public List<ClassStudent> findActiveByClassRoomId(Long targetClassRoomId) {
+				return List.of(classStudent(targetClassRoomId, presentStudent));
+			}
+		};
+		StudentAttendanceRepository studentAttendanceRepository = proxy(StudentAttendanceRepository.class,
+				(method, args) -> {
+					if ("findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc".equals(method.getName())) {
+						return List.of(attendance(classRoomId, presentStudent, today, AttendanceStatus.PRESENT,
+								LocalDateTime.of(today, LocalTime.of(21, 0))));
+					}
+					throw new UnsupportedOperationException(method.getName());
+				});
+		HomeworkRepository homeworkRepository = proxy(HomeworkRepository.class, (method, args) -> {
+			if ("findByDueDateBetweenOrderByDueDateAscIdAsc".equals(method.getName())) {
+				return List.of();
+			}
+			throw new UnsupportedOperationException(method.getName());
+		});
+		ExamRepository examRepository = proxy(ExamRepository.class, (method, args) -> {
+			if ("findAllByOrderByExamDateDescIdDesc".equals(method.getName())) {
+				return List.of();
+			}
+			throw new UnsupportedOperationException(method.getName());
+		});
+
+		TodayWorkbenchService service = new TodayWorkbenchService(
+				weeklyScheduleService,
+				classStudentService,
+				studentAttendanceRepository,
+				homeworkRepository,
+				examRepository,
+				Clock.fixed(LocalDateTime.of(today, LocalTime.of(17, 30)).atZone(TAIPEI).toInstant(), TAIPEI));
+
+		TodayWorkbenchView view = service.build(teacherId, false);
+
+		assertThat(view.courses()).hasSize(2);
+		assertThat(view.courses()).extracting(TodayWorkbenchView.TodayCourseItem::startTime)
+				.containsExactly(
+						LocalDateTime.of(today, LocalTime.of(18, 0)),
+						LocalDateTime.of(today, LocalTime.of(20, 0)));
+		assertThat(view.attendance().presentCount()).isEqualTo(2);
+		assertThat(view.attendance().presentNames()).containsExactly("小明", "小明");
+		assertThat(view.attendance().earlyLeaveCount()).isZero();
+	}
+
+	@Test
 	void absentExpectedStudentsStayMissingBeforeClassStarts() {
 		LocalDate today = LocalDate.of(2026, 7, 1);
 		Long classRoomId = 11L;

@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
@@ -23,6 +24,7 @@ import com.example.cramschool.entity.AttendanceStatus;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
 import com.example.cramschool.entity.ClassStudent;
+import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.entity.Teacher;
@@ -37,6 +39,15 @@ import com.example.cramschool.repository.TeacherRepository;
 @Service
 @Transactional
 public class StudentAttendanceService {
+
+	public record MonthlyStudentAttendanceRate(Long studentId, String studentSlug, String studentName,
+			double presentRate, double lateRate, double absentRate, long presentCount, long lateCount,
+			long absentCount, long totalCount) {
+	}
+
+	public record StudentAttendanceDetail(Long studentId, String studentName, LocalDate attendanceDate,
+			String className, String classTime, String statusLabel, String statusBadgeClass, String note) {
+	}
 
 	private static final Map<DayOfWeek, String> WEEKDAY_NAMES = Map.of(
 			DayOfWeek.MONDAY, "星期一",
@@ -55,12 +66,14 @@ public class StudentAttendanceService {
 	private final ClassStudentRepository classStudentRepository;
 	private final TeacherRepository teacherRepository;
 	private final TeacherAttendanceService teacherAttendanceService;
+	private final WeeklyScheduleService weeklyScheduleService;
 	private Clock clock = Clock.systemDefaultZone();
 
 	public StudentAttendanceService(StudentAttendanceRepository studentAttendanceRepository,
 			StudentRepository studentRepository, ClassRoomService classRoomService,
 			ClassStudentService classStudentService, ClassStudentRepository classStudentRepository,
-			TeacherRepository teacherRepository, TeacherAttendanceService teacherAttendanceService) {
+			TeacherRepository teacherRepository, TeacherAttendanceService teacherAttendanceService,
+			WeeklyScheduleService weeklyScheduleService) {
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.studentRepository = studentRepository;
 		this.classRoomService = classRoomService;
@@ -68,6 +81,7 @@ public class StudentAttendanceService {
 		this.classStudentRepository = classStudentRepository;
 		this.teacherRepository = teacherRepository;
 		this.teacherAttendanceService = teacherAttendanceService;
+		this.weeklyScheduleService = weeklyScheduleService;
 	}
 
 	@Transactional(readOnly = true)
@@ -78,6 +92,11 @@ public class StudentAttendanceService {
 	@Transactional(readOnly = true)
 	public List<StudentAttendance> findByClassRoomId(Long classRoomId) {
 		return studentAttendanceRepository.findByClassRoomIdOrderByAttendanceDateDescStudentChineseNameAsc(classRoomId);
+	}
+
+	@Transactional(readOnly = true)
+	public List<StudentAttendance> findAllForAnalysis() {
+		return studentAttendanceRepository.findAllByOrderByAttendanceDateDescIdDesc();
 	}
 
 	@Transactional(readOnly = true)
@@ -109,11 +128,9 @@ public class StudentAttendanceService {
 
 	@Transactional(readOnly = true)
 	public boolean isClassDay(Long classRoomId, LocalDate attendanceDate) {
-		ClassRoom classRoom = classRoomService.findById(classRoomId);
 		LocalDate targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
-		String weekday = WEEKDAY_NAMES.get(targetDate.getDayOfWeek());
-		return classRoom.getEffectiveSchedules().stream()
-				.anyMatch(schedule -> weekday.equals(schedule.getWeekday()));
+		return actualClassDaySchedules(classRoomId, targetDate).stream()
+				.anyMatch(schedule -> schedule.getScheduleType() != ScheduleType.CANCELLED);
 	}
 
 	@Transactional(readOnly = true)
@@ -132,15 +149,13 @@ public class StudentAttendanceService {
 	@Transactional(readOnly = true)
 	public LocalDate previousClassDay(Long classRoomId, LocalDate attendanceDate) {
 		LocalDate targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
-		List<DayOfWeek> classDays = classDays(classRoomId);
-		return classDays.isEmpty() ? targetDate.minusDays(1) : shiftToClassDay(targetDate.minusDays(1), classDays, -1, true);
+		return shiftToActualClassDay(classRoomId, targetDate.minusDays(1), -1);
 	}
 
 	@Transactional(readOnly = true)
 	public LocalDate nextClassDay(Long classRoomId, LocalDate attendanceDate) {
 		LocalDate targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
-		List<DayOfWeek> classDays = classDays(classRoomId);
-		return classDays.isEmpty() ? targetDate.plusDays(1) : shiftToClassDay(targetDate.plusDays(1), classDays, 1, true);
+		return shiftToActualClassDay(classRoomId, targetDate.plusDays(1), 1);
 	}
 
 	@Transactional(readOnly = true)
@@ -301,6 +316,61 @@ public class StudentAttendanceService {
 		return calculateStats(findByClassRoomId(classRoomId));
 	}
 
+	@Transactional(readOnly = true)
+	public List<MonthlyStudentAttendanceRate> calculateStudentAttendanceRates(YearMonth month) {
+		YearMonth targetMonth = month;
+		Map<Long, StudentMonthlyAttendanceCounter> counters = new LinkedHashMap<>();
+		for (Student student : studentRepository.findByActiveTrueOrderByChineseNameAsc()) {
+			counters.put(student.getId(), new StudentMonthlyAttendanceCounter(
+					student.getId(), student.getUrlSlug(), student.getDisplayName()));
+		}
+		for (StudentAttendance attendance : studentAttendanceRepository.findAll()) {
+			if (targetMonth != null && !YearMonth.from(attendance.getAttendanceDate()).equals(targetMonth)) {
+				continue;
+			}
+			StudentMonthlyAttendanceCounter counter = counters.computeIfAbsent(
+					attendance.getStudent().getId(),
+					studentId -> new StudentMonthlyAttendanceCounter(
+							attendance.getStudent().getId(),
+							attendance.getStudent().getUrlSlug(),
+							attendance.getStudent().getDisplayName()));
+			counter.add(attendance.getStatus());
+		}
+		return counters.values().stream()
+				.map(StudentMonthlyAttendanceCounter::toRate)
+				.filter(rate -> rate.totalCount() > 0)
+				.sorted(Comparator.comparingDouble(MonthlyStudentAttendanceRate::presentRate).reversed()
+						.thenComparingDouble(MonthlyStudentAttendanceRate::absentRate)
+						.thenComparing(MonthlyStudentAttendanceRate::studentName, Comparator.nullsLast(String::compareTo)))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public Map<Long, List<StudentAttendanceDetail>> buildStudentAttendanceDetails(YearMonth month) {
+		YearMonth targetMonth = month;
+		Map<Long, List<StudentAttendanceDetail>> detailsByStudentId = new LinkedHashMap<>();
+		for (StudentAttendance attendance : studentAttendanceRepository.findAllByOrderByAttendanceDateDescIdDesc()) {
+			if (targetMonth != null && !YearMonth.from(attendance.getAttendanceDate()).equals(targetMonth)) {
+				continue;
+			}
+			Student student = attendance.getStudent();
+			if (student == null) {
+				continue;
+			}
+			detailsByStudentId.computeIfAbsent(student.getId(), ignored -> new java.util.ArrayList<>())
+					.add(new StudentAttendanceDetail(
+							student.getId(),
+							student.getDisplayName(),
+							attendance.getAttendanceDate(),
+							attendance.getClassRoom() == null ? "-" : attendance.getClassRoom().getDisplayName(),
+							attendance.getClassRoom() == null ? "-" : attendance.getClassRoom().getTimeRangeText(),
+							statusLabel(attendance.getStatus()),
+							statusBadgeClass(attendance.getStatus()),
+							formatAttendanceNote(attendance)));
+		}
+		return detailsByStudentId;
+	}
+
 	private AttendanceStats calculateStats(List<StudentAttendance> attendances) {
 		AttendanceStats stats = new AttendanceStats();
 		stats.setTotalCount(attendances.size());
@@ -316,6 +386,37 @@ public class StudentAttendanceService {
 			}
 		}
 		return stats;
+	}
+
+	private String statusLabel(AttendanceStatus status) {
+		if (status == null) {
+			return "缺席";
+		}
+		return switch (status) {
+			case PRESENT -> "出席";
+			case LATE -> "遲到";
+			case ABSENT, LEAVE -> "缺席";
+		};
+	}
+
+	private String statusBadgeClass(AttendanceStatus status) {
+		if (status == null) {
+			return "text-bg-danger";
+		}
+		return switch (status) {
+			case PRESENT -> "text-bg-success";
+			case LATE -> "text-bg-warning text-dark";
+			case ABSENT, LEAVE -> "text-bg-danger";
+		};
+	}
+
+	private String formatAttendanceNote(StudentAttendance attendance) {
+		String note = attendance == null ? null : attendance.getNote();
+		boolean hasNote = note != null && !note.isBlank();
+		if (attendance != null && attendance.getStatus() == AttendanceStatus.LEAVE) {
+			return hasNote ? "請假：" + note.trim() : "請假";
+		}
+		return hasNote ? note.trim() : "-";
 	}
 
 	private List<DayOfWeek> classDays(Long classRoomId) {
@@ -339,6 +440,52 @@ public class StudentAttendanceService {
 			candidate = candidate.plusDays(direction);
 		}
 		return date;
+	}
+
+	private LocalDate shiftToActualClassDay(Long classRoomId, LocalDate date, int direction) {
+		LocalDate candidate = date;
+		for (int i = 0; i < 60; i += 1) {
+			if (isClassDay(classRoomId, candidate)) {
+				return candidate;
+			}
+			candidate = candidate.plusDays(direction);
+		}
+		return date;
+	}
+
+	private List<com.example.cramschool.dto.WeeklyScheduleDto> actualClassDaySchedules(
+			Long classRoomId, LocalDate targetDate) {
+		if (weeklyScheduleService == null) {
+			return fallbackClassDaySchedules(classRoomId, targetDate);
+		}
+		return weeklyScheduleService.findWeeklySchedules(targetDate, null, true, null, classRoomId).stream()
+				.filter(schedule -> targetDate.equals(schedule.getCourseDate()))
+				.toList();
+	}
+
+	private List<com.example.cramschool.dto.WeeklyScheduleDto> fallbackClassDaySchedules(
+			Long classRoomId, LocalDate targetDate) {
+		ClassRoom classRoom = classRoomService.findById(classRoomId);
+		String weekday = WEEKDAY_NAMES.get(targetDate.getDayOfWeek());
+		return classRoom.getEffectiveSchedules().stream()
+				.filter(schedule -> weekday.equals(schedule.getWeekday()))
+				.map(schedule -> new com.example.cramschool.dto.WeeklyScheduleDto(
+						schedule.getId(),
+						null,
+						classRoom.getId(),
+						classRoom.getSubjectName(),
+						classRoom.getDisplayName(),
+						classRoom.getTeacherName(),
+						targetDate,
+						LocalDateTime.of(targetDate, schedule.getStartTime()),
+						LocalDateTime.of(targetDate, schedule.getEndTime()),
+						ScheduleType.NORMAL,
+						null,
+						null,
+						classRoom.getSubject() == null ? "未指定" : String.valueOf(classRoom.getSubject().getId()),
+						classRoom.getTeacher() == null ? "未指定" : String.valueOf(classRoom.getTeacher().getId()),
+						classRoom.getGrade() == null || classRoom.getGrade().isBlank() ? "未指定" : classRoom.getGrade()))
+				.toList();
 	}
 
 	private DayOfWeek weekday(String weekdayName) {
@@ -403,5 +550,44 @@ public class StudentAttendanceService {
 	}
 
 	private record CardClassMatch(ClassRoom classRoom, ClassSchedule schedule, long distanceSeconds) {
+	}
+
+	private static class StudentMonthlyAttendanceCounter {
+
+		private final Long studentId;
+		private final String studentSlug;
+		private final String studentName;
+		private long presentCount;
+		private long lateCount;
+		private long absentCount;
+
+		StudentMonthlyAttendanceCounter(Long studentId, String studentSlug, String studentName) {
+			this.studentId = studentId;
+			this.studentSlug = studentSlug;
+			this.studentName = studentName;
+		}
+
+		void add(AttendanceStatus status) {
+			if (status == AttendanceStatus.PRESENT) {
+				presentCount++;
+				return;
+			}
+			if (status == AttendanceStatus.LATE) {
+				lateCount++;
+				return;
+			}
+			if (status == AttendanceStatus.ABSENT || status == AttendanceStatus.LEAVE) {
+				absentCount++;
+			}
+		}
+
+		MonthlyStudentAttendanceRate toRate() {
+			long totalCount = presentCount + lateCount + absentCount;
+			double presentRate = totalCount == 0 ? 0 : presentCount * 100.0 / totalCount;
+			double lateRate = totalCount == 0 ? 0 : lateCount * 100.0 / totalCount;
+			double absentRate = totalCount == 0 ? 0 : absentCount * 100.0 / totalCount;
+			return new MonthlyStudentAttendanceRate(studentId, studentSlug, studentName,
+					presentRate, lateRate, absentRate, presentCount, lateCount, absentCount, totalCount);
+		}
 	}
 }

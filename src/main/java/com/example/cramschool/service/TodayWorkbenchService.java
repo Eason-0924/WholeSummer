@@ -8,8 +8,6 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,13 +80,8 @@ public class TodayWorkbenchService {
 						schedule.getScheduleTypeDisplayName()))
 				.toList();
 
-		Set<Long> classRoomIds = todaySchedules.stream()
-				.map(WeeklyScheduleDto::getClassRoomId)
-				.filter(java.util.Objects::nonNull)
-				.collect(Collectors.toSet());
-
 		TodayWorkbenchView.TodayAttendanceSummary attendance = summarizeAttendance(
-				todaySchedules, classRoomIds, today, LocalDateTime.now(clock));
+				todaySchedules, today, LocalDateTime.now(clock));
 
 		List<TodayWorkbenchView.TodayHomeworkItem> homeworks = homeworkRepository
 				.findByDueDateBetweenOrderByDueDateAscIdAsc(today, today).stream()
@@ -118,7 +111,7 @@ public class TodayWorkbenchService {
 	}
 
 	private TodayWorkbenchView.TodayAttendanceSummary summarizeAttendance(List<WeeklyScheduleDto> todaySchedules,
-			Set<Long> classRoomIds, LocalDate today, LocalDateTime now) {
+			LocalDate today, LocalDateTime now) {
 		long presentCount = 0;
 		long lateCount = 0;
 		long missingCount = 0;
@@ -128,35 +121,22 @@ public class TodayWorkbenchService {
 		List<String> missingNames = new ArrayList<>();
 		List<String> earlyLeaveNames = new ArrayList<>();
 
-		Map<Long, List<WeeklyScheduleDto>> schedulesByClassId = todaySchedules.stream()
-				.filter(schedule -> schedule.getClassRoomId() != null)
-				.collect(Collectors.groupingBy(
-						WeeklyScheduleDto::getClassRoomId,
-						LinkedHashMap::new,
-						Collectors.toList()));
+		Map<Long, List<ClassStudent>> studentsByClassId = new LinkedHashMap<>();
+		Map<Long, Map<Long, StudentAttendance>> attendancesByClassId = new LinkedHashMap<>();
 
-		for (Long classRoomId : classRoomIds) {
-			List<ClassStudent> students = classStudentService.findActiveByClassRoomId(classRoomId);
-			List<StudentAttendance> attendances = studentAttendanceRepository
-					.findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(classRoomId, today);
-			Map<Long, StudentAttendance> attendanceByStudentId = attendances.stream()
-					.collect(Collectors.toMap(record -> record.getStudent().getId(), record -> record, (left, right) -> left));
-
-			LocalDateTime latestEndTime = schedulesByClassId.getOrDefault(classRoomId, List.of()).stream()
-					.map(WeeklyScheduleDto::getEndTime)
-					.filter(java.util.Objects::nonNull)
-					.max(LocalDateTime::compareTo)
-					.orElse(null);
-			LocalDateTime earliestStartTime = schedulesByClassId.getOrDefault(classRoomId, List.of()).stream()
-					.map(WeeklyScheduleDto::getStartTime)
-					.filter(java.util.Objects::nonNull)
-					.min(LocalDateTime::compareTo)
-					.orElse(null);
-
+		for (WeeklyScheduleDto schedule : todaySchedules) {
+			Long classRoomId = schedule.getClassRoomId();
+			if (classRoomId == null) {
+				continue;
+			}
+			List<ClassStudent> students = studentsByClassId.computeIfAbsent(
+					classRoomId, classStudentService::findActiveByClassRoomId);
+			Map<Long, StudentAttendance> attendanceByStudentId = attendancesByClassId.computeIfAbsent(
+					classRoomId, targetClassRoomId -> attendanceByStudentId(targetClassRoomId, today));
 			for (ClassStudent classStudent : students) {
 				StudentAttendance attendance = attendanceByStudentId.get(classStudent.getStudent().getId());
 				if (attendance == null) {
-					if (hasClassStarted(earliestStartTime, now)) {
+					if (hasClassStarted(schedule.getStartTime(), now)) {
 						lateCount++;
 						lateNames.add(classStudent.getStudent().getDisplayName());
 					} else {
@@ -177,7 +157,7 @@ public class TodayWorkbenchService {
 					missingCount++;
 					missingNames.add(classStudent.getStudent().getDisplayName());
 				}
-				if (isEarlyLeave(attendance, latestEndTime)) {
+				if (isEarlyLeave(attendance, schedule.getEndTime())) {
 					earlyLeaveCount++;
 					earlyLeaveNames.add(classStudent.getStudent().getDisplayName());
 				}
@@ -187,6 +167,15 @@ public class TodayWorkbenchService {
 		return new TodayWorkbenchView.TodayAttendanceSummary(
 				presentCount, missingCount, lateCount, earlyLeaveCount,
 				presentNames, missingNames, lateNames, earlyLeaveNames);
+	}
+
+	private Map<Long, StudentAttendance> attendanceByStudentId(Long classRoomId, LocalDate today) {
+		Map<Long, StudentAttendance> records = new LinkedHashMap<>();
+		for (StudentAttendance attendance : studentAttendanceRepository
+				.findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(classRoomId, today)) {
+			records.putIfAbsent(attendance.getStudent().getId(), attendance);
+		}
+		return records;
 	}
 
 	private boolean hasClassStarted(LocalDateTime startTime, LocalDateTime now) {
