@@ -113,7 +113,6 @@ jobs:
             --main-jar WholeSummer.jar ^
             --dest dist ^
             --icon packaging\windows\WholeSummer.ico ^
-            --resource-dir packaging\windows ^
             --win-menu ^
             --win-menu-group WholeSummer ^
             --win-shortcut ^
