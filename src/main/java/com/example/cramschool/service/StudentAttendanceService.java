@@ -120,6 +120,8 @@ public class StudentAttendanceService {
 			if (attendance != null) {
 				entry.setStatus(attendance.getStatus());
 				entry.setNote(attendance.getNote());
+				entry.setCheckInTime(attendance.getCheckInTime() == null ? null : attendance.getCheckInTime().toLocalTime());
+				entry.setCheckOutTime(attendance.getCheckOutTime() == null ? null : attendance.getCheckOutTime().toLocalTime());
 			}
 			form.getEntries().add(entry);
 		}
@@ -182,8 +184,25 @@ public class StudentAttendanceService {
 			attendance.setAttendanceDate(attendanceDate);
 			attendance.setStatus(entry.getStatus() == null ? AttendanceStatus.PRESENT : entry.getStatus());
 			attendance.setNote(entry.getNote());
+			applyManualAttendanceTimes(attendance, entry, attendanceDate);
 			studentAttendanceRepository.save(attendance);
 		}
+	}
+
+	private void applyManualAttendanceTimes(StudentAttendance attendance, StudentAttendanceEntryForm entry,
+			LocalDate attendanceDate) {
+		AttendanceStatus status = entry.getStatus() == null ? AttendanceStatus.PRESENT : entry.getStatus();
+		if (status == AttendanceStatus.ABSENT || status == AttendanceStatus.LEAVE) {
+			attendance.setCheckInTime(null);
+			attendance.setCheckOutTime(null);
+			return;
+		}
+		attendance.setCheckInTime(entry.getCheckInTime() == null
+				? null
+				: LocalDateTime.of(attendanceDate, entry.getCheckInTime()));
+		attendance.setCheckOutTime(entry.getCheckOutTime() == null
+				? null
+				: LocalDateTime.of(attendanceDate, entry.getCheckOutTime()));
 	}
 
 	public CardCheckInResponse cardCheckIn(CardCheckInRequest request) {

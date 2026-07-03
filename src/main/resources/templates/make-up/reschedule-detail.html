@@ -16,6 +16,18 @@
 		}
 		.make-up-day {
 			min-height: 5rem;
+			position: relative;
+		}
+		.make-up-day-loading {
+			color: var(--bs-secondary-color);
+		}
+		.make-up-day-spinner-wrap {
+			align-items: center;
+			display: flex;
+			inset: 0;
+			justify-content: center;
+			pointer-events: none;
+			position: absolute;
 		}
 		.make-up-day-number {
 			font-size: 1.15rem;
@@ -104,9 +116,14 @@
 						th:each="day : ${view.calendarDates}"
 						data-bs-toggle="modal"
 						data-bs-target="#makeUpSlotsModal"
-						th:classappend="${day.calculated ? ' border-' + day.statusClass : ''}"
+						th:classappend="${day.calculated ? ' border-' + day.statusClass : ' make-up-day-loading'}"
 						th:attr="data-slots-url=@{/make-up/reschedules/{id}/slots(id=${view.schedule.id},date=${#temporals.format(day.date, 'yyyy-MM-dd')})},data-date-text=${#temporals.format(day.date, 'yyyy/MM/dd')},data-calendar-date=${#temporals.format(day.date, 'yyyy-MM-dd')}">
 					<div class="make-up-day-number" th:text="${#temporals.format(day.date, 'MM/dd')}">07/01</div>
+					<span class="make-up-day-spinner-wrap"
+							th:classappend="${day.calculated ? ' d-none' : ''}"
+							aria-label="載入中">
+						<span class="spinner-border spinner-border-sm make-up-day-spinner" role="status"></span>
+					</span>
 					<div class="make-up-day-counts mt-2" th:classappend="${day.calculated ? '' : ' opacity-50'}">
 						<span class="badge text-bg-success make-up-day-count make-up-day-count-success"
 								th:text="${day.availableCount}">0</span>
@@ -265,12 +282,15 @@
 
 	function updateCalendarDay(button, day) {
 		const counts = button.querySelector('.make-up-day-counts');
+		const spinner = button.querySelector('.make-up-day-spinner-wrap');
 		const availableCount = button.querySelector('.make-up-day-count-success');
 		const teacherConflictCount = button.querySelector('.make-up-day-count-warning');
 		const studentConflictCount = button.querySelector('.make-up-day-count-danger');
 		button.classList.remove('border-success', 'border-warning', 'border-danger', 'border-secondary');
 		button.classList.add(`border-${day.statusClass}`);
+		button.classList.toggle('make-up-day-loading', !day.calculated);
 		counts?.classList.toggle('opacity-50', !day.calculated);
+		spinner?.classList.toggle('d-none', day.calculated);
 		if (availableCount) {
 			availableCount.textContent = day.availableCount;
 		}

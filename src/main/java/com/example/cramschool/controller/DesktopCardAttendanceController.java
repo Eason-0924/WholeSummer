@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.cramschool.dto.CardCheckInRequest;
 import com.example.cramschool.dto.CardCheckInResponse;
+import com.example.cramschool.service.RecentCardCheckInService;
 import com.example.cramschool.service.StudentAttendanceService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,9 +21,12 @@ import jakarta.servlet.http.HttpServletRequest;
 public class DesktopCardAttendanceController {
 
 	private final StudentAttendanceService studentAttendanceService;
+	private final RecentCardCheckInService recentCardCheckInService;
 
-	public DesktopCardAttendanceController(StudentAttendanceService studentAttendanceService) {
+	public DesktopCardAttendanceController(StudentAttendanceService studentAttendanceService,
+			RecentCardCheckInService recentCardCheckInService) {
 		this.studentAttendanceService = studentAttendanceService;
+		this.recentCardCheckInService = recentCardCheckInService;
 	}
 
 	@PostMapping("/card-check-in")
@@ -31,7 +35,9 @@ public class DesktopCardAttendanceController {
 		if (!isLoopback(httpRequest.getRemoteAddr())) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只允許本機刷卡程式呼叫");
 		}
-		return studentAttendanceService.cardCheckIn(request);
+		CardCheckInResponse response = studentAttendanceService.cardCheckIn(request);
+		recentCardCheckInService.record(request, response);
+		return response;
 	}
 
 	private boolean isLoopback(String remoteAddress) {

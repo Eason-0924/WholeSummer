@@ -5,6 +5,7 @@ public class ScoreStats {
 	private int scoredCount;
 	private int absentCount;
 	private Double average;
+	private Double standardDeviation;
 	private Integer highest;
 	private Integer lowest;
 	private int completedCount;
@@ -36,6 +37,14 @@ public class ScoreStats {
 
 	public Integer getHighest() {
 		return highest;
+	}
+
+	public Double getStandardDeviation() {
+		return standardDeviation;
+	}
+
+	public void setStandardDeviation(Double standardDeviation) {
+		this.standardDeviation = standardDeviation;
 	}
 
 	public void setHighest(Integer highest) {

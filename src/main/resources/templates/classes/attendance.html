@@ -14,7 +14,7 @@
 				<span>班級點名 - </span>
 				<span th:text="${classRoom.displayName}">班級名稱</span>
 			</h1>
-			<span th:replace="~{fragments/layout :: help('登記班級學生出缺席\n∙ 日期：切換要點名的日期\n∙ 出席狀態：可選出席、遲到、缺席、請假\n∙ 備註：可記錄遲到原因或請假說明\n儲存後會更新同一天的既有紀錄，不會重複建立。')}"></span>
+			<span th:replace="~{fragments/layout :: help('登記班級學生出缺席\n∙ 日期：切換要點名的日期\n∙ 出席狀態：可選出席、遲到、缺席、請假\n∙ 到班時間／離班時間：出席或遲到時可填寫，缺席或請假免填\n∙ 備註：可記錄遲到原因或請假說明\n儲存後會更新同一天的既有紀錄，不會重複建立。')}"></span>
 		</div>
 		<div class="d-flex align-items-center gap-2">
 			<a class="btn btn-outline-secondary" th:href="@{/classes/{slug}(slug=${classRoom.urlSlug})}">返回班級</a>
@@ -52,12 +52,14 @@
 					<th>學生姓名</th>
 					<th>年級</th>
 					<th style="width: 180px;">出缺席</th>
+					<th style="width: 130px;">到班時間</th>
+					<th style="width: 130px;">離班時間</th>
 					<th>備註</th>
 				</tr>
 				</thead>
 				<tbody>
 				<tr th:if="${#lists.isEmpty(attendanceForm.entries)}">
-					<td colspan="4" class="text-center text-secondary py-4">此班級目前沒有可點名的學生</td>
+					<td colspan="6" class="text-center text-secondary py-4">此班級目前沒有可點名的學生</td>
 				</tr>
 				<tr th:each="entry, iterStat : *{entries}">
 					<td>
@@ -66,13 +68,27 @@
 					</td>
 					<td th:text="${entry.studentGrade ?: '-'}">-</td>
 					<td>
-						<select class="form-select form-select-sm"
+						<select class="form-select form-select-sm" data-attendance-status
 								th:field="*{entries[__${iterStat.index}__].status}"
 								th:disabled="${!classDay}">
 							<option th:each="status : ${statusOptions}"
 									th:value="${status}"
 									th:text="${status.displayName}">出席</option>
 						</select>
+					</td>
+					<td>
+						<input class="form-control form-control-sm" type="time"
+								th:field="*{entries[__${iterStat.index}__].checkInTime}"
+								th:disabled="${!classDay}"
+								data-attendance-time
+								aria-label="到班時間">
+					</td>
+					<td>
+						<input class="form-control form-control-sm" type="time"
+								th:field="*{entries[__${iterStat.index}__].checkOutTime}"
+								th:disabled="${!classDay}"
+								data-attendance-time
+								aria-label="離班時間">
 					</td>
 					<td>
 						<input class="form-control form-control-sm" type="text"
@@ -105,6 +121,25 @@
 			}
 		});
 	}
+
+	function syncAttendanceTimeFields(statusSelect) {
+		const row = statusSelect.closest('tr');
+		if (!row) {
+			return;
+		}
+		const disabledByStatus = statusSelect.value === 'ABSENT' || statusSelect.value === 'LEAVE';
+		row.querySelectorAll('[data-attendance-time]').forEach((input) => {
+			input.disabled = statusSelect.disabled || disabledByStatus;
+			if (disabledByStatus) {
+				input.value = '';
+			}
+		});
+	}
+
+	document.querySelectorAll('[data-attendance-status]').forEach((select) => {
+		syncAttendanceTimeFields(select);
+		select.addEventListener('change', () => syncAttendanceTimeFields(select));
+	});
 </script>
 </body>
 </html>

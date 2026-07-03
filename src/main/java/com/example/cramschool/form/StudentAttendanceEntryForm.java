@@ -1,5 +1,9 @@
 package com.example.cramschool.form;
 
+import java.time.LocalTime;
+
+import org.springframework.format.annotation.DateTimeFormat;
+
 import com.example.cramschool.entity.AttendanceStatus;
 
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +19,12 @@ public class StudentAttendanceEntryForm {
 	private String studentGrade;
 
 	private AttendanceStatus status = AttendanceStatus.PRESENT;
+
+	@DateTimeFormat(pattern = "HH:mm")
+	private LocalTime checkInTime;
+
+	@DateTimeFormat(pattern = "HH:mm")
+	private LocalTime checkOutTime;
 
 	@Size(max = 1000, message = "備註不可超過 1000 個字")
 	private String note;
@@ -49,6 +59,22 @@ public class StudentAttendanceEntryForm {
 
 	public void setStatus(AttendanceStatus status) {
 		this.status = status;
+	}
+
+	public LocalTime getCheckInTime() {
+		return checkInTime;
+	}
+
+	public void setCheckInTime(LocalTime checkInTime) {
+		this.checkInTime = checkInTime;
+	}
+
+	public LocalTime getCheckOutTime() {
+		return checkOutTime;
+	}
+
+	public void setCheckOutTime(LocalTime checkOutTime) {
+		this.checkOutTime = checkOutTime;
 	}
 
 	public String getNote() {

@@ -40,10 +40,12 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import com.example.cramschool.config.ExternalConfigPaths;
+import com.example.cramschool.dto.RecentCardCheckInRecord;
 import com.example.cramschool.entity.OperationLog;
 import com.example.cramschool.entity.TeacherAccount;
 import com.example.cramschool.service.ActiveUserRegistry;
 import com.example.cramschool.service.OperationLogService;
+import com.example.cramschool.service.RecentCardCheckInService;
 import com.example.cramschool.service.TeacherAccountService;
 
 @Component
@@ -54,6 +56,7 @@ public class DesktopStatusWindow {
 
 	private final ActiveUserRegistry activeUserRegistry;
 	private final OperationLogService operationLogService;
+	private final RecentCardCheckInService recentCardCheckInService;
 	private final TeacherAccountService teacherAccountService;
 	private final ConfigurableApplicationContext applicationContext;
 	private final Environment environment;
@@ -66,15 +69,18 @@ public class DesktopStatusWindow {
 	private JTextArea activeUsersArea;
 	private JTextArea recentLoginsArea;
 	private JTextArea operationLogsArea;
+	private JTextArea cardCheckInsArea;
 	private Timer refreshTimer;
 
 	public DesktopStatusWindow(ActiveUserRegistry activeUserRegistry,
 			OperationLogService operationLogService,
+			RecentCardCheckInService recentCardCheckInService,
 			TeacherAccountService teacherAccountService,
 			ConfigurableApplicationContext applicationContext,
 			Environment environment) {
 		this.activeUserRegistry = activeUserRegistry;
 		this.operationLogService = operationLogService;
+		this.recentCardCheckInService = recentCardCheckInService;
 		this.teacherAccountService = teacherAccountService;
 		this.applicationContext = applicationContext;
 		this.environment = environment;
@@ -108,7 +114,7 @@ public class DesktopStatusWindow {
 		frame = new JFrame("WholeSummer 系統狀態");
 		frame.setIconImages(loadWindowIcons());
 		frame.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-		frame.setSize(980, 680);
+		frame.setSize(1180, 680);
 		frame.setLocationRelativeTo(null);
 		frame.addWindowListener(new WindowAdapter() {
 			@Override
@@ -153,15 +159,21 @@ public class DesktopStatusWindow {
 		activeUsersArea = createTextArea();
 		recentLoginsArea = createTextArea();
 		operationLogsArea = createTextArea();
+		cardCheckInsArea = createTextArea();
 
 		JSplitPane leftSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
 				wrap("目前上線使用者", activeUsersArea),
 				wrap("最近登入", recentLoginsArea));
 		leftSplit.setResizeWeight(0.45);
 
+		JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+				wrap("最近操作紀錄", operationLogsArea),
+				wrap("刷卡紀錄", cardCheckInsArea));
+		rightSplit.setResizeWeight(0.55);
+
 		JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
 				leftSplit,
-				wrap("最近操作紀錄", operationLogsArea));
+				rightSplit);
 		mainSplit.setResizeWeight(0.42);
 		return mainSplit;
 	}
@@ -217,7 +229,8 @@ public class DesktopStatusWindow {
 				return new StatusSnapshot(
 						activeUserRegistry.findActiveUsers(),
 						teacherAccountService.findRecentLogins(),
-						operationLogService.findRecent(80));
+						operationLogService.findRecent(80),
+						recentCardCheckInService.findRecent(40));
 			}
 
 			@Override
@@ -226,6 +239,7 @@ public class DesktopStatusWindow {
 					render(get());
 				} catch (Exception ex) {
 					operationLogsArea.setText("讀取狀態失敗：" + ex.getMessage());
+					cardCheckInsArea.setText("讀取狀態失敗：" + ex.getMessage());
 				}
 			}
 		}.execute();
@@ -235,9 +249,11 @@ public class DesktopStatusWindow {
 		activeUsersArea.setText(formatActiveUsers(snapshot.activeUsers()));
 		recentLoginsArea.setText(formatRecentLogins(snapshot.recentLogins()));
 		operationLogsArea.setText(formatOperationLogs(snapshot.operationLogs()));
+		cardCheckInsArea.setText(formatCardCheckIns(snapshot.cardCheckIns()));
 		activeUsersArea.setCaretPosition(0);
 		recentLoginsArea.setCaretPosition(0);
 		operationLogsArea.setCaretPosition(0);
+		cardCheckInsArea.setCaretPosition(0);
 	}
 
 	private String formatActiveUsers(List<ActiveUserRegistry.ActiveUser> activeUsers) {
@@ -292,6 +308,37 @@ public class DesktopStatusWindow {
 					.append(" ")
 					.append(log.getRequestPath())
 					.append("\n");
+		}
+		return builder.toString();
+	}
+
+	private String formatCardCheckIns(List<RecentCardCheckInRecord> records) {
+		if (records.isEmpty()) {
+			return "尚無刷卡紀錄。";
+		}
+		StringBuilder builder = new StringBuilder();
+		for (RecentCardCheckInRecord record : records) {
+			builder.append(format(record.occurredAt()))
+					.append("  ")
+					.append(record.success() ? "成功" : "失敗")
+					.append("  ")
+					.append(record.actionLabel())
+					.append("\n")
+					.append("    ")
+					.append(record.personTypeLabel())
+					.append("  ")
+					.append(record.displayName())
+					.append("  ")
+					.append(record.className())
+					.append("\n")
+					.append("    ")
+					.append(record.message() == null || record.message().isBlank() ? "-" : record.message())
+					.append("\n")
+					.append("    卡號：")
+					.append(record.cardId())
+					.append("  來源：")
+					.append(record.deviceName())
+					.append("\n\n");
 		}
 		return builder.toString();
 	}
@@ -386,6 +433,7 @@ public class DesktopStatusWindow {
 
 	private record StatusSnapshot(List<ActiveUserRegistry.ActiveUser> activeUsers,
 			List<TeacherAccount> recentLogins,
-			List<OperationLog> operationLogs) {
+			List<OperationLog> operationLogs,
+			List<RecentCardCheckInRecord> cardCheckIns) {
 	}
 }

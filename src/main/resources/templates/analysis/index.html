@@ -130,6 +130,16 @@
 			position: relative;
 			width: 1000px;
 		}
+		.analysis-attendance-list.is-animating .analysis-attendance-row {
+			animation: analysis-bar-expand 0.95s cubic-bezier(0.22, 1, 0.36, 1) both;
+			animation-delay: var(--analysis-bar-delay, 0ms);
+			transform-origin: left center;
+		}
+		.analysis-attendance-list.is-preparing-animation .analysis-attendance-row {
+			opacity: 0.35;
+			transform: scaleX(0);
+			transform-origin: left center;
+		}
 		.analysis-attendance-segment {
 			align-items: center;
 			display: flex;
@@ -206,6 +216,9 @@
 			gap: 0.75rem;
 			margin-bottom: 1rem;
 		}
+		.analysis-chart-toolbar-end {
+			margin-left: auto;
+		}
 		.analysis-chart-filter {
 			align-items: center;
 			display: inline-flex;
@@ -217,6 +230,20 @@
 		}
 		.analysis-chart-filter[hidden] {
 			display: none;
+		}
+		@keyframes analysis-bar-expand {
+			0% {
+				opacity: 0.35;
+				transform: scaleX(0);
+			}
+			70% {
+				opacity: 1;
+				transform: scaleX(1.03);
+			}
+			100% {
+				opacity: 1;
+				transform: scaleX(1);
+			}
 		}
 		@media (max-width: 767.98px) {
 			.analysis-header-actions {
@@ -259,7 +286,7 @@
 	<div class="accordion analysis-accordion" id="analysisAccordion">
 		<section class="accordion-item border rounded mb-3 overflow-hidden">
 			<h2 class="accordion-header">
-				<button class="accordion-button" th:classappend="${activePanel != 'attendance'} ? ' collapsed' : ''"
+				<button id="attendancePanelToggle" class="accordion-button" th:classappend="${activePanel != 'attendance'} ? ' collapsed' : ''"
 						type="button" data-bs-toggle="collapse"
 						data-bs-target="#attendancePanel" aria-expanded="true" aria-controls="attendancePanel">
 					學生出席率
@@ -509,6 +536,10 @@
 								<label for="analysisExamFilterValue" id="analysisExamFilterLabel" class="form-label mb-0 text-secondary small">選擇</label>
 								<select id="analysisExamFilterValue" class="form-select form-select-sm"></select>
 							</div>
+							<div class="btn-group btn-group-sm analysis-chart-toolbar-end" role="group" aria-label="分數顯示模式">
+								<button type="button" id="analysisRawScoreButton" class="btn btn-outline-secondary active">原始分數</button>
+								<button type="button" id="analysisStandardizedScoreButton" class="btn btn-outline-secondary">標準化分數</button>
+							</div>
 						</div>
 						<div id="analysisScoreTrendEmpty" class="analysis-empty mb-3 d-none">
 							目前篩選條件下尚無可顯示的測驗成績資料
@@ -634,7 +665,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script th:inline="javascript">
 	(() => {
-		function initSortList({ listId, buttonId, valueKey, tieKey, label }) {
+		function initSortList({ listId, buttonId, valueKey, tieKey, label, onSorted }) {
 			const list = document.getElementById(listId);
 			const button = document.getElementById(buttonId);
 			if (!list || !button) {
@@ -670,17 +701,76 @@
 				button.dataset.sortDirection = nextDirection;
 				sortItems(nextDirection);
 				updateButton();
+				onSorted?.();
 			});
 
 			updateButton();
 		}
+
+		document.getElementById('analysisAttendanceRange')?.addEventListener('change', () => {
+			document.getElementById('analysisAttendanceFilterForm')?.submit();
+		});
+		document.getElementById('analysisHomeworkRange')?.addEventListener('change', () => {
+			document.getElementById('analysisHomeworkFilterForm')?.submit();
+		});
+
+		function initBarAnimation(panelId, listId) {
+			const panel = document.getElementById(panelId);
+			const list = document.getElementById(listId);
+			let cleanupTimer = null;
+
+			function playBarAnimation() {
+				if (!list) {
+					return;
+				}
+				const items = Array.from(list.querySelectorAll('.analysis-attendance-item'));
+				const animationDurationMs = 950;
+				const animationDelayMs = 70;
+				items.forEach((item, index) => {
+					item.style.setProperty('--analysis-bar-delay', `${index * animationDelayMs}ms`);
+				});
+				window.clearTimeout(cleanupTimer);
+				list.classList.remove('is-animating');
+				list.classList.add('is-preparing-animation');
+				void list.offsetWidth;
+				list.classList.remove('is-preparing-animation');
+				list.classList.add('is-animating');
+				cleanupTimer = window.setTimeout(() => {
+					list.classList.remove('is-animating');
+				}, animationDurationMs + Math.max(items.length - 1, 0) * animationDelayMs + 120);
+			}
+
+			panel?.addEventListener('show.bs.collapse', () => {
+				if (!list) {
+					return;
+				}
+				window.clearTimeout(cleanupTimer);
+				list.classList.remove('is-animating');
+				list.classList.add('is-preparing-animation');
+				requestAnimationFrame(playBarAnimation);
+			});
+			panel?.addEventListener('hide.bs.collapse', () => {
+				window.clearTimeout(cleanupTimer);
+				list?.classList.remove('is-animating', 'is-preparing-animation');
+			});
+			if (panel?.classList.contains('show')) {
+				requestAnimationFrame(playBarAnimation);
+			}
+			return {
+				play: playBarAnimation
+			};
+		}
+
+		const attendanceBarAnimation = initBarAnimation('attendancePanel', 'analysisAttendanceList');
+		const homeworkBarAnimation = initBarAnimation('homeworkPanel', 'analysisHomeworkList');
 
 		initSortList({
 			listId: 'analysisAttendanceList',
 			buttonId: 'analysisAttendanceSortButton',
 			valueKey: 'presentRate',
 			tieKey: 'absentRate',
-			label: '出席率'
+			label: '出席率',
+			onSorted: () => attendanceBarAnimation?.play()
 		});
 
 		initSortList({
@@ -688,14 +778,8 @@
 			buttonId: 'analysisHomeworkSortButton',
 			valueKey: 'submittedRate',
 			tieKey: 'notSubmittedRate',
-			label: '完成率'
-		});
-
-		document.getElementById('analysisAttendanceRange')?.addEventListener('change', () => {
-			document.getElementById('analysisAttendanceFilterForm')?.submit();
-		});
-		document.getElementById('analysisHomeworkRange')?.addEventListener('change', () => {
-			document.getElementById('analysisHomeworkFilterForm')?.submit();
+			label: '完成率',
+			onSorted: () => homeworkBarAnimation?.play()
 		});
 
 		const attendanceDetailModal = document.getElementById('attendanceDetailModal');
@@ -718,6 +802,8 @@
 			const filterWrap = document.getElementById('analysisExamFilterWrap');
 			const filterLabel = document.getElementById('analysisExamFilterLabel');
 			const filterValueSelect = document.getElementById('analysisExamFilterValue');
+			const rawScoreButton = document.getElementById('analysisRawScoreButton');
+			const standardizedScoreButton = document.getElementById('analysisStandardizedScoreButton');
 			const scoredExamRows = Array.from(document.querySelectorAll('#analysisScoredExamTableBody tr[data-exam-id]'));
 			const practiceExamRows = Array.from(document.querySelectorAll('#analysisPracticeExamTableBody tr[data-exam-id]'));
 			const scoredExamEmptyRow = document.getElementById('analysisScoredExamEmptyRow');
@@ -726,8 +812,9 @@
 			const practiceExamParticipantMeta = /*[[${practiceExamParticipantMeta}]]*/ [];
 			const scoredExamParticipantMap = new Map(scoredExamParticipantMeta.map((meta) => [String(meta.examId), meta]));
 			const practiceExamParticipantMap = new Map(practiceExamParticipantMeta.map((meta) => [String(meta.examId), meta]));
-			const examMeta = /*[[${scoredExams.![{'id': id, 'label': #temporals.format(examDate, 'MM/dd') + ' ' + name, 'classRoomId': classRoom.id, 'classRoomName': classRoom.displayName, 'subjectId': subject.id, 'subjectName': subject.name, 'examDate': #temporals.format(examDate, 'yyyy/MM/dd')}]}]]*/ [];
+			const examMeta = /*[[${examChartMeta}]]*/ [];
 			const datasets = /*[[${studentScoreTrends.![{'studentId': studentId(), 'label': studentName(), 'grade': grade(), 'data': scores(), 'displayScores': displayScores(), 'comments': comments()}]}]]*/ [];
+			let scoreDisplayMode = 'raw';
 			const classOptions = Array.from(new Map(examMeta
 				.filter((exam) => exam.classRoomId != null)
 				.map((exam) => [String(exam.classRoomId), { value: String(exam.classRoomId), label: exam.classRoomName }])).values());
@@ -757,6 +844,29 @@
 			const palette = ['#0d6efd', '#198754', '#dc3545', '#fd7e14', '#6f42c1', '#20c997', '#d63384', '#6610f2', '#0dcaf0', '#6c757d'];
 			datasets.forEach((dataset, index) => {
 				const color = palette[index % palette.length];
+				dataset.rawData = [...dataset.data];
+				dataset.rawDisplayScores = [...dataset.displayScores];
+				dataset.standardizedData = examMeta.map((exam, examIndex) => {
+					const rawValue = dataset.rawData?.[examIndex];
+					if (rawValue == null || rawValue === 0) {
+						return null;
+					}
+					const average = Number(exam.average);
+					const standardDeviation = Number(exam.standardDeviation);
+					if (!Number.isFinite(average)) {
+						return null;
+					}
+					if (!Number.isFinite(standardDeviation) || standardDeviation === 0) {
+						return 0;
+					}
+					return (rawValue - average) / standardDeviation;
+				});
+				dataset.standardizedDisplayScores = dataset.standardizedData.map((value, examIndex) => {
+					if (value == null) {
+						return dataset.rawDisplayScores?.[examIndex] ?? '-';
+					}
+					return value.toFixed(2);
+				});
 				dataset.borderColor = color;
 				dataset.backgroundColor = color;
 				dataset.tension = 0.25;
@@ -782,7 +892,9 @@
 						tooltip: {
 							callbacks: {
 								label(context) {
-									const displayScore = context.dataset.displayScores?.[context.dataIndex];
+									const displayScore = scoreDisplayMode === 'standardized'
+										? context.dataset.standardizedDisplayScores?.[context.dataIndex]
+										: context.dataset.displayScores?.[context.dataIndex];
 									const comment = context.dataset.comments?.[context.dataIndex]?.trim();
 									return comment
 										? `${context.dataset.label}：${displayScore ?? '-'}（${comment}）`
@@ -855,8 +967,14 @@
 				const chartDatasets = filteredDatasets
 					.map((dataset) => ({
 						...dataset,
-						data: filteredExamIndexes.map((examIndex) => dataset.data?.[examIndex] ?? null),
+						data: filteredExamIndexes.map((examIndex) => {
+							if (scoreDisplayMode === 'standardized') {
+								return dataset.standardizedData?.[examIndex] ?? null;
+							}
+							return dataset.rawData?.[examIndex] ?? null;
+						}),
 						displayScores: filteredExamIndexes.map((examIndex) => dataset.displayScores?.[examIndex] ?? null),
+						standardizedDisplayScores: filteredExamIndexes.map((examIndex) => dataset.standardizedDisplayScores?.[examIndex] ?? null),
 						comments: filteredExamIndexes.map((examIndex) => dataset.comments?.[examIndex] ?? null)
 					}))
 					.filter((dataset) => dataset.data.some((value) => value != null));
@@ -915,6 +1033,9 @@
 				const filtered = buildFilteredChartData();
 				scoreTrendChart.data.labels = filtered.labels;
 				scoreTrendChart.data.datasets = filtered.datasets;
+				scoreTrendChart.options.scales.y.beginAtZero = scoreDisplayMode === 'raw';
+				scoreTrendChart.options.scales.y.ticks.precision = scoreDisplayMode === 'raw' ? 0 : 2;
+				scoreTrendChart.options.scales.y.title.text = scoreDisplayMode === 'raw' ? '分數' : '標準化分數';
 				scoreTrendChart.update();
 
 				const hasData = filtered.labels.length > 0 && filtered.datasets.length > 0;
@@ -923,6 +1044,12 @@
 				const visibleScoredExamIds = new Set(filtered.examIds);
 				updateExamTableRows(scoredExamRows, scoredExamEmptyRow, scoredExamParticipantMap, visibleScoredExamIds);
 				updateExamTableRows(practiceExamRows, practiceExamEmptyRow, practiceExamParticipantMap);
+			}
+
+			function updateScoreModeButtons() {
+				const rawActive = scoreDisplayMode === 'raw';
+				rawScoreButton?.classList.toggle('active', rawActive);
+				standardizedScoreButton?.classList.toggle('active', !rawActive);
 			}
 
 			displayTypeSelect?.addEventListener('change', () => {
@@ -939,7 +1066,20 @@
 				renderFilteredChart();
 			});
 
+			rawScoreButton?.addEventListener('click', () => {
+				scoreDisplayMode = 'raw';
+				updateScoreModeButtons();
+				renderFilteredChart();
+			});
+
+			standardizedScoreButton?.addEventListener('click', () => {
+				scoreDisplayMode = 'standardized';
+				updateScoreModeButtons();
+				renderFilteredChart();
+			});
+
 			setFilterOptions(displayTypeSelect?.value ?? 'all');
+			updateScoreModeButtons();
 			renderFilteredChart();
 		}
 	})();

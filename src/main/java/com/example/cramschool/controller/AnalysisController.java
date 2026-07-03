@@ -89,6 +89,7 @@ public class AnalysisController {
 				studentAttendanceService.buildStudentAttendanceDetails(targetMonth));
 		model.addAttribute("studentHomeworkStatusRates", homeworkService.calculateStudentHomeworkStatusRates(targetHomeworkMonth));
 		model.addAttribute("studentScoreTrends", scoreService.buildStudentScoreTrends(scoredExams));
+		model.addAttribute("examChartMeta", buildExamChartMeta(scoredExams, scoreStatsByExam));
 		model.addAttribute("scoredExamParticipantMeta", scoreService.buildExamParticipantMeta(scoredExams));
 		model.addAttribute("practiceExamParticipantMeta", scoreService.buildExamParticipantMeta(practiceExams));
 		model.addAttribute("scoredExams", scoredExams);
@@ -107,5 +108,27 @@ public class AnalysisController {
 		} catch (RuntimeException ex) {
 			return now;
 		}
+	}
+
+	private List<ExamChartMeta> buildExamChartMeta(List<Exam> scoredExams, Map<Long, ScoreStats> scoreStatsByExam) {
+		return scoredExams.stream()
+				.map(exam -> {
+					ScoreStats scoreStats = scoreStatsByExam.get(exam.getId());
+					return new ExamChartMeta(
+							exam.getId(),
+							exam.getExamDate().format(DateTimeFormatter.ofPattern("MM/dd")) + " " + exam.getName(),
+							exam.getClassRoom().getId(),
+							exam.getClassRoom().getDisplayName(),
+							exam.getSubject().getId(),
+							exam.getSubject().getName(),
+							exam.getExamDate().format(DateTimeFormatter.ofPattern("yyyy/MM/dd")),
+							scoreStats == null ? null : scoreStats.getAverage(),
+							scoreStats == null ? null : scoreStats.getStandardDeviation());
+				})
+				.toList();
+	}
+
+	private record ExamChartMeta(Long id, String label, Long classRoomId, String classRoomName, Long subjectId,
+			String subjectName, String examDate, Double average, Double standardDeviation) {
 	}
 }

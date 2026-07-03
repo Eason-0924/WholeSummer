@@ -179,6 +179,7 @@ public class ScoreService {
 		stats.setTotalCount(scores.size());
 
 		int sum = 0;
+		int sumOfSquares = 0;
 		for (Score score : scores) {
 			if (score.getExam().getFullScore() == 0) {
 				if (score.getScore() != null && score.getScore() == 1) {
@@ -194,13 +195,17 @@ public class ScoreService {
 
 			int value = score.getScore();
 			sum += value;
+			sumOfSquares += value * value;
 			stats.setScoredCount(stats.getScoredCount() + 1);
 			stats.setHighest(stats.getHighest() == null ? value : Math.max(stats.getHighest(), value));
 			stats.setLowest(stats.getLowest() == null ? value : Math.min(stats.getLowest(), value));
 		}
 
 		if (stats.getScoredCount() > 0) {
-			stats.setAverage((double) sum / stats.getScoredCount());
+			double average = (double) sum / stats.getScoredCount();
+			stats.setAverage(average);
+			double variance = ((double) sumOfSquares / stats.getScoredCount()) - (average * average);
+			stats.setStandardDeviation(Math.sqrt(Math.max(variance, 0.0d)));
 		}
 		return stats;
 	}
