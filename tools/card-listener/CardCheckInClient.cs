@@ -29,7 +29,11 @@ internal sealed class CardCheckInClient : IDisposable
             deviceName = settings.CardReader.DeviceName
         };
         using var response = await httpClient.PostAsJsonAsync(settings.CheckInUri, payload, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {TrimBody(body)}");
+        }
         var result = await response.Content.ReadFromJsonAsync<CardCheckInResponse>(jsonOptions, cancellationToken);
         return result ?? new CardCheckInResponse
         {
@@ -38,6 +42,16 @@ internal sealed class CardCheckInClient : IDisposable
             Message = "WholeSummer 未回傳刷卡結果",
             CardId = cardId
         };
+    }
+
+    private static string TrimBody(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return "伺服器未回傳錯誤內容";
+        }
+        string normalized = body.Replace("\r", " ").Replace("\n", " ").Trim();
+        return normalized.Length <= 500 ? normalized : normalized[..500] + "...";
     }
 
     public async Task TestConnectionAsync(CancellationToken cancellationToken = default)

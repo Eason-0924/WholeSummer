@@ -18,10 +18,24 @@ internal sealed class CardInputBuffer
 
     public event EventHandler<char>? InputReceived;
 
+    public event EventHandler<CardRejectedEventArgs>? CardRejected;
+
+    public int BufferedLength
+    {
+        get
+        {
+            lock (gate)
+            {
+                return buffer.Length;
+            }
+        }
+    }
+
     public void Push(char value)
     {
         InputReceived?.Invoke(this, value);
         string? readyCard = null;
+        CardRejectedEventArgs? rejected = null;
         lock (gate)
         {
             if (value == '\b')
@@ -31,7 +45,7 @@ internal sealed class CardInputBuffer
             }
             if (value == '\r')
             {
-                readyCard = FlushIfValid();
+                readyCard = FlushIfValid(out rejected);
             }
             else if (char.IsLetterOrDigit(value))
             {
@@ -40,16 +54,19 @@ internal sealed class CardInputBuffer
                 lastInputUtc = DateTime.UtcNow;
                 if (buffer.Length > options.MaxLength)
                 {
+                    rejected = new CardRejectedEventArgs(buffer.Length, "卡號長度超過上限");
                     buffer.Clear();
                 }
             }
         }
         RaiseCardReady(readyCard);
+        RaiseCardRejected(rejected);
     }
 
     public void FlushExpired()
     {
         string? readyCard = null;
+        CardRejectedEventArgs? rejected = null;
         lock (gate)
         {
             if (buffer.Length == 0 || options.UseEnterAsTerminator)
@@ -58,10 +75,11 @@ internal sealed class CardInputBuffer
             }
             if (DateTime.UtcNow - lastInputUtc >= TimeSpan.FromMilliseconds(options.InputTimeoutMs))
             {
-                readyCard = FlushIfValid();
+                readyCard = FlushIfValid(out rejected);
             }
         }
         RaiseCardReady(readyCard);
+        RaiseCardRejected(rejected);
     }
 
     private void ResetWhenExpired()
@@ -76,10 +94,12 @@ internal sealed class CardInputBuffer
         }
     }
 
-    private string? FlushIfValid()
+    private string? FlushIfValid(out CardRejectedEventArgs? rejected)
     {
+        rejected = null;
         if (buffer.Length < options.MinLength || buffer.Length > options.MaxLength)
         {
+            rejected = new CardRejectedEventArgs(buffer.Length, $"卡號長度需為 {options.MinLength}-{options.MaxLength}");
             buffer.Clear();
             return null;
         }
@@ -95,4 +115,14 @@ internal sealed class CardInputBuffer
             CardReady?.Invoke(this, cardId);
         }
     }
+
+    private void RaiseCardRejected(CardRejectedEventArgs? rejected)
+    {
+        if (rejected != null)
+        {
+            CardRejected?.Invoke(this, rejected);
+        }
+    }
 }
+
+internal sealed record CardRejectedEventArgs(int Length, string Reason);
