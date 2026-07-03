@@ -151,6 +151,7 @@ public class TeacherAttendanceService {
 		return savedAttendance;
 	}
 
+	@Transactional(noRollbackFor = IllegalStateException.class)
 	public TeacherAttendance cardClock(Teacher teacher, String cardId, String deviceName, LocalDateTime clockAt) {
 		if (teacher == null || teacher.getId() == null) {
 			throw new IllegalArgumentException("找不到教師資料");

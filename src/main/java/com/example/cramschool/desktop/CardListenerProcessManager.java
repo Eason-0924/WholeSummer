@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,8 @@ import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PreDestroy;
+
 @Component
 public class CardListenerProcessManager {
 
@@ -22,6 +25,7 @@ public class CardListenerProcessManager {
 	private static final String EXECUTABLE_NAME = "WholeSummer.CardListener.exe";
 
 	private final Environment environment;
+	private Process listenerProcess;
 
 	public CardListenerProcessManager(Environment environment) {
 		this.environment = environment;
@@ -52,11 +56,22 @@ public class CardListenerProcessManager {
 					"--device-name", "windows-card-listener");
 			builder.directory(executable.getParent().toFile());
 			builder.redirectErrorStream(true);
-			builder.start();
+			listenerProcess = builder.start();
 			logger.info("Started card listener: {}", executable);
 		} catch (IOException ex) {
 			logger.warn("Unable to start card listener: {}", executable, ex);
 		}
+	}
+
+	@PreDestroy
+	public void stopWhenApplicationStops() {
+		if (!isWindows()) {
+			return;
+		}
+		if (listenerProcess != null) {
+			stopProcess(listenerProcess.toHandle());
+		}
+		stopRunningListeners();
 	}
 
 	private Path resolveExecutablePath() {
@@ -106,14 +121,52 @@ public class CardListenerProcessManager {
 	private boolean isAlreadyRunning() {
 		String processName = EXECUTABLE_NAME.toLowerCase(Locale.ROOT);
 		return ProcessHandle.allProcesses()
-				.map(ProcessHandle::info)
-				.map(ProcessHandle.Info::command)
-				.flatMap(java.util.Optional::stream)
-				.map(command -> Path.of(command).getFileName())
-				.filter(fileName -> fileName != null)
-				.map(Path::toString)
-				.map(value -> value.toLowerCase(Locale.ROOT))
-				.anyMatch(processName::equals);
+				.anyMatch(process -> processName.equals(processFileName(process)));
+	}
+
+	private void stopRunningListeners() {
+		String processName = EXECUTABLE_NAME.toLowerCase(Locale.ROOT);
+		ProcessHandle.allProcesses()
+				.filter(process -> processName.equals(processFileName(process)))
+				.forEach(this::stopProcess);
+	}
+
+	private void stopProcess(ProcessHandle process) {
+		if (!process.isAlive() || process.pid() == ProcessHandle.current().pid()) {
+			return;
+		}
+		try {
+			logger.info("Stopping card listener process: {}", process.pid());
+			process.destroy();
+			process.onExit().get(3, TimeUnit.SECONDS);
+			return;
+		} catch (Exception ex) {
+			logger.debug("Card listener did not stop gracefully: {}", process.pid(), ex);
+		}
+		try {
+			if (process.isAlive()) {
+				process.destroyForcibly();
+				process.onExit().get(3, TimeUnit.SECONDS);
+			}
+		} catch (Exception ex) {
+			logger.warn("Unable to stop card listener process: {}", process.pid(), ex);
+		}
+	}
+
+	private String processFileName(ProcessHandle process) {
+		return process.info()
+				.command()
+				.map(this::fileName)
+				.orElse("");
+	}
+
+	private String fileName(String command) {
+		try {
+			Path fileName = Path.of(command).getFileName();
+			return fileName == null ? "" : fileName.toString().toLowerCase(Locale.ROOT);
+		} catch (RuntimeException ex) {
+			return "";
+		}
 	}
 
 	private String applicationBaseUrl() {

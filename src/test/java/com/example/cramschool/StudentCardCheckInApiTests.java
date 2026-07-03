@@ -354,6 +354,33 @@ class StudentCardCheckInApiTests {
 		assertThat(attendance.getClockOutTime()).isNotNull();
 	}
 
+	@Test
+	void thirdTeacherCardCheckInReturnsDuplicateWithoutRollbackOnlyError() throws Exception {
+		MockHttpSession session = login();
+		String content = "{\"cardId\":\"" + cardPrefix + "TEACHER\"}";
+		mockMvc.perform(post("/api/attendance/card-check-in")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content)
+				.session(session))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CLOCKED_IN"));
+		mockMvc.perform(post("/api/attendance/card-check-in")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content)
+				.session(session))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("CLOCKED_OUT"));
+
+		mockMvc.perform(post("/api/attendance/card-check-in")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(content)
+				.session(session))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.status").value("DUPLICATE_CHECK_IN"))
+				.andExpect(jsonPath("$.message").value("今日已完成上下班打卡"));
+	}
+
 	private Student student(String name, String cardId, String cardStatus) {
 		Student student = new Student();
 		student.setChineseName(name);

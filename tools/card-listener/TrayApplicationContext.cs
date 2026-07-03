@@ -83,6 +83,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("顯示狀態", null, (_, _) => ShowStatus());
+        menu.Items.Add("測試通知", null, (_, _) => TestNotification());
         menu.Items.Add("測試 API 連線", null, async (_, _) => await TestConnectionAsync());
         menu.Items.Add("最近刷卡結果", null, (_, _) => ShowRecentRecords());
         menu.Items.Add(new ToolStripSeparator());
@@ -116,6 +117,18 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ShowNotification("刷卡送出失敗", message, ToolTipIcon.Error);
             statusText = "API 無法連線";
         }
+    }
+
+    private void TestNotification()
+    {
+        string message = $"這是一則測試通知，時間：{DateTime.Now:HH:mm:ss}";
+        AddRecent($"{DateTime.Now:HH:mm:ss} 測試通知 {message}");
+        ShowNotification("WholeSummer 測試通知", message, ToolTipIcon.Info);
+        MessageBox.Show(
+            "已送出測試通知。\n\n如果這個視窗有出現，但 Windows 右下角沒有通知，通常是 Windows 通知設定、勿擾模式或通知中心規則擋住。",
+            "WholeSummer 刷卡監聽",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 
     private async Task TestConnectionAsync()
