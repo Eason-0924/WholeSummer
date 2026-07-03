@@ -68,6 +68,14 @@ internal sealed class AppSettings
         {
             CardReader.MaxTotalInputMs = CardReader.MaxInterKeyIntervalMs;
         }
+        if (CardReader.SuppressAfterFastChars < 2)
+        {
+            CardReader.SuppressAfterFastChars = 2;
+        }
+        if (CardReader.SuppressWindowMs < CardReader.MaxInterKeyIntervalMs)
+        {
+            CardReader.SuppressWindowMs = CardReader.MaxInterKeyIntervalMs;
+        }
         if (string.IsNullOrWhiteSpace(CardReader.DeviceName))
         {
             CardReader.DeviceName = "windows-card-listener";
@@ -121,6 +129,12 @@ internal sealed class CardReaderOptions
     public int MaxInterKeyIntervalMs { get; set; } = 120;
 
     public int MaxTotalInputMs { get; set; } = 1500;
+
+    public bool SuppressKeyboardInput { get; set; } = true;
+
+    public int SuppressAfterFastChars { get; set; } = 2;
+
+    public int SuppressWindowMs { get; set; } = 800;
 }
 
 internal sealed class NotificationOptions

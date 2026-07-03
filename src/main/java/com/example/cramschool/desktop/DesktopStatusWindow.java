@@ -295,19 +295,21 @@ public class DesktopStatusWindow {
 		}
 		StringBuilder builder = new StringBuilder();
 		for (OperationLog log : logs) {
-			builder.append(format(log.getCreatedAt()))
-					.append("  ")
-					.append(log.getActorName())
+			builder.append("・")
+					.append(format(log.getCreatedAt()))
 					.append("  ")
 					.append(log.getAction())
 					.append("  ")
 					.append(log.getResult())
 					.append("\n")
 					.append("    ")
+					.append(log.getActorName())
+					.append("\n")
+					.append("    ")
 					.append(log.getRequestMethod())
 					.append(" ")
 					.append(log.getRequestPath())
-					.append("\n");
+					.append("\n\n");
 		}
 		return builder.toString();
 	}
@@ -318,7 +320,8 @@ public class DesktopStatusWindow {
 		}
 		StringBuilder builder = new StringBuilder();
 		for (RecentCardCheckInRecord record : records) {
-			builder.append(format(record.occurredAt()))
+			builder.append("・")
+					.append(format(record.occurredAt()))
 					.append("  ")
 					.append(record.success() ? "成功" : "失敗")
 					.append("  ")
@@ -328,13 +331,15 @@ public class DesktopStatusWindow {
 					.append(record.personTypeLabel())
 					.append("  ")
 					.append(record.displayName())
-					.append("  ")
+					.append("\n")
+					.append("    ")
 					.append(record.className())
 					.append("\n")
 					.append("    ")
 					.append(record.message() == null || record.message().isBlank() ? "-" : record.message())
 					.append("\n")
-					.append("    卡號：")
+					.append("    ")
+					.append("卡號：")
 					.append(record.cardId())
 					.append("  來源：")
 					.append(record.deviceName())

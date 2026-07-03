@@ -61,6 +61,38 @@ class ClassRoomServiceTests {
 	}
 
 	@Test
+	void updateScheduleKeepsExistingScheduleRow() {
+		Subject subject = subject(1L, "數學");
+		Teacher director = new Teacher();
+		director.setId(7L);
+		director.setName("主任");
+		director.setPosition(TeacherPosition.DIRECTOR);
+
+		ClassSchedule originalSchedule = new ClassSchedule("星期二", LocalTime.of(19, 0), LocalTime.of(21, 0));
+		originalSchedule.setId(101L);
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		classRoom.setGrade("高一");
+		classRoom.setSubject(subject);
+		classRoom.setTeacher(director);
+		classRoom.addSchedule(originalSchedule);
+
+		ClassRoomService service = service(classRoom, subject, director);
+		ClassRoomForm form = ClassRoomForm.from(classRoom);
+		form.getScheduleEntries().getFirst().setWeekday("星期三");
+		form.getScheduleEntries().getFirst().setStartTime(LocalTime.of(18, 30));
+		form.getScheduleEntries().getFirst().setEndTime(LocalTime.of(20, 30));
+
+		ClassRoom updatedClassRoom = service.update(classRoom.getId(), form, director.getId());
+
+		assertThat(updatedClassRoom.getSchedules()).containsExactly(originalSchedule);
+		assertThat(originalSchedule.getId()).isEqualTo(101L);
+		assertThat(originalSchedule.getWeekday()).isEqualTo("星期三");
+		assertThat(originalSchedule.getStartTime()).isEqualTo(LocalTime.of(18, 30));
+		assertThat(originalSchedule.getEndTime()).isEqualTo(LocalTime.of(20, 30));
+	}
+
+	@Test
 	void deleteClearsScheduleEventsBeforeDeletingClassRoom() {
 		Subject subject = subject(1L, "數學");
 		Teacher director = new Teacher();

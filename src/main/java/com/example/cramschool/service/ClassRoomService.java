@@ -14,6 +14,7 @@ import jakarta.persistence.PersistenceContext;
 import com.example.cramschool.config.SchoolOptions;
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.ClassSchedule;
+import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherPermissionType;
@@ -222,11 +223,43 @@ public class ClassRoomService {
 	}
 
 	private void applySchedules(ClassRoom classRoom, ClassRoomForm form) {
-		var schedules = form.toSchedules();
-		if (sameEffectiveSchedules(classRoom.getEffectiveSchedules(), schedules)) {
+		List<ClassSchedule> newSchedules = form.toSchedules();
+		List<ClassSchedule> currentSchedules = classRoom.getEffectiveSchedules();
+		if (sameEffectiveSchedules(currentSchedules, newSchedules)) {
 			return;
 		}
-		classRoom.setSchedules(schedules);
+		int schedulesToUpdate = Math.min(currentSchedules.size(), newSchedules.size());
+		for (int index = 0; index < schedulesToUpdate; index++) {
+			copyScheduleFields(currentSchedules.get(index), newSchedules.get(index));
+		}
+		for (int index = schedulesToUpdate; index < newSchedules.size(); index++) {
+			classRoom.addSchedule(newSchedules.get(index));
+		}
+		for (int index = schedulesToUpdate; index < currentSchedules.size(); index++) {
+			retireSchedule(currentSchedules.get(index));
+		}
+	}
+
+	private void copyScheduleFields(ClassSchedule currentSchedule, ClassSchedule newSchedule) {
+		currentSchedule.setWeekday(newSchedule.getWeekday());
+		currentSchedule.setStartTime(newSchedule.getStartTime());
+		currentSchedule.setEndTime(newSchedule.getEndTime());
+		currentSchedule.setScheduleType(ScheduleType.NORMAL);
+		currentSchedule.setOriginalSchedule(null);
+		currentSchedule.setCourseDate(null);
+		currentSchedule.setScheduledStartAt(null);
+		currentSchedule.setScheduledEndAt(null);
+		currentSchedule.setRescheduleReason(null);
+		currentSchedule.setCreatedByTeacherId(null);
+	}
+
+	private void retireSchedule(ClassSchedule schedule) {
+		schedule.setScheduleType(ScheduleType.CANCELLED);
+		schedule.setCourseDate(null);
+		schedule.setScheduledStartAt(null);
+		schedule.setScheduledEndAt(null);
+		schedule.setRescheduleReason(null);
+		schedule.setCreatedByTeacherId(null);
 	}
 
 	private boolean sameEffectiveSchedules(List<ClassSchedule> currentSchedules, List<ClassSchedule> newSchedules) {

@@ -7,7 +7,8 @@ This is the Windows tray application for keyboard-style card readers.
 1. Listen to HID keyboard input in the background through Windows Raw Input.
 2. Build a card id from fast reader input.
 3. Send the card id to WholeSummer through the local desktop endpoint.
-4. Show a Windows tray notification for success or failure.
+4. Suppress numeric card-reader keystrokes after fast input is detected.
+5. Show a Windows tray notification for success or failure.
 
 ## Build
 
@@ -54,7 +55,9 @@ The listener uses Windows Raw Input so the user does not need to switch input me
 ```json
 "CardReader": {
   "InputMode": "RawInput",
-  "UseEnterAsTerminator": true
+  "UseEnterAsTerminator": true,
+  "SuppressKeyboardInput": true,
+  "SuppressAfterFastChars": 2
 }
 ```
 
@@ -62,4 +65,4 @@ Use the tray menu's `顯示狀態` item to confirm whether Raw Input characters 
 
 ## Notes
 
-The listener does not suppress the reader's keyboard output from the currently focused Windows application. If a deployment needs to accept input only from a specific reader device or suppress foreground typing, a future version should add device filtering and an input-blocking strategy.
+Keyboard suppression only targets numeric keys and Enter after fast input is detected. This keeps normal letter typing unaffected, but the first digit can still reach the focused field before the fast sequence is classified.
