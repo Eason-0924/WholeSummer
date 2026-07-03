@@ -22,6 +22,11 @@ public class PowerShellUpdateInstaller {
 			    [Parameter(Mandatory=$true)][string]$AppPath
 			)
 			$ErrorActionPreference = "Stop"
+			function Get-RunningWholeSummer {
+			    Get-CimInstance Win32_Process -Filter "Name = 'WholeSummer.exe'" -ErrorAction SilentlyContinue |
+			        Where-Object { $_.ExecutablePath -eq $AppPath } |
+			        Select-Object -First 1
+			}
 			try {
 			    Wait-Process -Id $WholeSummerProcessId -ErrorAction SilentlyContinue
 			    Start-Sleep -Seconds 2
@@ -33,6 +38,9 @@ public class PowerShellUpdateInstaller {
 			        throw "安裝程式結束代碼：$($installer.ExitCode)"
 			    }
 			    Start-Sleep -Seconds 2
+			    if (Get-RunningWholeSummer) {
+			        exit 0
+			    }
 			    if (Test-Path -LiteralPath $AppPath) {
 			        Start-Process -FilePath $AppPath
 			    } else {

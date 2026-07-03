@@ -60,6 +60,14 @@ internal sealed class AppSettings
         {
             CardReader.InputTimeoutMs = 50;
         }
+        if (CardReader.MaxInterKeyIntervalMs < 20)
+        {
+            CardReader.MaxInterKeyIntervalMs = 20;
+        }
+        if (CardReader.MaxTotalInputMs < CardReader.MaxInterKeyIntervalMs)
+        {
+            CardReader.MaxTotalInputMs = CardReader.MaxInterKeyIntervalMs;
+        }
         if (string.IsNullOrWhiteSpace(CardReader.DeviceName))
         {
             CardReader.DeviceName = "windows-card-listener";
@@ -107,6 +115,12 @@ internal sealed class CardReaderOptions
     public int InputTimeoutMs { get; set; } = 200;
 
     public bool UseEnterAsTerminator { get; set; } = true;
+
+    public bool RequireFastInput { get; set; } = true;
+
+    public int MaxInterKeyIntervalMs { get; set; } = 120;
+
+    public int MaxTotalInputMs { get; set; } = 1500;
 }
 
 internal sealed class NotificationOptions

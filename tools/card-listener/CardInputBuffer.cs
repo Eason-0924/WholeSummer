@@ -5,9 +5,8 @@ namespace WholeSummer.CardListener;
 internal sealed class CardInputBuffer
 {
     private readonly CardReaderOptions options;
-    private readonly StringBuilder buffer = new();
+    private readonly Dictionary<IntPtr, SourceBuffer> buffers = [];
     private readonly object gate = new();
-    private DateTime lastInputUtc = DateTime.MinValue;
 
     public CardInputBuffer(CardReaderOptions options)
     {
@@ -26,42 +25,52 @@ internal sealed class CardInputBuffer
         {
             lock (gate)
             {
-                return buffer.Length;
+                return buffers.Values.Sum(buffer => buffer.Value.Length);
             }
         }
     }
 
     public void Push(char value)
     {
+        Push(value, IntPtr.Zero);
+    }
+
+    public void Push(char value, IntPtr sourceDevice)
+    {
         string? readyCard = null;
         CardRejectedEventArgs? rejected = null;
         bool acceptedInput = false;
         lock (gate)
         {
+            SourceBuffer source = GetSourceBuffer(sourceDevice);
+            DateTime now = DateTime.UtcNow;
             if (value == '\b')
             {
-                buffer.Clear();
+                source.Clear();
                 return;
             }
             if (value == '\r')
             {
-                if (buffer.Length == 0)
+                if (source.Value.Length == 0)
                 {
                     return;
                 }
-                acceptedInput = true;
-                readyCard = FlushIfValid(out rejected);
+                source.UpdateTerminatorTiming(now);
+                acceptedInput = IsLikelyCardReaderInput(source);
+                readyCard = FlushIfValid(source, out rejected);
             }
             else if (char.IsLetterOrDigit(value))
             {
-                ResetWhenExpired();
-                acceptedInput = true;
-                buffer.Append(char.ToUpperInvariant(value));
-                lastInputUtc = DateTime.UtcNow;
-                if (buffer.Length > options.MaxLength)
+                ResetWhenExpired(source, now);
+                source.Append(char.ToUpperInvariant(value), now);
+                acceptedInput = IsLikelyCardReaderInput(source);
+                if (source.Value.Length > options.MaxLength)
                 {
-                    rejected = new CardRejectedEventArgs(buffer.Length, "卡號長度超過上限");
-                    buffer.Clear();
+                    if (IsLikelyCardReaderInput(source))
+                    {
+                        rejected = new CardRejectedEventArgs(source.Value.Length, "卡號長度超過上限");
+                    }
+                    source.Clear();
                 }
             }
         }
@@ -75,47 +84,103 @@ internal sealed class CardInputBuffer
 
     public void FlushExpired()
     {
-        string? readyCard = null;
-        CardRejectedEventArgs? rejected = null;
+        List<string> readyCards = [];
+        List<CardRejectedEventArgs> rejectedCards = [];
         lock (gate)
         {
-            if (buffer.Length == 0 || options.UseEnterAsTerminator)
+            if (options.UseEnterAsTerminator)
             {
                 return;
             }
-            if (DateTime.UtcNow - lastInputUtc >= TimeSpan.FromMilliseconds(options.InputTimeoutMs))
+            DateTime now = DateTime.UtcNow;
+            foreach (SourceBuffer source in buffers.Values)
             {
-                readyCard = FlushIfValid(out rejected);
+                if (source.Value.Length == 0)
+                {
+                    continue;
+                }
+                if (now - source.LastInputUtc >= TimeSpan.FromMilliseconds(options.InputTimeoutMs))
+                {
+                    string? readyCard = FlushIfValid(source, out CardRejectedEventArgs? rejected);
+                    if (!string.IsNullOrWhiteSpace(readyCard))
+                    {
+                        readyCards.Add(readyCard);
+                    }
+                    if (rejected != null)
+                    {
+                        rejectedCards.Add(rejected);
+                    }
+                }
             }
         }
-        RaiseCardReady(readyCard);
-        RaiseCardRejected(rejected);
+        foreach (string readyCard in readyCards)
+        {
+            RaiseCardReady(readyCard);
+        }
+        foreach (CardRejectedEventArgs rejected in rejectedCards)
+        {
+            RaiseCardRejected(rejected);
+        }
     }
 
-    private void ResetWhenExpired()
+    private SourceBuffer GetSourceBuffer(IntPtr sourceDevice)
     {
-        if (buffer.Length == 0)
+        if (!buffers.TryGetValue(sourceDevice, out SourceBuffer? source))
+        {
+            source = new SourceBuffer();
+            buffers[sourceDevice] = source;
+        }
+        return source;
+    }
+
+    private void ResetWhenExpired(SourceBuffer source, DateTime now)
+    {
+        if (source.Value.Length == 0)
         {
             return;
         }
-        if (DateTime.UtcNow - lastInputUtc >= TimeSpan.FromMilliseconds(options.InputTimeoutMs))
+        if (now - source.LastInputUtc >= TimeSpan.FromMilliseconds(options.InputTimeoutMs))
         {
-            buffer.Clear();
+            source.Clear();
         }
     }
 
-    private string? FlushIfValid(out CardRejectedEventArgs? rejected)
+    private string? FlushIfValid(SourceBuffer source, out CardRejectedEventArgs? rejected)
     {
         rejected = null;
-        if (buffer.Length < options.MinLength || buffer.Length > options.MaxLength)
+        bool likelyCardReaderInput = IsLikelyCardReaderInput(source);
+        if (source.Value.Length < options.MinLength || source.Value.Length > options.MaxLength)
         {
-            rejected = new CardRejectedEventArgs(buffer.Length, $"卡號長度需為 {options.MinLength}-{options.MaxLength}");
-            buffer.Clear();
+            if (likelyCardReaderInput)
+            {
+                rejected = new CardRejectedEventArgs(source.Value.Length,
+                    $"卡號長度需為 {options.MinLength}-{options.MaxLength}");
+            }
+            source.Clear();
             return null;
         }
-        var cardId = buffer.ToString();
-        buffer.Clear();
+        if (!likelyCardReaderInput)
+        {
+            source.Clear();
+            return null;
+        }
+        var cardId = source.Value.ToString();
+        source.Clear();
         return cardId;
+    }
+
+    private bool IsLikelyCardReaderInput(SourceBuffer source)
+    {
+        if (!options.RequireFastInput)
+        {
+            return true;
+        }
+        if (source.Value.Length <= 1)
+        {
+            return false;
+        }
+        return source.MaxInterKeyInterval <= TimeSpan.FromMilliseconds(options.MaxInterKeyIntervalMs)
+            && source.TotalInputDuration <= TimeSpan.FromMilliseconds(options.MaxTotalInputMs);
     }
 
     private void RaiseCardReady(string? cardId)
@@ -136,3 +201,58 @@ internal sealed class CardInputBuffer
 }
 
 internal sealed record CardRejectedEventArgs(int Length, string Reason);
+
+internal sealed class SourceBuffer
+{
+    public StringBuilder Value { get; } = new();
+
+    public DateTime FirstInputUtc { get; private set; } = DateTime.MinValue;
+
+    public DateTime LastInputUtc { get; private set; } = DateTime.MinValue;
+
+    public TimeSpan MaxInterKeyInterval { get; private set; } = TimeSpan.Zero;
+
+    public TimeSpan TotalInputDuration => FirstInputUtc == DateTime.MinValue || LastInputUtc == DateTime.MinValue
+        ? TimeSpan.Zero
+        : LastInputUtc - FirstInputUtc;
+
+    public void Append(char value, DateTime inputUtc)
+    {
+        if (Value.Length == 0)
+        {
+            FirstInputUtc = inputUtc;
+        }
+        else
+        {
+            TimeSpan interval = inputUtc - LastInputUtc;
+            if (interval > MaxInterKeyInterval)
+            {
+                MaxInterKeyInterval = interval;
+            }
+        }
+        Value.Append(value);
+        LastInputUtc = inputUtc;
+    }
+
+    public void UpdateTerminatorTiming(DateTime inputUtc)
+    {
+        if (Value.Length == 0 || LastInputUtc == DateTime.MinValue)
+        {
+            return;
+        }
+        TimeSpan interval = inputUtc - LastInputUtc;
+        if (interval > MaxInterKeyInterval)
+        {
+            MaxInterKeyInterval = interval;
+        }
+        LastInputUtc = inputUtc;
+    }
+
+    public void Clear()
+    {
+        Value.Clear();
+        FirstInputUtc = DateTime.MinValue;
+        LastInputUtc = DateTime.MinValue;
+        MaxInterKeyInterval = TimeSpan.Zero;
+    }
+}

@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.2.1.5**
+目前版本：**1.2.1.6**
 
 ## 使用者操作教學與須知
 
@@ -158,7 +158,8 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 4. 若有可安裝版本，可查看版本號、安裝檔名稱與更新內容。
 5. 按「稍後再說」可暫時略過此版本；按「立即更新」會下載安裝檔並關閉目前系統。
 6. Windows updater 會等待主程式關閉、執行 installer，完成後重新啟動 WholeSummer。
-7. 更新不會刪除外部設定檔、MySQL 資料庫、備份檔或使用者資料。
+7. 手動執行 Windows installer 時，安裝完成後也會嘗試直接啟動 WholeSummer。
+8. 更新不會刪除外部設定檔、MySQL 資料庫、備份檔或使用者資料。
 
 ### 備份與還原操作
 
@@ -309,6 +310,15 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.2.1.6 更新內容
+
+- 1.2.1.6 修正版發布。
+- Windows installer 安裝完成後會嘗試直接啟動 WholeSummer。
+- 系統內更新器會偵測 installer 是否已啟動 WholeSummer，避免更新完成後重複開啟主程式。
+- Windows 刷卡監聽器依 Raw Input HID 裝置來源分開緩衝，避免一般鍵盤與讀卡機輸入混在一起。
+- Windows 刷卡監聽器新增快速輸入判定，慢速手打內容會靜默清除，不再持續跳出「卡號未送出」通知。
+- Windows 刷卡監聽器狀態視窗新增最近 Raw Input 裝置 handle，方便現場判斷輸入來源。
 
 ## 1.2.1.5 更新內容
 
@@ -627,6 +637,7 @@ Windows 安裝版會透過 GitHub Releases 檢查新版本：
 - 主任或具備系統更新權限的教師可查看及執行更新
 - 新版會先下載到外部 `update` 目錄
 - PowerShell updater 會等待主程式關閉、執行 installer，完成後重新啟動
+- 手動執行 Windows installer 時，安裝完成後也會嘗試直接啟動 WholeSummer
 - 設定檔、資料與備份不會因更新被刪除
 
 若更新失敗，安裝檔會保留，使用者可手動執行。

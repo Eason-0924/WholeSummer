@@ -40,6 +40,8 @@ internal sealed class RawInputForm : Form
 
     public ushort? LastFlags { get; private set; }
 
+    public IntPtr? LastDeviceHandle { get; private set; }
+
     public char? LastResolvedKey { get; private set; }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -59,10 +61,11 @@ internal sealed class RawInputForm : Form
                 LastVirtualKey = keyInfo.Value.VirtualKey;
                 LastMakeCode = keyInfo.Value.MakeCode;
                 LastFlags = keyInfo.Value.Flags;
+                LastDeviceHandle = keyInfo.Value.DeviceHandle;
                 LastResolvedKey = keyInfo.Value.Key;
                 if (keyInfo.Value.Key.HasValue)
                 {
-                    inputBuffer.Push(keyInfo.Value.Key.Value);
+                    inputBuffer.Push(keyInfo.Value.Key.Value, keyInfo.Value.DeviceHandle);
                 }
                 else
                 {
@@ -123,6 +126,7 @@ internal sealed class RawInputForm : Form
                 rawInput.keyboard.VKey,
                 rawInput.keyboard.MakeCode,
                 rawInput.keyboard.Flags,
+                rawInput.header.hDevice,
                 VirtualKeyToChar(rawInput.keyboard.VKey));
         }
         finally
@@ -206,5 +210,10 @@ internal sealed class RawInputForm : Form
         public RAWKEYBOARD keyboard;
     }
 
-    private readonly record struct RawKeyInfo(ushort VirtualKey, ushort MakeCode, ushort Flags, char? Key);
+    private readonly record struct RawKeyInfo(
+        ushort VirtualKey,
+        ushort MakeCode,
+        ushort Flags,
+        IntPtr DeviceHandle,
+        char? Key);
 }
