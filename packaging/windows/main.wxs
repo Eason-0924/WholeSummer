@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
-     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
   <?ifdef JpIsSystemWide ?>
     <?define JpInstallScope="perMachine"?>
@@ -69,11 +68,10 @@
 
     <CustomAction Id="JpFindRelatedProducts" BinaryKey="JpCaDll" DllEntry="FindRelatedProductsEx" />
 
-    <Property Id="WixShellExecTarget" Value="[INSTALLDIR]WholeSummer.exe" />
     <CustomAction
       Id="LaunchWholeSummerAfterInstall"
-      BinaryKey="WixCA"
-      DllEntry="WixShellExec"
+      Directory="INSTALLDIR"
+      ExeCommand="[INSTALLDIR]WholeSummer.exe"
       Execute="immediate"
       Impersonate="yes"
       Return="asyncNoWait" />
@@ -136,7 +134,7 @@
       <LaunchConditions Before="AppSearch"/>
       <RemoveExistingProducts Before="CostInitialize"/>
       <Custom Action="JpFindRelatedProducts" After="FindRelatedProducts"/>
-      <Custom Action="LaunchWholeSummerAfterInstall" After="InstallFinalize">LAUNCH_WHOLESUMMER &lt;&gt; "0" AND NOT REMOVE</Custom>
+      <Custom Action="LaunchWholeSummerAfterInstall" After="InstallFinalize">NOT Installed AND NOT REMOVE AND UILevel &gt; 2</Custom>
     </InstallExecuteSequence>
 
     <InstallUISequence>
