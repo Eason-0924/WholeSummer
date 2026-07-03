@@ -64,6 +64,14 @@ internal sealed class AppSettings
         {
             CardReader.DeviceName = "windows-card-listener";
         }
+        if (string.IsNullOrWhiteSpace(CardReader.InputMode))
+        {
+            CardReader.InputMode = "RawInput";
+        }
+        if (!CardReader.InputMode.Equals("RawInput", StringComparison.OrdinalIgnoreCase))
+        {
+            CardReader.InputMode = "RawInput";
+        }
     }
 
     private static string? ArgumentValue(string[] args, string key)
@@ -89,6 +97,8 @@ internal sealed class WholeSummerOptions
 internal sealed class CardReaderOptions
 {
     public string DeviceName { get; set; } = "windows-card-listener";
+
+    public string InputMode { get; set; } = "RawInput";
 
     public int MinLength { get; set; } = 6;
 

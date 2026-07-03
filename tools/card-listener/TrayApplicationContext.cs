@@ -12,12 +12,19 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly System.Windows.Forms.Timer flushTimer;
     private readonly List<string> recentRecords = [];
     private string statusText = "監聽中";
+    private DateTime? lastInputAt;
+    private int receivedInputCount;
 
     public TrayApplicationContext(AppSettings settings, CardCheckInClient client)
     {
         this.settings = settings;
         this.client = client;
         inputBuffer = new CardInputBuffer(settings.CardReader);
+        inputBuffer.InputReceived += (_, _) =>
+        {
+            lastInputAt = DateTime.Now;
+            receivedInputCount += 1;
+        };
         inputBuffer.CardReady += async (_, cardId) => await ProcessCardAsync(cardId);
 
         notifyIcon = new NotifyIcon
@@ -39,7 +46,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         flushTimer.Tick += (_, _) => inputBuffer.FlushExpired();
         flushTimer.Start();
 
-        ShowNotification("刷卡監聽已啟動", "WholeSummer 刷卡背景程式正在監聽。", ToolTipIcon.Info);
+        ShowNotification("刷卡監聽已啟動", $"WholeSummer 刷卡背景程式正在監聽。模式：{settings.CardReader.InputMode}", ToolTipIcon.Info);
     }
 
     protected override void Dispose(bool disposing)
@@ -91,18 +98,25 @@ internal sealed class TrayApplicationContext : ApplicationContext
         try
         {
             await client.TestConnectionAsync();
+            string message = $"API 連線正常\n{settings.WholeSummer.ApiBaseUrl}";
+            AddRecent($"{DateTime.Now:HH:mm:ss} API 測試成功 {settings.WholeSummer.ApiBaseUrl}");
             ShowNotification("API 連線正常", settings.WholeSummer.ApiBaseUrl, ToolTipIcon.Info);
+            MessageBox.Show(message, "WholeSummer 刷卡監聽", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {
+            string message = $"API 連線失敗\n{ex.Message}";
+            AddRecent($"{DateTime.Now:HH:mm:ss} API 測試失敗 {ex.Message}");
             ShowNotification("API 連線失敗", ex.Message, ToolTipIcon.Error);
+            MessageBox.Show(message, "WholeSummer 刷卡監聽", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
     private void ShowStatus()
     {
+        string lastInputText = lastInputAt == null ? "尚未收到輸入" : lastInputAt.Value.ToString("HH:mm:ss");
         MessageBox.Show(
-            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}",
+            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}\n監聽模式：{settings.CardReader.InputMode}\n卡號長度：{settings.CardReader.MinLength}-{settings.CardReader.MaxLength}\n逾時送出：{settings.CardReader.InputTimeoutMs} ms\n最近收到輸入：{lastInputText}\n收到輸入次數：{receivedInputCount}",
             "WholeSummer 刷卡監聽",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);

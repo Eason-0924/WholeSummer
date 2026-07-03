@@ -16,8 +16,11 @@ internal sealed class CardInputBuffer
 
     public event EventHandler<string>? CardReady;
 
+    public event EventHandler<char>? InputReceived;
+
     public void Push(char value)
     {
+        InputReceived?.Invoke(this, value);
         string? readyCard = null;
         lock (gate)
         {

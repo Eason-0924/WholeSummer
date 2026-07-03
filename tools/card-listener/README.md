@@ -47,6 +47,19 @@ You can also run it manually for testing:
 .\WholeSummer.CardListener.exe --api-base-url http://127.0.0.1:8080
 ```
 
+## Reader diagnostics
+
+The listener uses Windows Raw Input so the user does not need to switch input method or focus a browser input before scanning.
+
+```json
+"CardReader": {
+  "InputMode": "RawInput",
+  "UseEnterAsTerminator": true
+}
+```
+
+Use the tray menu's `顯示狀態` item to confirm whether Raw Input characters have been received. Use `測試 API 連線` to show a success/failure dialog for the local WholeSummer API.
+
 ## Notes
 
-The first version receives Raw Input from keyboard-class devices while running in the background. It does not suppress the reader's keyboard output from the currently focused Windows application. If a deployment needs to accept input only from a specific reader device or suppress foreground typing, the next version should add device filtering and a low-level keyboard hook strategy.
+The listener does not suppress the reader's keyboard output from the currently focused Windows application. If a deployment needs to accept input only from a specific reader device or suppress foreground typing, a future version should add device filtering and an input-blocking strategy.
