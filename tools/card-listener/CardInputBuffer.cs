@@ -33,9 +33,9 @@ internal sealed class CardInputBuffer
 
     public void Push(char value)
     {
-        InputReceived?.Invoke(this, value);
         string? readyCard = null;
         CardRejectedEventArgs? rejected = null;
+        bool acceptedInput = false;
         lock (gate)
         {
             if (value == '\b')
@@ -45,11 +45,17 @@ internal sealed class CardInputBuffer
             }
             if (value == '\r')
             {
+                if (buffer.Length == 0)
+                {
+                    return;
+                }
+                acceptedInput = true;
                 readyCard = FlushIfValid(out rejected);
             }
             else if (char.IsLetterOrDigit(value))
             {
                 ResetWhenExpired();
+                acceptedInput = true;
                 buffer.Append(char.ToUpperInvariant(value));
                 lastInputUtc = DateTime.UtcNow;
                 if (buffer.Length > options.MaxLength)
@@ -58,6 +64,10 @@ internal sealed class CardInputBuffer
                     buffer.Clear();
                 }
             }
+        }
+        if (acceptedInput)
+        {
+            InputReceived?.Invoke(this, value);
         }
         RaiseCardReady(readyCard);
         RaiseCardRejected(rejected);

@@ -8,6 +8,10 @@
     <Nullable>enable</Nullable>
     <AssemblyName>WholeSummer.CardListener</AssemblyName>
     <RootNamespace>WholeSummer.CardListener</RootNamespace>
+    <AssemblyTitle>WholeSummer 刷卡監聽</AssemblyTitle>
+    <Product>WholeSummer 刷卡監聽</Product>
+    <Description>WholeSummer 刷卡監聽</Description>
+    <FileDescription>WholeSummer 刷卡監聽</FileDescription>
   </PropertyGroup>
 
   <ItemGroup>

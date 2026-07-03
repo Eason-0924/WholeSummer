@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.2.1.4**
+目前版本：**1.2.1.5**
 
 ## 使用者操作教學與須知
 
@@ -309,6 +309,13 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.2.1.5 更新內容
+
+- 1.2.1.5 修正版發布。
+- Windows 刷卡監聽器設定固定 AppUserModelID，讓系統通知可歸類到 `WholeSummer.CardListener`，方便在 Windows 通知設定中辨識與允許。
+- Windows 刷卡監聽器程式描述改為「WholeSummer 刷卡監聽」，讓工作管理員、通知設定與檔案資訊更容易辨識。
+- 刷卡輸入緩衝器忽略空 Enter，避免讀卡機或鍵盤單獨送出 Enter 時被計入有效刷卡輸入次數。
 
 ## 1.2.1.4 更新內容
 

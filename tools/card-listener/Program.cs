@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace WholeSummer.CardListener;
@@ -7,6 +8,8 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        SetCurrentProcessExplicitAppUserModelID("WholeSummer.CardListener");
+
         using var instanceGuard = SingleInstanceGuard.Acquire("Global\\WholeSummer.CardListener");
         if (!instanceGuard.HasHandle)
         {
@@ -20,4 +23,7 @@ internal static class Program
         using var client = new CardCheckInClient(settings);
         Application.Run(new TrayApplicationContext(settings, client));
     }
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetCurrentProcessExplicitAppUserModelID(string appID);
 }
