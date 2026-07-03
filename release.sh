@@ -10,7 +10,6 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
 fi
 
 REPUBLISH=false
-RELEASE_REMARK="測試版（BETA）"
 
 read_project_version() {
   ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout
@@ -40,7 +39,7 @@ refresh_version_state() {
 update_project_version() {
   NEW_VERSION="$1"
   ./mvnw -q versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
-  sed -i.bak -E "s/^run-name: Release .*/run-name: Release $NEW_VERSION BETA/" .github/workflows/build-windows.yml
+  sed -i.bak -E "s/^run-name: Release .*/run-name: Release $NEW_VERSION/" .github/workflows/build-windows.yml
   rm -f .github/workflows/build-windows.yml.bak
 }
 
@@ -164,7 +163,6 @@ done
 
 echo "目前 pom.xml 版本：$VERSION"
 echo "即將發布：$TAG"
-echo "發布備註：$RELEASE_REMARK"
 echo
 
 echo
@@ -180,12 +178,8 @@ echo
 
 git add .
 
-COMMIT_MESSAGE="Release $VERSION BETA"
+COMMIT_MESSAGE="Release $VERSION"
 RELEASE_NOTES=$(read_release_notes_from_readme)
-
-if [ -n "$RELEASE_REMARK" ] && ! printf '%s\n' "$RELEASE_NOTES" | grep -Fq "$RELEASE_REMARK"; then
-  RELEASE_NOTES="- $RELEASE_REMARK${RELEASE_NOTES:+$'\n'}$RELEASE_NOTES"
-fi
 
 if [ -n "$RELEASE_NOTES" ]; then
   echo "已從 README.md 讀取 $VERSION 更新內容："
@@ -212,9 +206,9 @@ echo
 echo "建立 Git tag：$TAG"
 
 if [ -n "$RELEASE_NOTES" ]; then
-  git tag -a "$TAG" -m "Release $VERSION BETA" -m "$RELEASE_NOTES"
+  git tag -a "$TAG" -m "Release $VERSION" -m "$RELEASE_NOTES"
 else
-  git tag -a "$TAG" -m "Release $VERSION BETA"
+  git tag -a "$TAG" -m "Release $VERSION"
 fi
 
 git push origin "$TAG"
