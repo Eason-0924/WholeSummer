@@ -15,6 +15,7 @@ import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.StudentForm;
 import com.example.cramschool.service.HomeworkRecordService;
+import com.example.cramschool.service.LineBindingService;
 import com.example.cramschool.service.ScoreService;
 import com.example.cramschool.service.StudentAttendanceService;
 import com.example.cramschool.service.StudentService;
@@ -34,17 +35,19 @@ public class StudentController {
 	private final StudentAttendanceService studentAttendanceService;
 	private final TuitionRecordService tuitionRecordService;
 	private final TeacherPermissionService teacherPermissionService;
+	private final LineBindingService lineBindingService;
 
 	public StudentController(StudentService studentService, ScoreService scoreService,
 			HomeworkRecordService homeworkRecordService, StudentAttendanceService studentAttendanceService,
 			TuitionRecordService tuitionRecordService,
-			TeacherPermissionService teacherPermissionService) {
+			TeacherPermissionService teacherPermissionService, LineBindingService lineBindingService) {
 		this.studentService = studentService;
 		this.scoreService = scoreService;
 		this.homeworkRecordService = homeworkRecordService;
 		this.studentAttendanceService = studentAttendanceService;
 		this.tuitionRecordService = tuitionRecordService;
 		this.teacherPermissionService = teacherPermissionService;
+		this.lineBindingService = lineBindingService;
 	}
 
 	@ModelAttribute
@@ -113,6 +116,7 @@ public class StudentController {
 		model.addAttribute("attendances", studentAttendanceService.findByStudentId(studentId));
 		model.addAttribute("tuitionRecords", tuitionRecords);
 		model.addAttribute("tuitionSummary", tuitionRecordService.summarize(tuitionRecords));
+		model.addAttribute("lineBindCodes", lineBindingService.findRecentBindCodes(studentId));
 		return "students/detail";
 	}
 
@@ -189,6 +193,22 @@ public class StudentController {
 		studentService.delete(student.getId(), currentTeacherId(session));
 		redirectAttributes.addFlashAttribute("message", "已刪除學生：" + student.getDisplayName());
 		return "redirect:/students";
+	}
+
+	@PostMapping("/{slug}/line-bind-code")
+	public String createLineBindCode(@PathVariable String slug, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		Student student = studentService.findByUrlSlugOrId(slug);
+		try {
+			var result = lineBindingService.createBindCode(student.getId(), currentTeacherId(session));
+			redirectAttributes.addFlashAttribute("message",
+					"已產生 LINE 綁定碼：" + result.code() + "，有效至 "
+							+ result.expiredAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")));
+			redirectAttributes.addFlashAttribute("lineBindInstruction", result.instructionText());
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return redirectToStudent(student);
 	}
 
 	private boolean hasPermission(HttpSession session, TeacherPermissionType permissionType) {

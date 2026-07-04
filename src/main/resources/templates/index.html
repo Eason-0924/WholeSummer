@@ -126,14 +126,36 @@
 			height: 100%;
 		}
 		.shortcut-tile {
+			align-items: center;
 			border: 1px solid var(--bs-border-color);
 			border-radius: 0.9rem;
+			display: flex;
+			gap: 0.75rem;
+			justify-content: space-between;
 			padding: 1rem;
 			background: var(--bs-light);
 			cursor: move;
 		}
 		.shortcut-tile.dragging {
 			opacity: 0.55;
+		}
+		.shortcut-tile-content {
+			min-width: 0;
+		}
+		.shortcut-mobile-action {
+			align-items: center;
+			background: #fff;
+			border: 1px solid var(--bs-border-color);
+			border-radius: 999px;
+			display: none;
+			flex: 0 0 auto;
+			font-size: 1.25rem;
+			font-weight: 700;
+			height: 2.25rem;
+			justify-content: center;
+			line-height: 1;
+			padding: 0;
+			width: 2.25rem;
 		}
 		.shortcut-empty {
 			border: 1px dashed var(--bs-border-color);
@@ -204,6 +226,12 @@
 			}
 		}
 		@media (max-width: 575.98px) {
+			.shortcut-tile {
+				cursor: default;
+			}
+			.shortcut-mobile-action {
+				display: inline-flex;
+			}
 			#shortcutEditorModal .modal-content {
 				max-height: 100vh;
 			}
@@ -407,8 +435,12 @@
 								<div class="shortcut-list" id="selectedShortcutList" data-shortcut-list="selected">
 									<article class="shortcut-tile" draggable="true" th:each="shortcut : ${homeShortcutCards}"
 											th:attr="data-shortcut-id=${shortcut.id}">
-										<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
-										<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+										<div class="shortcut-tile-content">
+											<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
+											<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+										</div>
+										<button type="button" class="shortcut-mobile-action text-danger"
+												data-shortcut-action="remove" aria-label="從快捷欄移除">-</button>
 									</article>
 									<div class="shortcut-empty" id="selectedShortcutEmpty"
 											th:if="${#lists.isEmpty(homeShortcutCards)}">將功能拖曳到這裡，就會顯示在首頁。</div>
@@ -422,8 +454,12 @@
 								<div class="shortcut-list" id="availableShortcutList" data-shortcut-list="available">
 									<article class="shortcut-tile" draggable="true" th:each="shortcut : ${homeShortcutAvailableCards}"
 											th:attr="data-shortcut-id=${shortcut.id}">
-										<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
-										<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+										<div class="shortcut-tile-content">
+											<div class="fw-semibold mb-1" th:text="${shortcut.title}">學生管理</div>
+											<div class="small text-secondary" th:text="${shortcut.description}">說明</div>
+										</div>
+										<button type="button" class="shortcut-mobile-action text-success"
+												data-shortcut-action="add" aria-label="加入快捷欄">+</button>
 									</article>
 									<div class="shortcut-empty" id="availableShortcutEmpty"
 											th:if="${#lists.isEmpty(homeShortcutAvailableCards)}">目前所有可用功能都已加入快捷欄。</div>
@@ -497,6 +533,7 @@
 		}
 
 		function bindCard(card) {
+			bindMobileAction(card);
 			card.addEventListener('dragstart', () => {
 				draggingCard = card;
 				card.classList.add('dragging');
@@ -505,6 +542,31 @@
 				card.classList.remove('dragging');
 				draggingCard = null;
 				document.querySelectorAll('[data-shortcut-panel]').forEach((panel) => panel.classList.remove('is-dragover'));
+				syncInputs();
+			});
+		}
+
+		function bindMobileAction(card) {
+			const button = card.querySelector('[data-shortcut-action]');
+			if (!button) {
+				return;
+			}
+			button.addEventListener('click', () => {
+				if (button.dataset.shortcutAction === 'remove') {
+					availableList.appendChild(card);
+					button.dataset.shortcutAction = 'add';
+					button.classList.remove('text-danger');
+					button.classList.add('text-success');
+					button.setAttribute('aria-label', '加入快捷欄');
+					button.textContent = '+';
+				} else {
+					selectedList.appendChild(card);
+					button.dataset.shortcutAction = 'remove';
+					button.classList.remove('text-success');
+					button.classList.add('text-danger');
+					button.setAttribute('aria-label', '從快捷欄移除');
+					button.textContent = '-';
+				}
 				syncInputs();
 			});
 		}

@@ -114,6 +114,11 @@ class HomeShortcutCustomizationTests {
 		assertThat(previewHtml).doesNotContain("href=\"/classes\"");
 		assertThat(html).contains("data-shortcut-id=\"classes\"");
 		assertThat(html).doesNotContain("data-shortcut-id=\"tuition\"");
+		assertThat(html)
+				.contains("data-shortcut-action=\"remove\"")
+				.contains("data-shortcut-action=\"add\"")
+				.contains("從快捷欄移除")
+				.contains("加入快捷欄");
 	}
 
 	@Test
