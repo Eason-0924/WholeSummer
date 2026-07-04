@@ -55,10 +55,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
         notifyIcon.DoubleClick += (_, _) => ShowStatus();
 
-        rawInputForm = new RawInputForm(inputBuffer);
-        rawInputForm.Show();
-
         keyboardInputSuppressor = new KeyboardInputSuppressor(settings.CardReader);
+        rawInputForm = new RawInputForm(
+            inputBuffer,
+            settings.CardReader,
+            key => keyboardInputSuppressor.AllowSelectedReaderKey(key));
+        rawInputForm.ReaderDeviceLearned += (_, device) => SaveLearnedReaderDevice(device);
+        rawInputForm.Show();
 
         flushTimer = new System.Windows.Forms.Timer
         {
@@ -68,6 +71,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         flushTimer.Start();
 
         ShowNotification("刷卡監聽已啟動", $"WholeSummer 刷卡背景程式正在監聽。模式：{settings.CardReader.InputMode}", ToolTipIcon.Info);
+        if (settings.CardReader.RequireSelectedReader
+                && string.IsNullOrWhiteSpace(settings.CardReader.ReaderDevicePath))
+        {
+            rawInputForm.BeginInvoke((Action)BeginReaderLearning);
+        }
     }
 
     protected override void Dispose(bool disposing)
@@ -87,6 +95,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var menu = new ContextMenuStrip();
         menu.Items.Add("顯示狀態", null, (_, _) => ShowStatus());
+        menu.Items.Add("重新設定讀卡機", null, (_, _) => BeginReaderLearning());
         menu.Items.Add("測試通知", null, (_, _) => TestNotification());
         menu.Items.Add("測試 API 連線", null, async (_, _) => await TestConnectionAsync());
         menu.Items.Add("最近刷卡結果", null, (_, _) => ShowRecentRecords());
@@ -121,6 +130,49 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ShowNotification("刷卡送出失敗", message, ToolTipIcon.Error);
             statusText = "API 無法連線";
         }
+    }
+
+    private void BeginReaderLearning()
+    {
+        MessageBox.Show(
+            "按下確定後，請用實際讀卡機任意刷一張卡。\n\n這次刷卡只用來記住讀卡機來源，不會送出點名紀錄。",
+            "設定刷卡讀卡機",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+        rawInputForm.LearnNextReaderDevice();
+    }
+
+    private void SaveLearnedReaderDevice(ReaderDeviceLearnedEventArgs device)
+    {
+        if (string.IsNullOrWhiteSpace(device.DevicePath))
+        {
+            MessageBox.Show(
+                "無法取得讀卡機來源，請重新設定。",
+                "設定刷卡讀卡機",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+        settings.CardReader.ReaderDevicePath = device.DevicePath;
+        try
+        {
+            settings.Save();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "已記住讀卡機，但無法寫入設定檔：" + ex.Message,
+                "設定刷卡讀卡機",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+        AddRecent($"{DateTime.Now:HH:mm:ss} 已設定讀卡機來源 {ShortDevicePath(device.DevicePath)}");
+        ShowNotification("讀卡機已設定", "之後只會處理此讀卡機來源的刷卡輸入。", ToolTipIcon.Info);
+        MessageBox.Show(
+            "讀卡機已設定完成。\n\n之後只有這台讀卡機的輸入會進入刷卡點名。",
+            "設定刷卡讀卡機",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 
     private void TestNotification()
@@ -160,6 +212,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         string lastCardText = lastCardReadyAt == null ? "尚未組成卡號" : $"{lastCardReadyAt.Value:HH:mm:ss}（{lastCardLength} 碼）";
         string lastApiText = lastApiResultAt == null ? "尚未送出 API" : $"{lastApiResultAt.Value:HH:mm:ss} {lastApiResult}";
         string rejectedText = lastRejectedAt == null ? "-" : $"{lastRejectedAt.Value:HH:mm:ss} {lastRejectedReason}（收到 {lastRejectedLength} 碼）";
+        string readerPathText = string.IsNullOrWhiteSpace(settings.CardReader.ReaderDevicePath)
+            ? "尚未設定"
+            : ShortDevicePath(settings.CardReader.ReaderDevicePath);
         string suppressText = keyboardInputSuppressor.LastSuppressedAt == null
             ? "-"
             : $"{keyboardInputSuppressor.LastSuppressedAt.Value:HH:mm:ss} {keyboardInputSuppressor.LastSuppressedKey}";
@@ -167,7 +222,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ? "-"
             : $"Device={rawInputForm.LastDeviceHandle}, VKey={rawInputForm.LastVirtualKey}, MakeCode={rawInputForm.LastMakeCode}, Flags={rawInputForm.LastFlags}, Char={(rawInputForm.LastResolvedKey == null ? "-" : rawInputForm.LastResolvedKey)}";
         MessageBox.Show(
-            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}\n監聽模式：{settings.CardReader.InputMode}\nRaw Input 註冊：{(rawInputForm.Registered ? "成功" : "失敗")}\nRaw Input 訊息數：{rawInputForm.RawInputMessageCount}\n未支援按鍵數：{rawInputForm.UnsupportedKeyCount}\n最近 Raw Key：{rawKeyText}\n鍵盤輸入攔截：{(keyboardInputSuppressor.Enabled ? "啟用" : "停用")}\n攔截按鍵次數：{keyboardInputSuppressor.SuppressedKeyCount}\n最近攔截按鍵：{suppressText}\n卡號長度：{settings.CardReader.MinLength}-{settings.CardReader.MaxLength}\n逾時送出：{settings.CardReader.InputTimeoutMs} ms\n最近收到輸入：{lastInputText}\n收到有效字元次數：{receivedInputCount}\n目前緩衝長度：{inputBuffer.BufferedLength}\n已組成卡號次數：{cardReadyCount}\n最後組成卡號：{lastCardText}\n最後 API 結果：{lastApiText}\n最後未送出原因：{rejectedText}",
+            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}\n監聽模式：{settings.CardReader.InputMode}\n指定讀卡機：{readerPathText}\n讀卡機學習模式：{(rawInputForm.LearningReader ? "等待刷卡" : "關閉")}\nRaw Input 註冊：{(rawInputForm.Registered ? "成功" : "失敗")}\nRaw Input 訊息數：{rawInputForm.RawInputMessageCount}\n未支援按鍵數：{rawInputForm.UnsupportedKeyCount}\n最近 Raw Key：{rawKeyText}\n鍵盤輸入攔截：{(keyboardInputSuppressor.Enabled ? "啟用" : "停用")}\n攔截按鍵次數：{keyboardInputSuppressor.SuppressedKeyCount}\n最近攔截按鍵：{suppressText}\n卡號長度：{settings.CardReader.MinLength}-{settings.CardReader.MaxLength}\n逾時送出：{settings.CardReader.InputTimeoutMs} ms\n最近收到輸入：{lastInputText}\n收到有效字元次數：{receivedInputCount}\n目前緩衝長度：{inputBuffer.BufferedLength}\n已組成卡號次數：{cardReadyCount}\n最後組成卡號：{lastCardText}\n最後 API 結果：{lastApiText}\n最後未送出原因：{rejectedText}",
             "WholeSummer 刷卡監聽",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
@@ -197,5 +252,14 @@ internal sealed class TrayApplicationContext : ApplicationContext
             return;
         }
         notifyIcon.ShowBalloonTip(3500, title, message, icon);
+    }
+
+    private string ShortDevicePath(string devicePath)
+    {
+        if (devicePath.Length <= 80)
+        {
+            return devicePath;
+        }
+        return devicePath[..36] + "..." + devicePath[^36..];
     }
 }

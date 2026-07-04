@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace WholeSummer.CardListener;
 
@@ -9,6 +10,9 @@ internal sealed class AppSettings
     public CardReaderOptions CardReader { get; set; } = new();
 
     public NotificationOptions Notification { get; set; } = new();
+
+    [JsonIgnore]
+    public string ConfigPath { get; private set; } = "appsettings.json";
 
     public static AppSettings Load(string[] args)
     {
@@ -28,11 +32,22 @@ internal sealed class AppSettings
         settings.CardReader.DeviceName = ArgumentValue(args, "--device-name")
             ?? settings.CardReader.DeviceName;
 
+        settings.ConfigPath = configPath;
         settings.Normalize();
         return settings;
     }
 
+    [JsonIgnore]
     public Uri CheckInUri => new(new Uri(WholeSummer.ApiBaseUrl), WholeSummer.CheckInApiPath);
+
+    public void Save()
+    {
+        string json = JsonSerializer.Serialize(this, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+        File.WriteAllText(ConfigPath, json);
+    }
 
     private void Normalize()
     {
@@ -67,10 +82,6 @@ internal sealed class AppSettings
         if (CardReader.MaxTotalInputMs < CardReader.MaxInterKeyIntervalMs)
         {
             CardReader.MaxTotalInputMs = CardReader.MaxInterKeyIntervalMs;
-        }
-        if (CardReader.SuppressAfterFastChars < 2)
-        {
-            CardReader.SuppressAfterFastChars = 2;
         }
         if (CardReader.SuppressWindowMs < CardReader.MaxInterKeyIntervalMs)
         {
@@ -126,13 +137,15 @@ internal sealed class CardReaderOptions
 
     public bool RequireFastInput { get; set; } = true;
 
+    public bool RequireSelectedReader { get; set; } = true;
+
+    public string ReaderDevicePath { get; set; } = "";
+
     public int MaxInterKeyIntervalMs { get; set; } = 120;
 
     public int MaxTotalInputMs { get; set; } = 1500;
 
     public bool SuppressKeyboardInput { get; set; } = true;
-
-    public int SuppressAfterFastChars { get; set; } = 2;
 
     public int SuppressWindowMs { get; set; } = 800;
 }
