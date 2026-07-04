@@ -171,7 +171,7 @@ internal sealed class CardInputBuffer
 
     private bool IsLikelyCardReaderInput(SourceBuffer source)
     {
-        if (!options.RequireFastInput)
+        if (!options.RequireFastInput || options.RequireSelectedReader)
         {
             return true;
         }

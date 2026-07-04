@@ -99,6 +99,10 @@ internal sealed class AppSettings
         {
             CardReader.InputMode = "RawInput";
         }
+        if (CardReader.RequireSelectedReader)
+        {
+            CardReader.RequireFastInput = false;
+        }
     }
 
     private static string? ArgumentValue(string[] args, string key)
@@ -135,11 +139,15 @@ internal sealed class CardReaderOptions
 
     public bool UseEnterAsTerminator { get; set; } = true;
 
-    public bool RequireFastInput { get; set; } = true;
+    public bool RequireFastInput { get; set; } = false;
 
     public bool RequireSelectedReader { get; set; } = true;
 
     public string ReaderDevicePath { get; set; } = "";
+
+    public string ReaderVid { get; set; } = "";
+
+    public string ReaderPid { get; set; } = "";
 
     public int MaxInterKeyIntervalMs { get; set; } = 120;
 

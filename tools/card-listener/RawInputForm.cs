@@ -10,6 +10,7 @@ internal sealed class RawInputForm : Form
     private const int RIDI_DEVICENAME = 0x20000007;
     private const int RIM_TYPEKEYBOARD = 1;
     private const int RIDEV_INPUTSINK = 0x00000100;
+    private const int RIDEV_DEVNOTIFY = 0x00002000;
     private const ushort RI_KEY_BREAK = 0x0001;
     private const ushort VK_BACK = 0x08;
     private const ushort VK_RETURN = 0x0D;
@@ -32,7 +33,7 @@ internal sealed class RawInputForm : Form
         this.selectedReaderInputReceived = selectedReaderInputReceived;
         ShowInTaskbar = false;
         FormBorderStyle = FormBorderStyle.FixedToolWindow;
-        Opacity = 0;
+        Opacity = 0.01;
         StartPosition = FormStartPosition.Manual;
         Location = new System.Drawing.Point(-32000, -32000);
         Width = 1;
@@ -41,7 +42,13 @@ internal sealed class RawInputForm : Form
 
     public bool Registered => registered;
 
+    public int LastRegisterError { get; private set; }
+
     public int RawInputMessageCount { get; private set; }
+
+    public int SelectedReaderInputCount { get; private set; }
+
+    public int IgnoredReaderInputCount { get; private set; }
 
     public int UnsupportedKeyCount { get; private set; }
 
@@ -54,6 +61,8 @@ internal sealed class RawInputForm : Form
     public IntPtr? LastDeviceHandle { get; private set; }
 
     public string LastDevicePath { get; private set; } = "";
+
+    public string LastIgnoredDevicePath { get; private set; } = "";
 
     public bool ReaderSelected => !string.IsNullOrWhiteSpace(options.ReaderDevicePath);
 
@@ -68,9 +77,20 @@ internal sealed class RawInputForm : Form
         learningReader = true;
     }
 
+    public void RegisterForBackgroundInput()
+    {
+        RegisterKeyboardDevice();
+    }
+
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        RegisterKeyboardDevice();
+    }
+
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
         RegisterKeyboardDevice();
     }
 
@@ -106,8 +126,14 @@ internal sealed class RawInputForm : Form
                     }
                     if (IsSelectedReader(LastDevicePath))
                     {
+                        SelectedReaderInputCount += 1;
                         selectedReaderInputReceived(keyInfo.Value.Key.Value);
                         inputBuffer.Push(keyInfo.Value.Key.Value, keyInfo.Value.DeviceHandle);
+                    }
+                    else
+                    {
+                        IgnoredReaderInputCount += 1;
+                        LastIgnoredDevicePath = LastDevicePath;
                     }
                 }
                 else
@@ -146,10 +172,21 @@ internal sealed class RawInputForm : Form
         {
             return false;
         }
-        return string.Equals(
+        bool exactPathMatch = string.Equals(
             NormalizeDevicePath(devicePath),
             NormalizeDevicePath(options.ReaderDevicePath),
             StringComparison.OrdinalIgnoreCase);
+        if (exactPathMatch)
+        {
+            return true;
+        }
+        if (string.IsNullOrWhiteSpace(options.ReaderVid) || string.IsNullOrWhiteSpace(options.ReaderPid))
+        {
+            return false;
+        }
+        string normalizedPath = NormalizeDevicePath(devicePath).ToUpperInvariant();
+        return normalizedPath.Contains("VID_" + options.ReaderVid.ToUpperInvariant(), StringComparison.Ordinal)
+            && normalizedPath.Contains("PID_" + options.ReaderPid.ToUpperInvariant(), StringComparison.Ordinal);
     }
 
     private string DevicePath(IntPtr deviceHandle)
@@ -199,16 +236,13 @@ internal sealed class RawInputForm : Form
             {
                 usUsagePage = 0x01,
                 usUsage = 0x06,
-                dwFlags = RIDEV_INPUTSINK,
+                dwFlags = RIDEV_INPUTSINK | RIDEV_DEVNOTIFY,
                 hwndTarget = Handle
             }
         ];
 
         registered = RegisterRawInputDevices(devices, (uint)devices.Length, (uint)Marshal.SizeOf<RAWINPUTDEVICE>());
-        if (!registered)
-        {
-            throw new InvalidOperationException("無法註冊鍵盤型刷卡機背景監聽");
-        }
+        LastRegisterError = registered ? 0 : Marshal.GetLastWin32Error();
     }
 
     private static RawKeyInfo? ReadRawKey(IntPtr rawInputHandle)

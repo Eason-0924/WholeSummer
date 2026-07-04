@@ -24,10 +24,13 @@ internal sealed class KeyboardInputSuppressor : IDisposable
         if (options.SuppressKeyboardInput)
         {
             hookHandle = SetHook(hookProc);
+            LastHookError = hookHandle == IntPtr.Zero ? Marshal.GetLastWin32Error() : 0;
         }
     }
 
     public bool Enabled => options.SuppressKeyboardInput && hookHandle != IntPtr.Zero;
+
+    public int LastHookError { get; private set; }
 
     public int SuppressedKeyCount { get; private set; }
 

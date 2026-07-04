@@ -58,6 +58,7 @@ The listener uses Windows Raw Input so the user does not need to switch input me
 "CardReader": {
   "InputMode": "RawInput",
   "UseEnterAsTerminator": true,
+  "RequireFastInput": false,
   "RequireSelectedReader": true,
   "ReaderDevicePath": "",
   "SuppressKeyboardInput": true,
@@ -67,8 +68,8 @@ The listener uses Windows Raw Input so the user does not need to switch input me
 
 On first launch, if `ReaderDevicePath` is empty, the listener asks the user to scan any card once. That scan is used only to bind the reader source and is not sent to WholeSummer.
 
-Use the tray menu's `重新設定讀卡機` item to bind a different reader. Use `顯示狀態` to confirm the selected reader path, Raw Input messages, and keyboard suppression count. Use `測試 API 連線` to show a success/failure dialog for the local WholeSummer API.
+Use the tray menu's `重新設定讀卡機` item to bind a different reader. Use `顯示狀態` to confirm the selected reader path, ignored non-reader input count, Raw Input messages, and keyboard suppression count. Use `測試 API 連線` to show a success/failure dialog for the local WholeSummer API.
 
 ## Notes
 
-Keyboard suppression only targets numeric keys and Enter after Raw Input confirms that the selected reader is producing input. It is a focused input-protection fallback, not the primary source detection mechanism. The primary source check is always the Raw Input device path.
+Keyboard suppression only targets numeric keys and Enter after Raw Input confirms that the selected reader is producing input. It is a focused input-protection fallback, not the primary source detection mechanism. The primary source check is always the Raw Input device path. After a selected reader source is confirmed, card validity is based on card length and the reader's Enter/timeout behavior, not keyboard input speed.
