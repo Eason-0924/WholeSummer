@@ -29,6 +29,9 @@ public class LineBindCode {
 	@Column(name = "parent_name", length = 100)
 	private String parentName;
 
+	@Column(length = 30)
+	private String relation;
+
 	@Column(nullable = false, length = 20)
 	private String code;
 
@@ -77,6 +80,14 @@ public class LineBindCode {
 
 	public void setParentName(String parentName) {
 		this.parentName = parentName;
+	}
+
+	public String getRelation() {
+		return relation;
+	}
+
+	public void setRelation(String relation) {
+		this.relation = relation;
 	}
 
 	public String getCode() {

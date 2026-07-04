@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.config.SchoolOptions;
@@ -123,6 +124,7 @@ public class StudentController {
 		model.addAttribute("lineBindCodes", lineBindingService.findRecentBindCodes(studentId));
 		model.addAttribute("lineParentBindings", lineNotificationService.findBoundParents(studentId));
 		model.addAttribute("lineNotificationLogs", lineNotificationService.findRecentLogs(studentId));
+		model.addAttribute("lineStudentNameSuffix", studentNameSuffix(student.getChineseName()));
 		return "students/detail";
 	}
 
@@ -203,12 +205,16 @@ public class StudentController {
 
 	@PostMapping("/{slug}/line-bind-code")
 	public String createLineBindCode(@PathVariable String slug, HttpSession session,
+			@RequestParam String relation,
+			@RequestParam(value = "customRelation", required = false) String customRelation,
 			RedirectAttributes redirectAttributes) {
 		Student student = studentService.findByUrlSlugOrId(slug);
 		try {
-			var result = lineBindingService.createBindCode(student.getId(), currentTeacherId(session));
+			String selectedRelation = "其他".equals(relation) ? customRelation : relation;
+			var result = lineBindingService.createBindCode(
+					student.getId(), currentTeacherId(session), selectedRelation);
 			redirectAttributes.addFlashAttribute("message",
-					"已產生 LINE 綁定碼：" + result.code() + "，有效至 "
+					"已產生 " + result.relation() + " LINE 綁定碼：" + result.code() + "，有效至 "
 							+ result.expiredAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")));
 			redirectAttributes.addFlashAttribute("lineBindInstruction", result.instructionText());
 		} catch (IllegalArgumentException ex) {
@@ -262,6 +268,14 @@ public class StudentController {
 	private Long currentTeacherId(HttpSession session) {
 		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
 		return teacherId instanceof Long id ? id : null;
+	}
+
+	private String studentNameSuffix(String name) {
+		if (name == null || name.isBlank()) {
+			return "";
+		}
+		String normalized = name.trim();
+		return normalized.length() <= 2 ? normalized : normalized.substring(normalized.length() - 2);
 	}
 
 	private String redirectToStudent(Student student) {
