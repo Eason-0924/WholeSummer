@@ -1,5 +1,5 @@
 name: Build Windows EXE
-run-name: Release 1.2.3
+run-name: Release 1.2.4
 
 on:
   workflow_dispatch:
@@ -162,7 +162,7 @@ jobs:
           $file = "release\${{ env.EXE_NAME }}"
           $listenerZip = "release\${{ env.CARD_LISTENER_ZIP }}"
           $version = "${{ env.APP_VERSION }}"
-          $title = "WholeSummer $version"
+          $title = if ($version -eq "1.2.4") { "WholeSummer $version BETA" } else { "WholeSummer $version" }
           $notesFile = "release\release-notes.md"
           $tagContents = git for-each-ref --format="%(contents)" "refs/tags/$tag"
           $detailLines = @($tagContents | Where-Object { $_ -match "^\s*-\s+" })

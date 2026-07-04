@@ -91,11 +91,18 @@ class StudentCardCheckInPageTests {
 		mockMvc.perform(get("/attendance/card-check-in").session(login()))
 				.andExpect(status().isOk())
 				.andExpect(content().string(Matchers.containsString("刷卡點名")))
-				.andExpect(content().string(Matchers.containsString("請感應學生卡片")))
-				.andExpect(content().string(Matchers.containsString("id=\"cardIdInput\"")))
-				.andExpect(content().string(Matchers.containsString("data-check-in-url=\"/api/attendance/card-check-in\"")))
-				.andExpect(content().string(Matchers.containsString("最近刷卡紀錄")))
+				.andExpect(content().string(Matchers.containsString("刷卡點名紀錄")))
+				.andExpect(content().string(Matchers.not(Matchers.containsString("id=\"cardIdInput\""))))
+				.andExpect(content().string(Matchers.not(Matchers.containsString("data-check-in-url=\"/api/attendance/card-check-in\""))))
+				.andExpect(content().string(Matchers.containsString("data-recent-url=\"/api/attendance/card-check-ins/recent?limit=30\"")))
 				.andExpect(content().string(Matchers.containsString("尚無刷卡紀錄")));
+	}
+
+	@Test
+	void recentCardCheckInsEndpointReturnsJson() throws Exception {
+		mockMvc.perform(get("/api/attendance/card-check-ins/recent").session(login()))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith("application/json"));
 	}
 
 	private MockHttpSession login() throws Exception {

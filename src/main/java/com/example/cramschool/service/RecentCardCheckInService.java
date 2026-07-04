@@ -87,6 +87,8 @@ public class RecentCardCheckInService {
 			case "CHECKED_OUT" -> "簽退";
 			case "CLOCKED_IN" -> "上班";
 			case "CLOCKED_OUT" -> "下班";
+			case "CARD_BOUND" -> "卡片綁定";
+			case "CARD_BIND_FAILED" -> "綁定失敗";
 			case "CARD_NOT_BOUND" -> "卡片未綁定";
 			case "CARD_DISABLED" -> "卡片停用";
 			case "INVALID_CARD_ID" -> "卡號無效";

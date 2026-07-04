@@ -12,46 +12,39 @@
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
+			<button id="refreshRecentButton" class="btn btn-outline-secondary" type="button">重新整理</button>
 			<a class="btn btn-outline-primary" th:href="@{/attendance/card-bind}">卡片綁定</a>
 		</div>
 	</div>
 
 	<section class="bg-white border rounded p-4 mb-3">
-		<form id="cardCheckInForm" th:attr="data-check-in-url=@{/api/attendance/card-check-in}" autocomplete="off">
-			<label class="form-label h5 mb-3" for="cardIdInput">請感應學生卡片</label>
-			<div class="d-flex flex-column flex-sm-row gap-2">
-				<input id="cardIdInput" name="cardId" class="form-control font-monospace" type="text"
-						autocomplete="off" autofocus style="min-width: 0;">
-				<button id="submitButton" class="btn btn-primary px-4 flex-shrink-0" type="submit">送出</button>
+		<div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+			<div>
+				<h2 class="h5 mb-1">刷卡點名紀錄</h2>
+				<div id="recentSummary" class="text-secondary small">讀取中</div>
 			</div>
-		</form>
-
-		<div id="checkInResult" class="border rounded p-4 mt-4 bg-light" aria-live="polite">
-			<div id="resultStatus" class="h5 mb-2 text-secondary">等待刷卡</div>
-			<div id="resultMessage" class="fs-5 text-secondary">-</div>
-			<div id="resultMeta" class="text-secondary mt-2"></div>
+			<div id="lastUpdatedAt" class="text-secondary small align-self-md-end">-</div>
 		</div>
 	</section>
 
 	<section>
-		<div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-			<h2 class="h5 mb-0">最近刷卡紀錄</h2>
-			<button id="clearRecentButton" class="btn btn-sm btn-outline-secondary" type="button">清除</button>
-		</div>
 		<div class="table-responsive bg-white border rounded">
 			<table class="table table-hover align-middle mb-0">
 				<thead class="table-light">
 				<tr>
 					<th style="width: 9rem;">時間</th>
-					<th>結果</th>
-					<th>學生</th>
+					<th style="width: 6rem;">類型</th>
+					<th>姓名</th>
+					<th style="width: 7rem;">動作</th>
 					<th>班級</th>
+					<th>訊息</th>
 					<th>卡號</th>
+					<th>設備</th>
 				</tr>
 				</thead>
-				<tbody id="recentCheckIns">
+				<tbody id="recentCheckIns" th:attr="data-recent-url=@{/api/attendance/card-check-ins/recent(limit=30)}">
 				<tr>
-					<td colspan="5" class="text-center text-secondary py-4">尚無刷卡紀錄</td>
+					<td colspan="8" class="text-center text-secondary py-4">尚無刷卡紀錄</td>
 				</tr>
 				</tbody>
 			</table>
@@ -62,135 +55,98 @@
 <script th:replace="~{fragments/layout :: scripts}"></script>
 <script>
 	(() => {
-		const form = document.getElementById('cardCheckInForm');
-		const input = document.getElementById('cardIdInput');
-		const submitButton = document.getElementById('submitButton');
-		const resultPanel = document.getElementById('checkInResult');
-		const resultStatus = document.getElementById('resultStatus');
-		const resultMessage = document.getElementById('resultMessage');
-		const resultMeta = document.getElementById('resultMeta');
 		const recentBody = document.getElementById('recentCheckIns');
-		const clearRecentButton = document.getElementById('clearRecentButton');
-		const recentRecords = [];
+		const refreshButton = document.getElementById('refreshRecentButton');
+		const recentSummary = document.getElementById('recentSummary');
+		const lastUpdatedAt = document.getElementById('lastUpdatedAt');
 
-		const focusInput = () => {
-			window.setTimeout(() => input?.focus(), 0);
-		};
-
-		const formatTime = (value) => {
-			const date = value ? new Date(value) : new Date();
+		const formatDateTime = (value) => {
+			if (!value) {
+				return '-';
+			}
+			const date = new Date(value);
 			if (Number.isNaN(date.getTime())) {
-				return new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+				return value.replace('T', ' ');
 			}
-			return date.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-		};
-
-		const setResult = (response) => {
-			resultPanel.classList.remove('border-success', 'border-danger', 'bg-light', 'bg-success-subtle', 'bg-danger-subtle');
-			resultStatus.classList.remove('text-success', 'text-danger', 'text-secondary');
-			if (response.success) {
-				resultPanel.classList.add('border-success', 'bg-success-subtle');
-				resultStatus.classList.add('text-success');
-			} else {
-				resultPanel.classList.add('border-danger', 'bg-danger-subtle');
-				resultStatus.classList.add('text-danger');
-			}
-			resultStatus.textContent = response.status || '-';
-			resultMessage.textContent = response.message || '-';
-			const displayName = response.studentName || response.teacherName;
-			const details = [displayName, response.className, formatTime(response.checkInTime)]
-					.filter((value) => value && value !== '-');
-			resultMeta.textContent = details.join(' · ');
-		};
-
-		const addRecentRecord = (response) => {
-			recentRecords.unshift({
-				time: formatTime(response.checkInTime),
-				success: response.success,
-				status: response.status || '-',
-				message: response.message || '-',
-				studentName: response.studentName || response.teacherName || '-',
-				className: response.className || '-',
-				cardId: response.cardId || '-'
+			return date.toLocaleString('zh-TW', {
+				month: '2-digit',
+				day: '2-digit',
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit'
 			});
-			recentRecords.splice(8);
-			renderRecentRecords();
 		};
 
-		const renderRecentRecords = () => {
+		const appendCell = (row, value, className = '') => {
+			const cell = document.createElement('td');
+			cell.className = className;
+			cell.textContent = value || '-';
+			row.append(cell);
+		};
+
+		const renderEmpty = (message) => {
 			recentBody.replaceChildren();
-			if (recentRecords.length === 0) {
-				const row = document.createElement('tr');
-				const cell = document.createElement('td');
-				cell.colSpan = 5;
-				cell.className = 'text-center text-secondary py-4';
-				cell.textContent = '尚無刷卡紀錄';
-				row.append(cell);
-				recentBody.append(row);
-				return;
-			}
-			recentRecords.forEach((record) => {
-				const row = document.createElement('tr');
-				const values = [
-					record.time,
-					record.success ? '成功' : record.message,
-					record.studentName,
-					record.className,
-					record.cardId
-				];
-				values.forEach((value, index) => {
-					const cell = document.createElement('td');
-					if (index === 1) {
-						cell.className = record.success ? 'text-success fw-semibold' : 'text-danger fw-semibold';
-					}
-					if (index === 4) {
-						cell.className = `${cell.className} font-monospace`.trim();
-					}
-					cell.textContent = value;
-					row.append(cell);
-				});
-				recentBody.append(row);
-			});
+			const row = document.createElement('tr');
+			const cell = document.createElement('td');
+			cell.colSpan = 8;
+			cell.className = 'text-center text-secondary py-4';
+			cell.textContent = message;
+			row.append(cell);
+			recentBody.append(row);
 		};
 
-		form?.addEventListener('submit', async (event) => {
-			event.preventDefault();
-			const cardId = input.value;
-			if (!cardId.trim()) {
-				setResult({ success: false, status: 'INVALID_CARD_ID', message: '請輸入卡號', cardId });
-				addRecentRecord({ success: false, status: 'INVALID_CARD_ID', message: '請輸入卡號', cardId });
-				focusInput();
+		const renderRecords = (records) => {
+			recentBody.replaceChildren();
+			if (!records.length) {
+				renderEmpty('尚無刷卡紀錄');
+				recentSummary.textContent = '目前沒有刷卡紀錄';
 				return;
 			}
-			submitButton.disabled = true;
-			try {
-				const response = await fetch(form.dataset.checkInUrl, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ cardId, deviceName: 'web-checkin-page' })
-				});
-				const body = await response.json();
-				setResult(body);
-				addRecentRecord(body);
-				input.value = '';
-			} catch (error) {
-				const body = { success: false, status: 'REQUEST_FAILED', message: '刷卡點名送出失敗', cardId };
-				setResult(body);
-				addRecentRecord(body);
-			} finally {
-				submitButton.disabled = false;
-				focusInput();
+			records.forEach((record) => {
+				const row = document.createElement('tr');
+				appendCell(row, formatDateTime(record.occurredAt));
+				appendCell(row, record.personTypeLabel);
+				appendCell(row, record.displayName, 'fw-semibold');
+				appendCell(row, record.actionLabel, record.success ? 'text-success fw-semibold' : 'text-danger fw-semibold');
+				appendCell(row, record.className);
+				appendCell(row, record.message);
+				appendCell(row, record.cardId, 'font-monospace');
+				appendCell(row, record.deviceName);
+				recentBody.append(row);
+			});
+			recentSummary.textContent = `顯示最近 ${records.length} 筆紀錄`;
+		};
+
+		const loadRecords = async () => {
+			if (!recentBody?.dataset.recentUrl) {
+				return;
 			}
-		});
+			refreshButton.disabled = true;
+			try {
+				const response = await fetch(recentBody.dataset.recentUrl, {
+					headers: { 'Accept': 'application/json' }
+				});
+				if (!response.ok) {
+					throw new Error('request failed');
+				}
+				const records = await response.json();
+				renderRecords(Array.isArray(records) ? records : []);
+				lastUpdatedAt.textContent = `更新時間 ${new Date().toLocaleTimeString('zh-TW', {
+					hour: '2-digit',
+					minute: '2-digit',
+					second: '2-digit'
+				})}`;
+			} catch (error) {
+				renderEmpty('讀取刷卡紀錄失敗');
+				recentSummary.textContent = '刷卡紀錄讀取失敗';
+			} finally {
+				refreshButton.disabled = false;
+			}
+		};
 
-		clearRecentButton?.addEventListener('click', () => {
-			recentRecords.splice(0);
-			renderRecentRecords();
-			focusInput();
-		});
-
-		window.addEventListener('click', focusInput);
-		focusInput();
+		refreshButton?.addEventListener('click', loadRecords);
+		loadRecords();
+		window.setInterval(loadRecords, 5000);
 	})();
 </script>
 </body>

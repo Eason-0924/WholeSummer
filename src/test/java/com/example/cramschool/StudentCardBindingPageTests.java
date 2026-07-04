@@ -1,6 +1,5 @@
 package com.example.cramschool;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -13,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -95,25 +95,52 @@ class StudentCardBindingPageTests {
 	}
 
 	@Test
-	void cardBindPageBindsNormalizedCardId() throws Exception {
+	void cardBindPageShowsStatusAndDisablesWebBinding() throws Exception {
 		MockHttpSession session = login();
 
 		mockMvc.perform(get("/attendance/card-bind").session(session))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("卡片綁定")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("卡片頁測試學生")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("卡片頁測試學生")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("目前綁定狀態")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("開始綁定下一張卡")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("id=\"cardId\""))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("綁定卡片</button>"))));
 
 		mockMvc.perform(post("/attendance/card-bind")
 				.param("targetKey", "STUDENT:" + student.getId())
 				.param("cardId", "  04 a1 b2 c3 \n")
 				.session(session))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/attendance/card-bind?targetKey=STUDENT:" + student.getId()));
+				.andExpect(redirectedUrl("/attendance/card-bind"));
 
 		Student updated = studentRepository.findById(student.getId()).orElseThrow();
-		assertThat(updated.getCardId()).isEqualTo("04A1B2C3");
-		assertThat(updated.getCardStatus()).isEqualTo("ACTIVE");
-		assertThat(updated.getCardBoundAt()).isNotNull();
+		org.assertj.core.api.Assertions.assertThat(updated.getCardId()).isNull();
+		org.assertj.core.api.Assertions.assertThat(updated.getCardBoundAt()).isNull();
+	}
+
+	@Test
+	void bindingModeBindsNextDesktopCardSwipe() throws Exception {
+		MockHttpSession session = login();
+
+		mockMvc.perform(post("/attendance/card-bind/start")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"targetKey\":\"STUDENT:" + student.getId() + "\",\"overwriteExisting\":false}")
+				.session(session))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("\"active\":true")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("卡片頁測試學生")));
+
+		mockMvc.perform(post("/internal/desktop/card-check-in")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"cardId\":\"  04 a1 b2 c3  \",\"deviceName\":\"windows-card-listener\"}"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("\"status\":\"CARD_BOUND\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("卡片綁定成功")));
+
+		Student updated = studentRepository.findById(student.getId()).orElseThrow();
+		org.assertj.core.api.Assertions.assertThat(updated.getCardId()).isEqualTo("04A1B2C3");
+		org.assertj.core.api.Assertions.assertThat(updated.getCardBoundAt()).isNotNull();
 	}
 
 	private MockHttpSession login() throws Exception {

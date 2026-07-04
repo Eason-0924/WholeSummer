@@ -12,7 +12,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0" th:text="${pageTitle}">卡片綁定</h1>
-				<span th:replace="~{fragments/layout :: help('將學生或教師與 NFC、RFID 或鍵盤模擬型讀卡機輸出的卡號綁定。\n同一張卡不能重複綁定。\n換卡時請勾選覆蓋原卡號。')}"></span>
+				<span th:replace="~{fragments/layout :: help('查看學生或教師目前的卡片綁定狀態。')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
@@ -22,15 +22,14 @@
 
 	<div class="row g-3">
 		<section class="col-lg-7">
-			<form class="bg-white border rounded p-4" th:action="@{/attendance/card-bind}"
-					th:object="${cardBindForm}" method="post" id="cardBindForm">
+			<div class="bg-white border rounded p-4">
 				<div class="mb-3">
-					<label for="targetId" class="form-label">學生/教師 <span class="text-danger">*</span></label>
-					<select id="targetId" class="form-select" th:field="*{targetKey}"
-							th:classappend="${#fields.hasErrors('targetKey')} ? 'is-invalid'">
+					<label for="targetId" class="form-label">學生/教師</label>
+					<select id="targetId" class="form-select">
 						<option value="">請選擇</option>
 						<optgroup label="學生">
 							<option th:each="student : ${students}" th:value="${'STUDENT:' + student.id}"
+									th:selected="${cardBindForm.targetKey == 'STUDENT:' + student.id}"
 									th:attr="data-kind='學生',
 											data-display-name=${student.displayName},
 											data-card-id=${student.cardId ?: ''},
@@ -40,6 +39,7 @@
 						</optgroup>
 						<optgroup label="教師">
 							<option th:each="teacher : ${teachers}" th:value="${'TEACHER:' + teacher.id}"
+									th:selected="${cardBindForm.targetKey == 'TEACHER:' + teacher.id}"
 									th:attr="data-kind='教師',
 											data-display-name=${teacher.displayName},
 											data-card-id=${teacher.cardId ?: ''},
@@ -48,20 +48,18 @@
 									th:text="${teacher.displayName}">教師</option>
 						</optgroup>
 					</select>
-					<div class="invalid-feedback" th:errors="*{targetKey}">請選擇學生或教師</div>
 				</div>
-				<div class="mb-3">
-					<label for="cardId" class="form-label">卡號 <span class="text-danger">*</span></label>
-					<input type="text" id="cardId" class="form-control" th:field="*{cardId}"
-							autocomplete="off" autofocus
-							th:classappend="${#fields.hasErrors('cardId')} ? 'is-invalid'">
-					<div class="invalid-feedback" th:errors="*{cardId}">請輸入卡號</div>
+				<div class="border rounded p-3 bg-light text-secondary">
+					選擇對象後啟動綁定模式，下一次讀卡機刷到的卡片會綁定到該對象。
 				</div>
-				<input type="hidden" id="overwriteExisting" th:field="*{overwriteExisting}">
-				<div class="d-flex justify-content-end gap-2">
-					<button class="btn btn-primary" type="submit">綁定卡片</button>
+				<div id="bindingModeStatus" class="alert alert-secondary mt-3 mb-0" role="status">
+					目前沒有待綁定卡片
 				</div>
-			</form>
+				<div class="d-flex justify-content-end gap-2 mt-3">
+					<button id="cancelBindingButton" class="btn btn-outline-secondary" type="button">取消綁定</button>
+					<button id="startBindingButton" class="btn btn-primary" type="button">開始綁定下一張卡</button>
+				</div>
+			</div>
 		</section>
 
 		<section class="col-lg-5">
@@ -112,19 +110,24 @@
 </style>
 <script>
 	(() => {
-		const form = document.getElementById('cardBindForm');
 		const targetId = document.getElementById('targetId');
-		const cardId = document.getElementById('cardId');
-		const overwriteExisting = document.getElementById('overwriteExisting');
 		const statusKind = document.getElementById('bindStatusKind');
 		const statusName = document.getElementById('bindStatusName');
 		const statusCardId = document.getElementById('bindStatusCardId');
 		const statusBadge = document.getElementById('bindStatusBadge');
 		const statusBoundAt = document.getElementById('bindStatusBoundAt');
+		const bindingModeStatus = document.getElementById('bindingModeStatus');
+		const startBindingButton = document.getElementById('startBindingButton');
+		const cancelBindingButton = document.getElementById('cancelBindingButton');
+
+		const bindingEndpoints = {
+			start: '/attendance/card-bind/start',
+			cancel: '/attendance/card-bind/cancel',
+			pending: '/attendance/card-bind/pending'
+		};
 
 		const updateBindStatus = () => {
 			const selected = targetId?.selectedOptions[0];
-			overwriteExisting.value = 'false';
 			if (!selected || !selected.value) {
 				statusKind.textContent = '-';
 				statusName.textContent = '請選擇學生或教師';
@@ -143,23 +146,87 @@
 			statusBoundAt.textContent = selected.dataset.cardBoundAt || '-';
 		};
 
-		targetId?.addEventListener('change', updateBindStatus);
-		form?.addEventListener('submit', (event) => {
+		const setBindingStatus = (response) => {
+			bindingModeStatus.classList.remove('alert-secondary', 'alert-success', 'alert-danger', 'alert-warning');
+			if (!response.success) {
+				bindingModeStatus.classList.add('alert-danger');
+				bindingModeStatus.textContent = response.message || '綁定模式啟動失敗';
+				return;
+			}
+			if (response.active) {
+				bindingModeStatus.classList.add('alert-warning');
+				bindingModeStatus.textContent = `${response.displayName} 等待刷卡綁定中`;
+				return;
+			}
+			bindingModeStatus.classList.add('alert-secondary');
+			bindingModeStatus.textContent = response.message || '目前沒有待綁定卡片';
+		};
+
+		const postJson = async (url, payload = {}) => {
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Accept': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+			const body = await response.json();
+			if (!response.ok) {
+				return { success: false, message: body.message || '操作失敗' };
+			}
+			return body;
+		};
+
+		const startBinding = async () => {
 			const selected = targetId?.selectedOptions[0];
-			const existingCardId = selected?.dataset.cardId?.trim();
-			overwriteExisting.value = 'false';
-			if (selected?.value && existingCardId) {
-				const confirmed = window.confirm('此對象目前已綁定卡號，是否覆蓋原卡號？');
-				if (!confirmed) {
-					event.preventDefault();
-					cardId?.focus();
+			if (!selected || !selected.value) {
+				setBindingStatus({ success: false, message: '請先選擇學生或教師' });
+				return;
+			}
+			const existingCardId = selected.dataset.cardId?.trim();
+			let overwriteExisting = false;
+			if (existingCardId) {
+				overwriteExisting = window.confirm('此對象目前已綁定卡號，是否覆蓋原卡號？');
+				if (!overwriteExisting) {
 					return;
 				}
-				overwriteExisting.value = 'true';
 			}
-		});
+			startBindingButton.disabled = true;
+			const response = await postJson(bindingEndpoints.start, {
+				targetKey: selected.value,
+				overwriteExisting
+			});
+			setBindingStatus(response);
+			startBindingButton.disabled = false;
+		};
+
+		const cancelBinding = async () => {
+			cancelBindingButton.disabled = true;
+			await postJson(bindingEndpoints.cancel);
+			setBindingStatus({ success: true, active: false, message: '目前沒有待綁定卡片' });
+			cancelBindingButton.disabled = false;
+		};
+
+		const loadPending = async () => {
+			try {
+				const response = await fetch(bindingEndpoints.pending, {
+					headers: { 'Accept': 'application/json' }
+				});
+				if (response.ok) {
+					setBindingStatus(await response.json());
+				}
+			} catch (error) {
+				// Binding mode status is helpful, but the page can still show card status without it.
+			}
+		};
+
+		targetId?.addEventListener('change', updateBindStatus);
+		startBindingButton?.addEventListener('click', startBinding);
+		cancelBindingButton?.addEventListener('click', cancelBinding);
 		updateBindStatus();
-		cardId?.focus();
+		loadPending();
+		window.setInterval(loadPending, 5000);
 	})();
 </script>
 </body>

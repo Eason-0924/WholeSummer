@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.example.cramschool.dto.CardCheckInRequest;
 import com.example.cramschool.dto.CardCheckInResponse;
+import com.example.cramschool.service.CardBindingModeService;
 import com.example.cramschool.service.CardIdNormalizer;
 import com.example.cramschool.service.RecentCardCheckInService;
 import com.example.cramschool.service.StudentAttendanceService;
@@ -27,11 +28,14 @@ public class DesktopCardAttendanceController {
 
 	private final StudentAttendanceService studentAttendanceService;
 	private final RecentCardCheckInService recentCardCheckInService;
+	private final CardBindingModeService cardBindingModeService;
 
 	public DesktopCardAttendanceController(StudentAttendanceService studentAttendanceService,
-			RecentCardCheckInService recentCardCheckInService) {
+			RecentCardCheckInService recentCardCheckInService,
+			CardBindingModeService cardBindingModeService) {
 		this.studentAttendanceService = studentAttendanceService;
 		this.recentCardCheckInService = recentCardCheckInService;
+		this.cardBindingModeService = cardBindingModeService;
 	}
 
 	@PostMapping("/card-check-in")
@@ -41,7 +45,8 @@ public class DesktopCardAttendanceController {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只允許本機刷卡程式呼叫");
 		}
 		try {
-			CardCheckInResponse response = studentAttendanceService.cardCheckIn(request);
+			CardCheckInResponse response = cardBindingModeService.completeIfPending(request)
+					.orElseGet(() -> studentAttendanceService.cardCheckIn(request));
 			recentCardCheckInService.record(request, response);
 			return response;
 		} catch (RuntimeException ex) {

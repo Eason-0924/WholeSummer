@@ -8,6 +8,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import com.example.cramschool.controller.DesktopCardAttendanceController;
 import com.example.cramschool.dto.CardCheckInRequest;
 import com.example.cramschool.dto.CardCheckInResponse;
+import com.example.cramschool.service.CardBindingModeService;
 import com.example.cramschool.service.RecentCardCheckInService;
 import com.example.cramschool.service.StudentAttendanceService;
 
@@ -19,7 +20,8 @@ class DesktopCardAttendanceControllerUnitTests {
 		RecentCardCheckInService recentCardCheckInService = new RecentCardCheckInService();
 		DesktopCardAttendanceController controller = new DesktopCardAttendanceController(
 				studentAttendanceService,
-				recentCardCheckInService);
+				recentCardCheckInService,
+				new CardBindingModeService(null, null));
 		CardCheckInRequest request = new CardCheckInRequest();
 		request.setCardId(" ABC123 ");
 		request.setDeviceName("windows-card-listener");

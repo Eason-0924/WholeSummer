@@ -106,11 +106,12 @@ class HomeShortcutCustomizationTests {
 				.andReturn()
 				.getResponse()
 				.getContentAsString();
-		assertThat(html.indexOf("data-shortcut-id=\"settings\""))
-				.isLessThan(html.indexOf("data-shortcut-id=\"students\""));
-		assertThat(html.indexOf("data-shortcut-id=\"students\""))
-				.isLessThan(html.indexOf("data-shortcut-id=\"quick-clock\""));
-		assertThat(html).doesNotContain("href=\"/classes\"");
+		String previewHtml = shortcutPreviewHtml(html);
+		assertThat(previewHtml.indexOf("href=\"/settings\""))
+				.isLessThan(previewHtml.indexOf("href=\"/students\""));
+		assertThat(previewHtml.indexOf("href=\"/students\""))
+				.isLessThan(previewHtml.indexOf("href=\"/attendance/my\""));
+		assertThat(previewHtml).doesNotContain("href=\"/classes\"");
 		assertThat(html).contains("data-shortcut-id=\"classes\"");
 		assertThat(html).doesNotContain("data-shortcut-id=\"tuition\"");
 	}
@@ -134,8 +135,16 @@ class HomeShortcutCustomizationTests {
 				.andReturn()
 				.getResponse()
 				.getContentAsString();
-		assertThat(html).doesNotContain("新增、編輯與停用學生資料。");
+		assertThat(shortcutPreviewHtml(html)).doesNotContain("新增、編輯與停用學生資料。");
 		assertThat(html).contains("顯示描述");
+	}
+
+	private String shortcutPreviewHtml(String html) {
+		int start = html.indexOf("<section class=\"shortcut-preview-grid\">");
+		int end = html.indexOf("</section>", start);
+		assertThat(start).isGreaterThanOrEqualTo(0);
+		assertThat(end).isGreaterThan(start);
+		return html.substring(start, end);
 	}
 
 	private Teacher createTeacher(String name, TeacherPosition position) {
