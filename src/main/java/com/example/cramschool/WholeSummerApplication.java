@@ -20,6 +20,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.example.cramschool.config.ExternalConfigInitializer;
 import com.example.cramschool.config.ExternalConfigPaths;
+import com.example.cramschool.desktop.StartupLoadingWindow;
 
 @SpringBootApplication
 @EnableAsync
@@ -27,27 +28,35 @@ import com.example.cramschool.config.ExternalConfigPaths;
 public class WholeSummerApplication {
 
 	public static void main(String[] args) {
+		StartupLoadingWindow startupWindow = StartupLoadingWindow.showIfSupported();
 		try {
+			startupWindow.updateMessage("正在準備系統設定...");
 			if (!ExternalConfigInitializer.prepare()) {
 				return;
 			}
+			startupWindow.updateMessage("正在檢查系統連接埠...");
 			int serverPort = configuredServerPort();
 			if (isLocalPortInUse(serverPort)) {
+				startupWindow.updateMessage("正在喚醒已執行的 WholeSummer...");
 				if (requestExistingStatusWindow(serverPort)) {
 					return;
 				}
 				showPortInUseMessage(serverPort);
 				return;
 			}
+			startupWindow.updateMessage("正在啟動網頁服務...");
 			SpringApplication.run(WholeSummerApplication.class, args);
 		} catch (Exception ex) {
 			if (!GraphicsEnvironment.isHeadless()) {
+				startupWindow.close();
 				JOptionPane.showMessageDialog(null,
 						"系統啟動失敗：" + friendlyMessage(ex),
 						"WholeSummer 啟動錯誤",
 						JOptionPane.ERROR_MESSAGE);
 			}
 			throw new IllegalStateException("WholeSummer 啟動失敗", ex);
+		} finally {
+			startupWindow.close();
 		}
 	}
 

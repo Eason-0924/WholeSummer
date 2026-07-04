@@ -12,11 +12,37 @@
 				<h1 class="h4 mb-3">準備安裝 WholeSummer 更新</h1>
 				<p class="text-secondary mb-1"
 						th:text="${'版本 ' + latestVersion + ' 已下載完成。'}">新版已下載完成。</p>
-				<p class="text-secondary mb-0">系統即將關閉並開啟 Windows 安裝程式。</p>
+				<p class="text-secondary mb-1">系統即將關閉並開啟 Windows 安裝程式。</p>
+				<p class="text-secondary mb-0">更新完成重新啟動後，頁面會自動回到首頁。</p>
 			</section>
 		</div>
 	</div>
 </main>
 <script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	(() => {
+		const retryDelayMs = 3000;
+		const firstCheckDelayMs = 8000;
+
+		async function returnHomeWhenReady() {
+			try {
+				const response = await fetch('/', {
+					cache: 'no-store',
+					credentials: 'same-origin',
+					headers: { 'Accept': 'text/html' }
+				});
+				if (response.ok || response.redirected) {
+					window.location.replace('/');
+					return;
+				}
+			} catch (error) {
+				// The application is expected to be offline while the installer is running.
+			}
+			window.setTimeout(returnHomeWhenReady, retryDelayMs);
+		}
+
+		window.setTimeout(returnHomeWhenReady, firstCheckDelayMs);
+	})();
+</script>
 </body>
 </html>
