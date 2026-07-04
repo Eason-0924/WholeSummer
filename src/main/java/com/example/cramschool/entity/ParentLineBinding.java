@@ -100,6 +100,13 @@ public class ParentLineBinding {
 		return lineUserId;
 	}
 
+	public String getMaskedLineUserId() {
+		if (lineUserId == null || lineUserId.length() <= 8) {
+			return lineUserId == null ? "-" : lineUserId;
+		}
+		return "..." + lineUserId.substring(lineUserId.length() - 8);
+	}
+
 	public void setLineUserId(String lineUserId) {
 		this.lineUserId = lineUserId;
 	}

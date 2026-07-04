@@ -16,6 +16,7 @@ import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.StudentForm;
 import com.example.cramschool.service.HomeworkRecordService;
 import com.example.cramschool.service.LineBindingService;
+import com.example.cramschool.service.LineNotificationService;
 import com.example.cramschool.service.ScoreService;
 import com.example.cramschool.service.StudentAttendanceService;
 import com.example.cramschool.service.StudentService;
@@ -36,11 +37,13 @@ public class StudentController {
 	private final TuitionRecordService tuitionRecordService;
 	private final TeacherPermissionService teacherPermissionService;
 	private final LineBindingService lineBindingService;
+	private final LineNotificationService lineNotificationService;
 
 	public StudentController(StudentService studentService, ScoreService scoreService,
 			HomeworkRecordService homeworkRecordService, StudentAttendanceService studentAttendanceService,
 			TuitionRecordService tuitionRecordService,
-			TeacherPermissionService teacherPermissionService, LineBindingService lineBindingService) {
+			TeacherPermissionService teacherPermissionService, LineBindingService lineBindingService,
+			LineNotificationService lineNotificationService) {
 		this.studentService = studentService;
 		this.scoreService = scoreService;
 		this.homeworkRecordService = homeworkRecordService;
@@ -48,6 +51,7 @@ public class StudentController {
 		this.tuitionRecordService = tuitionRecordService;
 		this.teacherPermissionService = teacherPermissionService;
 		this.lineBindingService = lineBindingService;
+		this.lineNotificationService = lineNotificationService;
 	}
 
 	@ModelAttribute
@@ -117,6 +121,8 @@ public class StudentController {
 		model.addAttribute("tuitionRecords", tuitionRecords);
 		model.addAttribute("tuitionSummary", tuitionRecordService.summarize(tuitionRecords));
 		model.addAttribute("lineBindCodes", lineBindingService.findRecentBindCodes(studentId));
+		model.addAttribute("lineParentBindings", lineNotificationService.findBoundParents(studentId));
+		model.addAttribute("lineNotificationLogs", lineNotificationService.findRecentLogs(studentId));
 		return "students/detail";
 	}
 
@@ -205,6 +211,44 @@ public class StudentController {
 					"已產生 LINE 綁定碼：" + result.code() + "，有效至 "
 							+ result.expiredAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")));
 			redirectAttributes.addFlashAttribute("lineBindInstruction", result.instructionText());
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return redirectToStudent(student);
+	}
+
+	@PostMapping("/{slug}/line-test-notification")
+	public String sendLineTestNotification(@PathVariable String slug, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		Student student = studentService.findByUrlSlugOrId(slug);
+		try {
+			int successCount = lineNotificationService.sendTestNotification(student.getId(), currentTeacherId(session));
+			if (successCount > 0) {
+				redirectAttributes.addFlashAttribute("message",
+						"已發送 LINE 測試通知，成功 " + successCount + " 位家長。");
+			} else {
+				redirectAttributes.addFlashAttribute("errorMessage", "LINE 測試通知發送失敗，請查看通知紀錄。");
+			}
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return redirectToStudent(student);
+	}
+
+	@PostMapping("/{slug}/line-refresh-names")
+	public String refreshLineNames(@PathVariable String slug, HttpSession session,
+			RedirectAttributes redirectAttributes) {
+		Student student = studentService.findByUrlSlugOrId(slug);
+		try {
+			int updatedCount = lineNotificationService.refreshParentDisplayNames(
+					student.getId(), currentTeacherId(session));
+			if (updatedCount > 0) {
+				redirectAttributes.addFlashAttribute("message",
+						"已更新 LINE 家長名稱，共 " + updatedCount + " 筆。");
+			} else {
+				redirectAttributes.addFlashAttribute("errorMessage",
+						"沒有可更新的 LINE 家長名稱，請確認家長仍是官方帳號好友。");
+			}
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}

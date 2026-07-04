@@ -82,7 +82,8 @@ public class LineWebhookController {
 		String lineUserId = event.path("source").path("userId").asText(null);
 		String replyToken = event.path("replyToken").asText(null);
 		String messageText = event.path("message").path("text").asText("");
-		LineBindingReply reply = lineBindingService.bindFromLineMessage(lineUserId, null, messageText);
+		String displayName = lineMessageService.getProfileDisplayName(lineUserId).orElse(null);
+		LineBindingReply reply = lineBindingService.bindFromLineMessage(lineUserId, displayName, messageText);
 		if (reply.handled()) {
 			lineMessageService.replyText(replyToken, reply.message());
 		}
