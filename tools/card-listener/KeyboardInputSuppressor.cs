@@ -15,12 +15,8 @@ internal sealed class KeyboardInputSuppressor : IDisposable
     private readonly object gate = new();
     private IntPtr hookHandle;
     private DateTime suppressUntilUtc = DateTime.MinValue;
-    private DateTime lastSelectedRawInputAtUtc = DateTime.MinValue;
-    private DateTime lastForwardedSuppressedInputAtUtc = DateTime.MinValue;
-    private char? lastSelectedRawInputKey;
-    private char? lastForwardedSuppressedInputKey;
-    private bool lastSelectedRawInputMatchedByHook;
-    private bool lastForwardedSuppressedInputMatchedByRaw;
+    private readonly List<KeyStamp> recentSelectedRawInputs = [];
+    private readonly List<KeyStamp> recentForwardedSuppressedInputs = [];
     private bool disposed;
 
     public KeyboardInputSuppressor(CardReaderOptions options)
@@ -60,16 +56,13 @@ internal sealed class KeyboardInputSuppressor : IDisposable
         {
             DateTime now = DateTime.UtcNow;
             suppressUntilUtc = now.AddMilliseconds(options.SuppressWindowMs);
-            if (!lastForwardedSuppressedInputMatchedByRaw
-                    && IsRecentSameKey(key, lastForwardedSuppressedInputKey, lastForwardedSuppressedInputAtUtc, now))
+            PurgeExpired(now);
+            if (TryConsumeRecent(recentForwardedSuppressedInputs, key, now))
             {
-                lastForwardedSuppressedInputMatchedByRaw = true;
                 RawDuplicateSkippedCount += 1;
                 return false;
             }
-            lastSelectedRawInputKey = key;
-            lastSelectedRawInputAtUtc = now;
-            lastSelectedRawInputMatchedByHook = false;
+            recentSelectedRawInputs.Add(new KeyStamp(key, now));
             return true;
         }
     }
@@ -115,22 +108,36 @@ internal sealed class KeyboardInputSuppressor : IDisposable
         lock (gate)
         {
             DateTime now = DateTime.UtcNow;
-            if (!lastSelectedRawInputMatchedByHook
-                    && IsRecentSameKey(key, lastSelectedRawInputKey, lastSelectedRawInputAtUtc, now))
+            PurgeExpired(now);
+            if (TryConsumeRecent(recentSelectedRawInputs, key, now))
             {
-                lastSelectedRawInputMatchedByHook = true;
                 return false;
             }
-            lastForwardedSuppressedInputKey = key;
-            lastForwardedSuppressedInputAtUtc = now;
-            lastForwardedSuppressedInputMatchedByRaw = false;
+            recentForwardedSuppressedInputs.Add(new KeyStamp(key, now));
             return true;
         }
     }
 
-    private static bool IsRecentSameKey(char key, char? lastKey, DateTime lastAtUtc, DateTime nowUtc)
+    private void PurgeExpired(DateTime nowUtc)
     {
-        return lastKey == key && nowUtc - lastAtUtc <= TimeSpan.FromMilliseconds(80);
+        recentSelectedRawInputs.RemoveAll(input => IsExpired(input, nowUtc));
+        recentForwardedSuppressedInputs.RemoveAll(input => IsExpired(input, nowUtc));
+    }
+
+    private static bool TryConsumeRecent(List<KeyStamp> inputs, char key, DateTime nowUtc)
+    {
+        int index = inputs.FindIndex(input => input.Key == key && !IsExpired(input, nowUtc));
+        if (index < 0)
+        {
+            return false;
+        }
+        inputs.RemoveAt(index);
+        return true;
+    }
+
+    private static bool IsExpired(KeyStamp input, DateTime nowUtc)
+    {
+        return nowUtc - input.ReceivedAtUtc > TimeSpan.FromMilliseconds(80);
     }
 
     private static bool IsSupportedReaderKey(char key)
@@ -180,6 +187,8 @@ internal sealed class KeyboardInputSuppressor : IDisposable
     }
 
     private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    private readonly record struct KeyStamp(char Key, DateTime ReceivedAtUtc);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
