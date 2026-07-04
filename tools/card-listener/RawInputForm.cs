@@ -128,7 +128,9 @@ internal sealed class RawInputForm : Form
                     {
                         SelectedReaderInputCount += 1;
                         selectedReaderInputReceived(keyInfo.Value.Key.Value);
-                        inputBuffer.Push(keyInfo.Value.Key.Value, keyInfo.Value.DeviceHandle);
+                        inputBuffer.Push(
+                            keyInfo.Value.Key.Value,
+                            options.RequireSelectedReader ? IntPtr.Zero : keyInfo.Value.DeviceHandle);
                     }
                     else
                     {

@@ -72,4 +72,4 @@ Use the tray menu's `重新設定讀卡機` item to bind a different reader. Use
 
 ## Notes
 
-Keyboard suppression only targets numeric keys and Enter after Raw Input confirms that the selected reader is producing input. It is a focused input-protection fallback, not the primary source detection mechanism. The primary source check is always the Raw Input device path. After a selected reader source is confirmed, card validity is based on card length and the reader's Enter/timeout behavior, not keyboard input speed.
+Keyboard suppression only targets numeric keys and Enter after Raw Input confirms that the selected reader is producing input. It is a focused input-protection fallback, not the primary source detection mechanism. The primary source check is always the Raw Input device path. After a selected reader source is confirmed, card validity is based on card length and the reader's Enter/timeout behavior, not keyboard input speed. If the reader's Enter key is not delivered reliably, selected-reader input is also flushed by timeout as a fallback.

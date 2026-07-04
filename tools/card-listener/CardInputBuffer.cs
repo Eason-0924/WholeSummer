@@ -88,7 +88,7 @@ internal sealed class CardInputBuffer
         List<CardRejectedEventArgs> rejectedCards = [];
         lock (gate)
         {
-            if (options.UseEnterAsTerminator)
+            if (options.UseEnterAsTerminator && !options.RequireSelectedReader)
             {
                 return;
             }
