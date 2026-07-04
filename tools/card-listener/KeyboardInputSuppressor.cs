@@ -32,7 +32,11 @@ internal sealed class KeyboardInputSuppressor : IDisposable
 
     public int LastHookError { get; private set; }
 
+    public Action<char>? SuppressedInputReceived { private get; set; }
+
     public int SuppressedKeyCount { get; private set; }
+
+    public int ForwardedSuppressedKeyCount { get; private set; }
 
     public DateTime? LastSuppressedAt { get; private set; }
 
@@ -63,6 +67,8 @@ internal sealed class KeyboardInputSuppressor : IDisposable
                 SuppressedKeyCount += 1;
                 LastSuppressedAt = DateTime.Now;
                 LastSuppressedKey = key.Value == '\r' ? "Enter" : key.Value.ToString();
+                ForwardedSuppressedKeyCount += 1;
+                SuppressedInputReceived?.Invoke(key.Value);
                 return new IntPtr(1);
             }
         }

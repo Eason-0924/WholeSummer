@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.2.2.7</version> <!-- Enter system version before release -->
+	<version>1.2.2.8</version> <!-- Enter system version before release -->
 	<name>霍爾夏天補習班 Whole Summer</name>
 	<description>Cram school management system</description>
 	<properties>
