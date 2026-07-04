@@ -15,6 +15,12 @@ internal sealed class KeyboardInputSuppressor : IDisposable
     private readonly object gate = new();
     private IntPtr hookHandle;
     private DateTime suppressUntilUtc = DateTime.MinValue;
+    private DateTime lastSelectedRawInputAtUtc = DateTime.MinValue;
+    private DateTime lastForwardedSuppressedInputAtUtc = DateTime.MinValue;
+    private char? lastSelectedRawInputKey;
+    private char? lastForwardedSuppressedInputKey;
+    private bool lastSelectedRawInputMatchedByHook;
+    private bool lastForwardedSuppressedInputMatchedByRaw;
     private bool disposed;
 
     public KeyboardInputSuppressor(CardReaderOptions options)
@@ -32,21 +38,39 @@ internal sealed class KeyboardInputSuppressor : IDisposable
 
     public int LastHookError { get; private set; }
 
+    public Action<char>? SuppressedInputReceived { private get; set; }
+
     public int SuppressedKeyCount { get; private set; }
+
+    public int ForwardedSuppressedKeyCount { get; private set; }
+
+    public int RawDuplicateSkippedCount { get; private set; }
 
     public DateTime? LastSuppressedAt { get; private set; }
 
     public string LastSuppressedKey { get; private set; } = "-";
 
-    public void AllowSelectedReaderKey(char key)
+    public bool AllowSelectedReaderKey(char key)
     {
         if (!options.SuppressKeyboardInput || !IsSupportedReaderKey(key))
         {
-            return;
+            return true;
         }
         lock (gate)
         {
-            suppressUntilUtc = DateTime.UtcNow.AddMilliseconds(options.SuppressWindowMs);
+            DateTime now = DateTime.UtcNow;
+            suppressUntilUtc = now.AddMilliseconds(options.SuppressWindowMs);
+            if (!lastForwardedSuppressedInputMatchedByRaw
+                    && IsRecentSameKey(key, lastForwardedSuppressedInputKey, lastForwardedSuppressedInputAtUtc, now))
+            {
+                lastForwardedSuppressedInputMatchedByRaw = true;
+                RawDuplicateSkippedCount += 1;
+                return false;
+            }
+            lastSelectedRawInputKey = key;
+            lastSelectedRawInputAtUtc = now;
+            lastSelectedRawInputMatchedByHook = false;
+            return true;
         }
     }
 
@@ -61,6 +85,11 @@ internal sealed class KeyboardInputSuppressor : IDisposable
                 SuppressedKeyCount += 1;
                 LastSuppressedAt = DateTime.Now;
                 LastSuppressedKey = key.Value == '\r' ? "Enter" : key.Value.ToString();
+                if (ShouldForwardSuppressedInput(key.Value))
+                {
+                    ForwardedSuppressedKeyCount += 1;
+                    SuppressedInputReceived?.Invoke(key.Value);
+                }
                 return new IntPtr(1);
             }
         }
@@ -79,6 +108,29 @@ internal sealed class KeyboardInputSuppressor : IDisposable
             }
             return currentlySuppressing;
         }
+    }
+
+    private bool ShouldForwardSuppressedInput(char key)
+    {
+        lock (gate)
+        {
+            DateTime now = DateTime.UtcNow;
+            if (!lastSelectedRawInputMatchedByHook
+                    && IsRecentSameKey(key, lastSelectedRawInputKey, lastSelectedRawInputAtUtc, now))
+            {
+                lastSelectedRawInputMatchedByHook = true;
+                return false;
+            }
+            lastForwardedSuppressedInputKey = key;
+            lastForwardedSuppressedInputAtUtc = now;
+            lastForwardedSuppressedInputMatchedByRaw = false;
+            return true;
+        }
+    }
+
+    private static bool IsRecentSameKey(char key, char? lastKey, DateTime lastAtUtc, DateTime nowUtc)
+    {
+        return lastKey == key && nowUtc - lastAtUtc <= TimeSpan.FromMilliseconds(80);
     }
 
     private static bool IsSupportedReaderKey(char key)

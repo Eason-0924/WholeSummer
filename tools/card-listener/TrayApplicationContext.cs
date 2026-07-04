@@ -60,6 +60,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
             inputBuffer,
             settings.CardReader,
             key => keyboardInputSuppressor.AllowSelectedReaderKey(key));
+        keyboardInputSuppressor.SuppressedInputReceived = key =>
+        {
+            if (!rawInputForm.IsDisposed && rawInputForm.IsHandleCreated)
+            {
+                try
+                {
+                    rawInputForm.BeginInvoke(new Action(() => inputBuffer.Push(key, IntPtr.Zero)));
+                }
+                catch (InvalidOperationException)
+                {
+                    // The listener window can disappear while Windows is still unwinding the hook.
+                }
+            }
+        };
         rawInputForm.ReaderDeviceLearned += (_, device) => SaveLearnedReaderDevice(device);
         rawInputForm.Show();
         rawInputForm.BeginInvoke(new Action(rawInputForm.RegisterForBackgroundInput));
@@ -240,7 +254,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ? "-"
             : ShortDevicePath(rawInputForm.LastDevicePath);
         MessageBox.Show(
-            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}\n監聽模式：{settings.CardReader.InputMode}\n指定讀卡機：{readerPathText}\n指定讀卡機識別：{readerIdText}\n最近 Raw Input 來源：{lastRawPathText}\n讀卡機學習模式：{(rawInputForm.LearningReader ? "等待刷卡" : "關閉")}\nRaw Input 註冊：{(rawInputForm.Registered ? "成功" : "失敗")}（錯誤碼：{rawInputForm.LastRegisterError}）\nRaw Input 訊息數：{rawInputForm.RawInputMessageCount}\n指定讀卡機輸入數：{rawInputForm.SelectedReaderInputCount}\n非指定來源忽略數：{rawInputForm.IgnoredReaderInputCount}\n最近忽略來源：{lastIgnoredPathText}\n未支援按鍵數：{rawInputForm.UnsupportedKeyCount}\n最近 Raw Key：{rawKeyText}\n鍵盤輸入攔截：{(keyboardInputSuppressor.Enabled ? "啟用" : "停用")}（錯誤碼：{keyboardInputSuppressor.LastHookError}）\n攔截按鍵次數：{keyboardInputSuppressor.SuppressedKeyCount}\n最近攔截按鍵：{suppressText}\n卡號長度：{settings.CardReader.MinLength}-{settings.CardReader.MaxLength}\n逾時送出：{settings.CardReader.InputTimeoutMs} ms\n最近收到輸入：{lastInputText}\n收到有效字元次數：{receivedInputCount}\n目前緩衝長度：{inputBuffer.BufferedLength}\n已組成卡號次數：{cardReadyCount}\n最後組成卡號：{lastCardText}\n最後 API 結果：{lastApiText}\n最後未送出原因：{rejectedText}",
+            $"狀態：{statusText}\nAPI：{settings.WholeSummer.ApiBaseUrl}\n設備名稱：{settings.CardReader.DeviceName}\n監聽模式：{settings.CardReader.InputMode}\n指定讀卡機：{readerPathText}\n指定讀卡機識別：{readerIdText}\n最近 Raw Input 來源：{lastRawPathText}\n讀卡機學習模式：{(rawInputForm.LearningReader ? "等待刷卡" : "關閉")}\nRaw Input 註冊：{(rawInputForm.Registered ? "成功" : "失敗")}（錯誤碼：{rawInputForm.LastRegisterError}）\nRaw Input 訊息數：{rawInputForm.RawInputMessageCount}\n指定讀卡機輸入數：{rawInputForm.SelectedReaderInputCount}\n非指定來源忽略數：{rawInputForm.IgnoredReaderInputCount}\n最近忽略來源：{lastIgnoredPathText}\n未支援按鍵數：{rawInputForm.UnsupportedKeyCount}\n最近 Raw Key：{rawKeyText}\n鍵盤輸入攔截：{(keyboardInputSuppressor.Enabled ? "啟用" : "停用")}（錯誤碼：{keyboardInputSuppressor.LastHookError}）\n攔截按鍵次數：{keyboardInputSuppressor.SuppressedKeyCount}\n攔截後補入卡號次數：{keyboardInputSuppressor.ForwardedSuppressedKeyCount}\nRaw Input 重複略過次數：{keyboardInputSuppressor.RawDuplicateSkippedCount}\n最近攔截按鍵：{suppressText}\n卡號長度：{settings.CardReader.MinLength}-{settings.CardReader.MaxLength}\n逾時送出：{settings.CardReader.InputTimeoutMs} ms\n最近收到輸入：{lastInputText}\n收到有效字元次數：{receivedInputCount}\n目前緩衝長度：{inputBuffer.BufferedLength}\n已組成卡號次數：{cardReadyCount}\n最後組成卡號：{lastCardText}\n最後 API 結果：{lastApiText}\n最後未送出原因：{rejectedText}",
             "WholeSummer 刷卡監聽",
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);

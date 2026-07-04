@@ -17,7 +17,7 @@ internal sealed class RawInputForm : Form
 
     private readonly CardInputBuffer inputBuffer;
     private readonly CardReaderOptions options;
-    private readonly Action<char> selectedReaderInputReceived;
+    private readonly Func<char, bool> selectedReaderInputReceived;
     private readonly Dictionary<IntPtr, string> devicePaths = [];
     private bool registered;
     private bool learningReader;
@@ -26,7 +26,7 @@ internal sealed class RawInputForm : Form
     public RawInputForm(
         CardInputBuffer inputBuffer,
         CardReaderOptions options,
-        Action<char> selectedReaderInputReceived)
+        Func<char, bool> selectedReaderInputReceived)
     {
         this.inputBuffer = inputBuffer;
         this.options = options;
@@ -127,10 +127,12 @@ internal sealed class RawInputForm : Form
                     if (IsSelectedReader(LastDevicePath))
                     {
                         SelectedReaderInputCount += 1;
-                        selectedReaderInputReceived(keyInfo.Value.Key.Value);
-                        inputBuffer.Push(
-                            keyInfo.Value.Key.Value,
-                            options.RequireSelectedReader ? IntPtr.Zero : keyInfo.Value.DeviceHandle);
+                        if (selectedReaderInputReceived(keyInfo.Value.Key.Value))
+                        {
+                            inputBuffer.Push(
+                                keyInfo.Value.Key.Value,
+                                options.RequireSelectedReader ? IntPtr.Zero : keyInfo.Value.DeviceHandle);
+                        }
                     }
                     else
                     {
