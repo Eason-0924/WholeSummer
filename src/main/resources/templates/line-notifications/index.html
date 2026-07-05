@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" th:text="${errorMessage}"></div>
+
+	<style>
+		.line-notice-grid {
+			display: grid;
+			gap: 1rem;
+			grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+		}
+		.line-notice-card {
+			border: 1px solid rgba(0, 0, 0, 0.1);
+			border-left-width: 0.45rem;
+			border-radius: 0.5rem;
+			min-height: 15rem;
+		}
+		.line-card-score {
+			border-left-color: #198754;
+		}
+		.line-card-makeup {
+			border-left-color: #f0ad00;
+		}
+		.line-card-tuition {
+			border-left-color: #0d6efd;
+		}
+		.template-token {
+			background: rgba(13, 110, 253, 0.12);
+			border: 1px solid rgba(13, 110, 253, 0.28);
+			border-radius: 999px;
+			color: #0d6efd;
+			display: inline-flex;
+			font-size: 0.82rem;
+			font-weight: 600;
+			padding: 0.15rem 0.55rem;
+		}
+		.line-preview-box {
+			background: #f8f9fa;
+			border: 1px solid #dee2e6;
+			border-radius: 0.5rem;
+			white-space: pre-wrap;
+		}
+	</style>
+
+	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+		<div class="page-title-line">
+			<h1 class="h3 mb-0">Line 通知</h1>
+		</div>
+		<button class="btn btn-outline-primary" type="button" data-bs-toggle="modal"
+				data-bs-target="#lineTemplateModal">編輯模板</button>
+	</div>
+
+	<section class="line-notice-grid">
+		<div th:if="${#lists.isEmpty(lineNotificationCandidates)}" class="bg-white border rounded p-4 text-center text-secondary">
+			目前沒有可發送的 LINE 通知項目
+		</div>
+
+		<article th:each="candidate : ${lineNotificationCandidates}"
+				th:class="${'bg-white p-3 d-flex flex-column line-notice-card ' + candidate.cardClass}"
+				th:attr="data-template-key=${candidate.templateKey},data-student-given-name=${candidate.studentGivenName}">
+			<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+				<div>
+					<span class="badge"
+							th:classappend="${candidate.templateKey == 'SCORE' ? ' text-bg-success' : (candidate.templateKey == 'TUITION' ? ' text-bg-primary' : ' text-bg-warning text-dark')}"
+							th:text="${candidate.typeLabel}">成績</span>
+					<h2 class="h5 mt-2 mb-1" th:text="${candidate.studentName}">學生姓名</h2>
+					<div class="text-secondary small" th:text="${candidate.courseName}">課程</div>
+				</div>
+				<div class="text-end small text-secondary" th:text="${candidate.title}">通知</div>
+			</div>
+
+			<div class="mb-3">
+				<div class="fw-semibold" th:text="${candidate.itemName}">通知項目</div>
+				<div class="d-flex flex-wrap gap-2 mt-2">
+					<span th:each="valueEntry : ${candidate.values}" class="badge text-bg-light border text-dark">
+						<span th:text="${valueEntry.key}">參數</span>：
+						<span th:text="${valueEntry.value}">內容</span>
+					</span>
+				</div>
+			</div>
+
+			<div class="visually-hidden">
+				<span th:each="valueEntry : ${candidate.values}" data-line-var
+						th:attr="data-name=${valueEntry.key},data-value=${valueEntry.value}"></span>
+			</div>
+
+			<form class="mt-auto line-send-form" th:action="@{/line-notifications/send}" method="post">
+				<input type="hidden" name="candidateId" th:value="${candidate.id}">
+				<input type="hidden" name="template" data-template-input>
+				<div class="d-flex align-items-end gap-2">
+					<div class="flex-grow-1">
+						<label class="form-label small text-secondary mb-1">收件家長</label>
+						<select class="form-select form-select-sm" name="bindingIds" data-parent-select
+								th:disabled="${#lists.isEmpty(candidate.parents)}">
+							<option value="-1">全選</option>
+							<option th:each="parent : ${candidate.parents}" th:value="${parent.id}"
+									th:text="${parent.label}">家長</option>
+						</select>
+						<div th:if="${#lists.isEmpty(candidate.parents)}" class="form-text text-danger">
+							尚無已綁定家長
+						</div>
+					</div>
+					<button class="btn btn-sm btn-primary" type="submit"
+							th:disabled="${#lists.isEmpty(candidate.parents)}">發送</button>
+				</div>
+			</form>
+		</article>
+	</section>
+</main>
+
+<div class="modal fade" id="lineTemplateModal" tabindex="-1" aria-labelledby="lineTemplateModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg modal-dialog-scrollable">
+		<form class="modal-content" th:action="@{/line-notifications/templates}" method="post">
+			<div class="modal-header">
+				<h2 class="modal-title h5" id="lineTemplateModalLabel">編輯通知模板</h2>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+			</div>
+			<div class="modal-body">
+				<div class="mb-3">
+					<div class="small text-secondary mb-2">可用參數</div>
+					<div class="d-flex flex-wrap gap-2">
+						<span class="template-token">{學生姓名}</span>
+						<span class="template-token">{學生名字}</span>
+						<span class="template-token">{課程名稱}</span>
+						<span class="template-token">{項目名稱}</span>
+						<span class="template-token">{稱謂}</span>
+						<span class="template-token">{家長關係}</span>
+						<span class="template-token">{成績}</span>
+						<span class="template-token">{原上課時間}</span>
+						<span class="template-token">{新上課時間}</span>
+						<span class="template-token">{應繳費用}</span>
+						<span class="template-token">{到期日}</span>
+					</div>
+				</div>
+				<div class="accordion" id="lineTemplateAccordion">
+					<div th:each="templateEntry, iter : ${lineNotificationTemplates}" class="accordion-item">
+						<h3 class="accordion-header">
+							<button class="accordion-button" th:classappend="${iter.index == 0 ? '' : ' collapsed'}"
+									type="button" data-bs-toggle="collapse"
+									th:attr="data-bs-target=${'#template-' + templateEntry.key},aria-controls=${'template-' + templateEntry.key},aria-expanded=${iter.index == 0}"
+									th:text="${templateEntry.value.title}">
+								成績通知
+							</button>
+						</h3>
+						<div th:id="${'template-' + templateEntry.key}" class="accordion-collapse collapse"
+								th:classappend="${iter.index == 0 ? ' show' : ''}" data-bs-parent="#lineTemplateAccordion">
+							<div class="accordion-body">
+								<textarea class="form-control" rows="7" data-template-editor
+										th:attr="data-template-key=${templateEntry.key},name=${templateEntry.key}"
+										th:text="${templateEntry.value.body}"></textarea>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+				<button type="submit" class="btn btn-primary">儲存模板</button>
+			</div>
+		</form>
+	</div>
+</div>
+
+<div class="modal fade" id="linePreviewModal" tabindex="-1" aria-labelledby="linePreviewModalLabel" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h2 class="modal-title h5" id="linePreviewModalLabel">確認發送 LINE 通知</h2>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
+			</div>
+			<div class="modal-body">
+				<div class="small text-secondary mb-2" id="linePreviewRecipients"></div>
+				<div class="line-preview-box p-3" id="linePreviewContent"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+				<button type="button" class="btn btn-primary" id="linePreviewConfirmButton">確認發送</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script th:replace="~{fragments/layout :: scripts}"></script>
+<script>
+	(() => {
+		const templates = new Map();
+		const previewModalElement = document.getElementById('linePreviewModal');
+		const previewModal = previewModalElement ? new bootstrap.Modal(previewModalElement) : null;
+		const previewRecipients = document.getElementById('linePreviewRecipients');
+		const previewContent = document.getElementById('linePreviewContent');
+		const confirmButton = document.getElementById('linePreviewConfirmButton');
+		let pendingForm = null;
+
+		function syncTemplates() {
+			document.querySelectorAll('[data-template-editor]').forEach((editor) => {
+				templates.set(editor.dataset.templateKey, editor.value);
+			});
+		}
+
+		function valuesForCard(card) {
+			const values = new Map();
+			card.querySelectorAll('[data-line-var]').forEach((item) => {
+				values.set(item.dataset.name, item.dataset.value || '');
+			});
+			return values;
+		}
+
+		function selectedLabels(select) {
+			if (!select || select.value === '-1') {
+				return Array.from(select.options)
+						.filter((option) => option.value !== '-1')
+						.map((option) => option.textContent.trim());
+			}
+			return Array.from(select.selectedOptions).map((option) => option.textContent.trim());
+		}
+
+		function renderPreview(template, card, select) {
+			const labels = selectedLabels(select);
+			let content = template
+					.replaceAll('{稱謂}', labels[0] || '家長')
+					.replaceAll('{學生姓名}', card.querySelector('h2')?.textContent.trim() || '')
+					.replaceAll('{學生名字}', card.dataset.studentGivenName || '')
+					.replaceAll('{學生姓名後兩字}', card.dataset.studentGivenName || '')
+					.replaceAll('{家長關係}', labels[0] || '家長')
+					.replaceAll('{項目名稱}', card.querySelector('.fw-semibold')?.textContent.trim() || '')
+					.replaceAll('{課程名稱}', card.querySelector('.text-secondary.small')?.textContent.trim() || '');
+			valuesForCard(card).forEach((value, name) => {
+				content = content.replaceAll(`{${name}}`, value);
+			});
+			return content;
+		}
+
+		syncTemplates();
+		document.querySelectorAll('[data-template-editor]').forEach((editor) => {
+			editor.addEventListener('input', syncTemplates);
+		});
+		document.querySelectorAll('.line-send-form').forEach((form) => {
+			form.addEventListener('submit', (event) => {
+				event.preventDefault();
+				syncTemplates();
+				const card = form.closest('.line-notice-card');
+				const select = form.querySelector('[data-parent-select]');
+				const templateKey = card.dataset.templateKey;
+				const template = templates.get(templateKey) || '';
+				form.querySelector('[data-template-input]').value = template;
+				pendingForm = form;
+				previewRecipients.textContent = '收件人：' + selectedLabels(select).join('、');
+				previewContent.textContent = renderPreview(template, card, select);
+				previewModal.show();
+			});
+		});
+		confirmButton?.addEventListener('click', () => {
+			if (pendingForm) {
+				pendingForm.submit();
+			}
+		});
+	})();
+</script>
+</body>
+</html>

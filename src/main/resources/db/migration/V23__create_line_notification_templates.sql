@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS line_notification_templates (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    template_key VARCHAR(50) NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    body TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_line_notification_template_key (template_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

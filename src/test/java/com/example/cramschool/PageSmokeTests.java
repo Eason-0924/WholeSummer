@@ -312,6 +312,7 @@ class PageSmokeTests {
 				"/subjects/new",
 				"/exams",
 				"/homeworks",
+				"/line-notifications",
 				"/salary",
 				"/settings"
 		};

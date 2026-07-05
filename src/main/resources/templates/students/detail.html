@@ -77,7 +77,6 @@
 		<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 			<div>
 				<h2 class="h5 mb-1">LINE 家長通知</h2>
-				<div class="text-secondary small">產生一日有效綁定碼，同一組碼可供多位家長各自填入關係。</div>
 			</div>
 			<div th:if="${teacherPermissions.studentUpdate}" class="d-flex gap-2">
 				<form th:action="@{/students/{slug}/line-test-notification(slug=${student.urlSlug})}" method="post">
@@ -199,9 +198,6 @@
 						<label for="lineCustomRelation" class="form-label">其他關係</label>
 						<input id="lineCustomRelation" name="customRelation" class="form-control"
 								type="text" maxlength="30" placeholder="例如：阿姨、阿嬤、監護人">
-					</div>
-					<div class="form-text mt-3">
-						系統會產生建議文字，例如「綁定 839201 爸爸」。同一組碼也可改成「綁定 839201 媽媽」給其他家長使用。
 					</div>
 				</div>
 				<div class="modal-footer">

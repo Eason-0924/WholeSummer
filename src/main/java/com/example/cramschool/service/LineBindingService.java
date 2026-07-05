@@ -25,7 +25,7 @@ public class LineBindingService {
 
 	private static final int CODE_BOUND = 1_000_000;
 	private static final int CODE_VALID_HOURS = 24;
-	private static final Pattern BIND_COMMAND_PATTERN = Pattern.compile("^綁定\\s+([0-9]{6})(?:\\s+(.{1,30}))?$");
+	private static final Pattern BIND_COMMAND_PATTERN = Pattern.compile("^綁定\\s+([0-9]{6})$");
 	private static final SecureRandom RANDOM = new SecureRandom();
 
 	private final LineBindCodeRepository lineBindCodeRepository;
@@ -55,7 +55,7 @@ public class LineBindingService {
 		bindCode.setCode(generateCode());
 		bindCode.setExpiredAt(LocalDateTime.now().plusHours(CODE_VALID_HOURS));
 		LineBindCode saved = lineBindCodeRepository.save(bindCode);
-		String instructionText = "綁定 " + saved.getCode() + " " + saved.getRelation();
+		String instructionText = "綁定 " + saved.getCode();
 		return new LineBindCodeResult(saved.getCode(), saved.getRelation(), instructionText, saved.getExpiredAt());
 	}
 
@@ -80,24 +80,25 @@ public class LineBindingService {
 
 		String code = matcher.group(1);
 		LineBindCode bindCode = lineBindCodeRepository
-				.findFirstByCodeAndExpiredAtAfterOrderByCreatedAtDesc(code, LocalDateTime.now())
+				.findFirstByCodeAndUsedFalseAndExpiredAtAfterOrderByCreatedAtDesc(code, LocalDateTime.now())
 				.orElse(null);
 		if (bindCode == null) {
-			return LineBindingReply.failure("綁定失敗：驗證碼不存在或已過期，請向補習班重新索取綁定碼。");
+			return LineBindingReply.failure("綁定失敗：驗證碼不存在、已使用或已過期，請向補習班重新索取綁定碼。");
 		}
 
-		String relation = normalizeRelationOrDefault(matcher.group(2), bindCode.getRelation());
+		String relation = normalizeRelation(bindCode.getRelation());
 		Student student = bindCode.getStudent();
 		return parentLineBindingRepository.findByStudentAndLineUserId(student, lineUserId)
-				.map(existing -> refreshExistingBinding(existing, relation, lineDisplayName, student))
+				.map(existing -> refreshExistingBinding(bindCode, existing, relation, lineDisplayName, student))
 				.orElseGet(() -> createBinding(bindCode, relation, lineUserId, lineDisplayName, student));
 	}
 
-	private LineBindingReply refreshExistingBinding(ParentLineBinding binding, String relation,
-			String lineDisplayName, Student student) {
+	private LineBindingReply refreshExistingBinding(LineBindCode bindCode, ParentLineBinding binding,
+			String relation, String lineDisplayName, Student student) {
 		binding.setStatus(ParentLineBinding.STATUS_BOUND);
 		binding.setRelation(relation);
 		binding.setLineDisplayName(normalizeNullable(lineDisplayName));
+		consumeBindCode(bindCode);
 		parentLineBindingRepository.save(binding);
 		return LineBindingReply.success("您已綁定過此學生。\n學生：" + student.getDisplayName());
 	}
@@ -110,9 +111,16 @@ public class LineBindingService {
 		binding.setRelation(relation);
 		binding.setLineUserId(lineUserId);
 		binding.setLineDisplayName(normalizeNullable(lineDisplayName));
+		consumeBindCode(bindCode);
 		parentLineBindingRepository.save(binding);
 		return LineBindingReply.success("綁定成功！\n學生：" + student.getDisplayName()
 				+ "\n之後您將收到上課、缺席、補課、成績等通知。");
+	}
+
+	private void consumeBindCode(LineBindCode bindCode) {
+		bindCode.setUsed(true);
+		bindCode.setUsedAt(LocalDateTime.now());
+		lineBindCodeRepository.save(bindCode);
 	}
 
 	private String normalizeNullable(String value) {
@@ -128,14 +136,6 @@ public class LineBindingService {
 			throw new IllegalArgumentException("家長關係不可超過 30 個字");
 		}
 		return normalized;
-	}
-
-	private String normalizeRelationOrDefault(String relation, String defaultRelation) {
-		String normalized = normalizeNullable(relation);
-		if (normalized == null) {
-			return normalizeRelation(defaultRelation);
-		}
-		return normalizeRelation(normalized);
 	}
 
 	private String generateCode() {

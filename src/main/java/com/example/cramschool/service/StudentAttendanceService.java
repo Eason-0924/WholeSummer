@@ -67,13 +67,14 @@ public class StudentAttendanceService {
 	private final TeacherRepository teacherRepository;
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final WeeklyScheduleService weeklyScheduleService;
+	private final LineNotificationService lineNotificationService;
 	private Clock clock = Clock.systemDefaultZone();
 
 	public StudentAttendanceService(StudentAttendanceRepository studentAttendanceRepository,
 			StudentRepository studentRepository, ClassRoomService classRoomService,
 			ClassStudentService classStudentService, ClassStudentRepository classStudentRepository,
 			TeacherRepository teacherRepository, TeacherAttendanceService teacherAttendanceService,
-			WeeklyScheduleService weeklyScheduleService) {
+			WeeklyScheduleService weeklyScheduleService, LineNotificationService lineNotificationService) {
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.studentRepository = studentRepository;
 		this.classRoomService = classRoomService;
@@ -82,6 +83,7 @@ public class StudentAttendanceService {
 		this.teacherRepository = teacherRepository;
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.weeklyScheduleService = weeklyScheduleService;
+		this.lineNotificationService = lineNotificationService;
 	}
 
 	@Transactional(readOnly = true)
@@ -240,6 +242,7 @@ public class StudentAttendanceService {
 			attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
 			attendance.setCardId(normalizedCardId);
 			studentAttendanceRepository.save(attendance);
+			sendCardCheckOutNotification(attendance);
 
 			CardCheckInResponse response = CardCheckInResponse.studentCheckOut(
 					student.getId(), student.getDisplayName(), attendance.getClassRoom().getDisplayName(),
@@ -284,6 +287,7 @@ public class StudentAttendanceService {
 		attendance.setCardId(normalizedCardId);
 		attendance.setCheckInTime(cardTime);
 		studentAttendanceRepository.save(attendance);
+		sendCardCheckInNotification(attendance);
 
 		CardCheckInResponse response = CardCheckInResponse.success(
 				student.getId(), student.getDisplayName(), match.classRoom().getDisplayName(), cardTime);
@@ -554,10 +558,32 @@ public class StudentAttendanceService {
 
 	private AttendanceStatus resolveCardAttendanceStatus(ClassSchedule schedule, LocalDateTime checkInTime) {
 		if (schedule != null && schedule.getStartTime() != null
-				&& checkInTime.toLocalTime().isAfter(schedule.getStartTime())) {
+				&& checkInTime.toLocalTime().isAfter(schedule.getStartTime().plusMinutes(5))) {
 			return AttendanceStatus.LATE;
 		}
 		return AttendanceStatus.PRESENT;
+	}
+
+	private void sendCardCheckInNotification(StudentAttendance attendance) {
+		if (lineNotificationService == null) {
+			return;
+		}
+		try {
+			lineNotificationService.sendCardCheckInNotification(attendance);
+		} catch (RuntimeException ignored) {
+			// 點名結果以刷卡成功為主，LINE 發送失敗會由通知紀錄保留，不阻斷櫃台流程。
+		}
+	}
+
+	private void sendCardCheckOutNotification(StudentAttendance attendance) {
+		if (lineNotificationService == null) {
+			return;
+		}
+		try {
+			lineNotificationService.sendCardCheckOutNotification(attendance);
+		} catch (RuntimeException ignored) {
+			// 點名結果以刷卡成功為主，LINE 發送失敗會由通知紀錄保留，不阻斷櫃台流程。
+		}
 	}
 
 	private String normalizeDeviceName(String deviceName) {

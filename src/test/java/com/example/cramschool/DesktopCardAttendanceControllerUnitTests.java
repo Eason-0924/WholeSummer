@@ -40,7 +40,7 @@ class DesktopCardAttendanceControllerUnitTests {
 	private static class ThrowingStudentAttendanceService extends StudentAttendanceService {
 
 		ThrowingStudentAttendanceService() {
-			super(null, null, null, null, null, null, null, null);
+			super(null, null, null, null, null, null, null, null, null);
 		}
 
 		@Override

@@ -5,11 +5,13 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.entity.LineNotificationLog;
 import com.example.cramschool.entity.ParentLineBinding;
 import com.example.cramschool.entity.Student;
+import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
@@ -93,9 +95,105 @@ public class LineNotificationService {
 		return updatedCount;
 	}
 
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendCardCheckInNotification(StudentAttendance attendance) {
+		if (attendance == null || attendance.getId() == null || attendance.getStudent() == null) {
+			return;
+		}
+		boolean late = attendance.getStatus() == com.example.cramschool.entity.AttendanceStatus.LATE;
+		sendAttendanceNotification(attendance,
+				late ? "ATTENDANCE_LATE" : "ATTENDANCE_CHECK_IN",
+				late ? "LINE 遲到通知" : "LINE 到班通知",
+				late ? "遲到" : "到班",
+				attendance.getCheckInTime());
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendCardCheckOutNotification(StudentAttendance attendance) {
+		if (attendance == null || attendance.getId() == null || attendance.getStudent() == null) {
+			return;
+		}
+		sendAttendanceNotification(attendance, "ATTENDANCE_CHECK_OUT", "LINE 簽退通知",
+				"簽退", attendance.getCheckOutTime());
+	}
+
 	private Student findStudent(Long studentId) {
 		return studentRepository.findById(studentId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
+	}
+
+	private void sendAttendanceNotification(StudentAttendance attendance, String notificationType,
+			String title, String statusText, LocalDateTime eventTime) {
+		Student student = attendance.getStudent();
+		if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, notificationType, "STUDENT_ATTENDANCE", attendance.getId())) {
+			return;
+		}
+		List<ParentLineBinding> bindings = parentLineBindingRepository
+				.findByStudentAndStatus(student, ParentLineBinding.STATUS_BOUND);
+		if (bindings.isEmpty()) {
+			saveAttendanceLog(attendance, notificationType, title,
+					buildAttendanceMessage(attendance, null, statusText, eventTime),
+					LineNotificationLog.STATUS_SKIPPED, "尚無已綁定家長", null);
+			return;
+		}
+
+		int successCount = 0;
+		String firstError = null;
+		String firstProviderMessageId = null;
+		for (ParentLineBinding binding : bindings) {
+			String content = buildAttendanceMessage(attendance, binding, statusText, eventTime);
+			var result = lineMessageService.pushText(binding.getLineUserId(), content);
+			if (result.success()) {
+				successCount++;
+				if (firstProviderMessageId == null) {
+					firstProviderMessageId = result.providerMessageId();
+				}
+			} else if (firstError == null) {
+				firstError = result.errorMessage();
+			}
+		}
+		String status = successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
+		String error = successCount == bindings.size()
+				? null
+				: "成功 " + successCount + " / " + bindings.size()
+						+ (firstError == null ? "" : "；" + firstError);
+		saveAttendanceLog(attendance, notificationType, title,
+				buildAttendanceMessage(attendance, null, statusText, eventTime),
+				status, error, firstProviderMessageId);
+	}
+
+	private String buildAttendanceMessage(StudentAttendance attendance, ParentLineBinding binding,
+			String statusText, LocalDateTime eventTime) {
+		Student student = attendance.getStudent();
+		String recipient = binding == null || binding.getRelation() == null || binding.getRelation().isBlank()
+				? ""
+				: studentNameSuffix(student.getChineseName()) + binding.getRelation();
+		String greeting = recipient.isBlank() ? "" : recipient + "您好：\n";
+		String timeText = eventTime == null ? "-" : eventTime.format(DISPLAY_TIME_FORMAT);
+		String className = attendance.getClassRoom() == null ? "-" : attendance.getClassRoom().getDisplayName();
+		return "【Whole Summer " + statusText + "通知】\n\n"
+				+ greeting
+				+ "學生：" + student.getDisplayName() + "\n"
+				+ "狀態：" + statusText + "\n"
+				+ "時間：" + timeText + "\n"
+				+ "課程：" + className;
+	}
+
+	private void saveAttendanceLog(StudentAttendance attendance, String notificationType, String title,
+			String content, String status, String errorMessage, String providerMessageId) {
+		LineNotificationLog log = new LineNotificationLog();
+		log.setStudent(attendance.getStudent());
+		log.setNotificationType(notificationType);
+		log.setReferenceType("STUDENT_ATTENDANCE");
+		log.setReferenceId(attendance.getId());
+		log.setTitle(title);
+		log.setContent(content);
+		log.setStatus(status);
+		log.setErrorMessage(errorMessage);
+		log.setProviderMessageId(providerMessageId);
+		log.setSentAt(LocalDateTime.now());
+		lineNotificationLogRepository.save(log);
 	}
 
 	private String buildTestMessage(Student student) {
@@ -103,6 +201,14 @@ public class LineNotificationService {
 				+ "學生：" + student.getDisplayName() + "\n"
 				+ "時間：" + LocalDateTime.now().format(DISPLAY_TIME_FORMAT) + "\n\n"
 				+ "這是一則 LINE 家長通知測試。收到此訊息代表綁定與推播功能正常。";
+	}
+
+	private String studentNameSuffix(String name) {
+		if (name == null || name.isBlank()) {
+			return "";
+		}
+		String normalized = name.trim();
+		return normalized.length() <= 2 ? normalized : normalized.substring(normalized.length() - 2);
 	}
 
 	private void saveLog(Student student, String lineUserId, String status, String title,

@@ -47,7 +47,7 @@ class StudentAttendanceServiceTests {
 			}
 		};
 		StudentAttendanceService service = new StudentAttendanceService(
-				null, null, null, null, null, null, null, weeklyScheduleService);
+				null, null, null, null, null, null, null, weeklyScheduleService, null);
 
 		assertThat(service.isClassDay(classRoomId, originalDate)).isFalse();
 		assertThat(service.isClassDay(classRoomId, rescheduledDate)).isTrue();
@@ -71,7 +71,8 @@ class StudentAttendanceServiceTests {
 		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		StudentAttendanceService service = new StudentAttendanceService(
-				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService);
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -111,7 +112,8 @@ class StudentAttendanceServiceTests {
 		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
 		StudentAttendanceService service = new StudentAttendanceService(
-				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService);
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();

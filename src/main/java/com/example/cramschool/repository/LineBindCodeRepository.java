@@ -11,7 +11,8 @@ import com.example.cramschool.entity.Student;
 
 public interface LineBindCodeRepository extends JpaRepository<LineBindCode, Long> {
 
-	Optional<LineBindCode> findFirstByCodeAndExpiredAtAfterOrderByCreatedAtDesc(String code, LocalDateTime now);
+	Optional<LineBindCode> findFirstByCodeAndUsedFalseAndExpiredAtAfterOrderByCreatedAtDesc(
+			String code, LocalDateTime now);
 
 	List<LineBindCode> findTop5ByStudentOrderByCreatedAtDesc(Student student);
 }
