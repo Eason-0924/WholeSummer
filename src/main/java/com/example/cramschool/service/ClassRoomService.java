@@ -28,6 +28,7 @@ import com.example.cramschool.repository.HomeworkRepository;
 import com.example.cramschool.repository.MakeUpClassRequestRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherLeaveRepository;
 import com.example.cramschool.repository.TeacherRepository;
@@ -45,6 +46,7 @@ public class ClassRoomService {
 	private final HomeworkRepository homeworkRepository;
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
+	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final TeacherLeaveRepository teacherLeaveRepository;
 	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
@@ -58,6 +60,7 @@ public class ClassRoomService {
 			TeacherRepository teacherRepository, ClassStudentRepository classStudentRepository,
 			ExamRepository examRepository, ScoreRepository scoreRepository, HomeworkRepository homeworkRepository,
 			HomeworkRecordRepository homeworkRecordRepository, StudentAttendanceRepository studentAttendanceRepository,
+			StudentLeaveRequestRepository studentLeaveRequestRepository,
 			TeacherPermissionService teacherPermissionService,
 			TeacherLeaveRepository teacherLeaveRepository,
 			MakeUpClassRequestRepository makeUpClassRequestRepository,
@@ -72,6 +75,7 @@ public class ClassRoomService {
 		this.homeworkRepository = homeworkRepository;
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
+		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.teacherLeaveRepository = teacherLeaveRepository;
 		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
@@ -172,6 +176,7 @@ public class ClassRoomService {
 		homeworkRecordRepository.deleteByHomeworkClassRoomId(id);
 		homeworkRepository.deleteByClassRoomId(id);
 		studentAttendanceRepository.deleteByClassRoomId(id);
+		studentLeaveRequestRepository.deleteByClassRoomId(id);
 		makeUpClassRequestRepository.deleteByClassRoomId(id);
 		makeUpClassRequestRepository.flush();
 		teacherLeaveRepository.deleteByCourseScheduleClassRoomId(id);

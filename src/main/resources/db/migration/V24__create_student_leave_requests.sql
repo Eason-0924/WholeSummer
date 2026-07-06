@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS student_leave_requests (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    student_id BIGINT NOT NULL,
+    class_id BIGINT NOT NULL,
+    class_schedule_id BIGINT NULL,
+    course_date DATE NOT NULL,
+    scheduled_start_at DATETIME(6) NOT NULL,
+    scheduled_end_at DATETIME(6) NOT NULL,
+    reason VARCHAR(500) NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    source VARCHAR(50) NOT NULL DEFAULT 'LINE_LIFF',
+    requester_line_user_id VARCHAR(100) NULL,
+    requester_display_name VARCHAR(200) NULL,
+    parent_relation VARCHAR(50) NULL,
+    reviewed_by_teacher_id BIGINT NULL,
+    reviewed_at DATETIME(6) NULL,
+    review_note VARCHAR(1000) NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_student_leave_student_date (student_id, course_date),
+    KEY idx_student_leave_class_date (class_id, course_date),
+    KEY idx_student_leave_schedule (class_schedule_id),
+    KEY idx_student_leave_status (status, course_date),
+    KEY idx_student_leave_requester (requester_line_user_id),
+    KEY idx_student_leave_reviewed_by (reviewed_by_teacher_id),
+    CONSTRAINT fk_student_leave_student FOREIGN KEY (student_id) REFERENCES students (id),
+    CONSTRAINT fk_student_leave_class FOREIGN KEY (class_id) REFERENCES classes (id),
+    CONSTRAINT fk_student_leave_schedule FOREIGN KEY (class_schedule_id)
+        REFERENCES class_schedules (id) ON DELETE SET NULL,
+    CONSTRAINT fk_student_leave_reviewed_by FOREIGN KEY (reviewed_by_teacher_id)
+        REFERENCES teachers (id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

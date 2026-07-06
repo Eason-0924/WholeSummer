@@ -47,3 +47,6 @@ target/
 
 # 資料庫備份
 data/backups/
+
+# 臨時圖片
+data/*.png

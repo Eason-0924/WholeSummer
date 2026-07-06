@@ -25,6 +25,7 @@ import com.example.cramschool.repository.HomeworkRepository;
 import com.example.cramschool.repository.MakeUpClassRequestRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherLeaveRepository;
 import com.example.cramschool.repository.TeacherPermissionRepository;
@@ -188,6 +189,13 @@ class ClassRoomServiceTests {
 					}
 					throw new UnsupportedOperationException(method);
 				});
+		StudentLeaveRequestRepository studentLeaveRequestRepository = repository(StudentLeaveRequestRepository.class,
+				(method, arguments) -> {
+					if ("deleteByClassRoomId".equals(method)) {
+						return null;
+					}
+					throw new UnsupportedOperationException(method);
+				});
 		MakeUpClassRequestRepository makeUpClassRequestRepository = repository(MakeUpClassRequestRepository.class,
 				(method, arguments) -> {
 					if ("deleteByClassRoomId".equals(method)) {
@@ -246,6 +254,7 @@ class ClassRoomServiceTests {
 				homeworkRepository,
 				homeworkRecordRepository,
 				studentAttendanceRepository,
+				studentLeaveRequestRepository,
 				teacherPermissionService,
 				teacherLeaveRepository,
 				makeUpClassRequestRepository,

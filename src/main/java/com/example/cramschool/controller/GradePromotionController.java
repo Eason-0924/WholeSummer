@@ -112,9 +112,14 @@ public class GradePromotionController {
 			return "redirect:/settings/grade-promotion";
 		}
 		draft.getPromotedClassIds().clear();
+		draft.getGradeOnlyClassIds().clear();
+		draft.getJoinedStudentIdsByClass().clear();
 		parameters.forEach((name, value) -> {
 			if (name.startsWith("classAction_") && GradePromotionService.ACTION_PROMOTE.equals(value)) {
 				draft.getPromotedClassIds().add(Long.valueOf(name.substring("classAction_".length())));
+			} else if (name.startsWith("classAction_")
+					&& GradePromotionService.ACTION_GRADE_ONLY.equals(value)) {
+				draft.getGradeOnlyClassIds().add(Long.valueOf(name.substring("classAction_".length())));
 			}
 		});
 		return "redirect:/settings/grade-promotion/members";
@@ -161,7 +166,8 @@ public class GradePromotionController {
 			session.removeAttribute(DRAFT_SESSION_KEY);
 			redirectAttributes.addFlashAttribute("message",
 					"升年級完成：處理 " + result.promotedStudentCount() + " 位學生、建立 "
-							+ result.createdClassCount() + " 個新班級、加入 "
+							+ result.createdClassCount() + " 個新班級、更新 "
+							+ result.updatedClassGradeCount() + " 個班級年級、加入 "
 							+ result.joinedStudentCount() + " 筆班級學生資料");
 			return "redirect:/settings";
 		} catch (IllegalArgumentException ex) {

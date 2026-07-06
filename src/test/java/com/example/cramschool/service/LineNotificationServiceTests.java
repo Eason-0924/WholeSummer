@@ -21,6 +21,7 @@ import com.example.cramschool.entity.LineNotificationLog;
 import com.example.cramschool.entity.ParentLineBinding;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.StudentAttendance;
+import com.example.cramschool.entity.StudentLeaveRequest;
 import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
 
@@ -65,11 +66,77 @@ class LineNotificationServiceTests {
 		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("ATTENDANCE_CHECK_IN");
 	}
 
+	@Test
+	void studentLeaveSubmittedNotificationIncludesLeaveDetailsAndQuestionText() {
+		Student student = student();
+		StudentLeaveRequest leaveRequest = leaveRequest(student);
+		LineNotificationLogRepository logRepository = mock(LineNotificationLogRepository.class);
+		LineMessageService lineMessageService = mock(LineMessageService.class);
+		when(logRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, "STUDENT_LEAVE_SUBMITTED", "STUDENT_LEAVE_REQUEST", leaveRequest.getId())).thenReturn(false);
+		when(lineMessageService.pushText(eq("line-user-1"), any())).thenReturn(LineSendResult.success("request-1"));
+		LineNotificationService service = new LineNotificationService(null, mock(ParentLineBindingRepository.class),
+				logRepository, null, lineMessageService, new LineProperties());
+
+		service.sendStudentLeaveSubmittedNotification(leaveRequest);
+
+		ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
+		verify(lineMessageService).pushText(eq("line-user-1"), contentCaptor.capture());
+		assertThat(contentCaptor.getValue())
+				.contains("請假申請確認", "學生：王小明", "課程：國一（A班）",
+						"時間：2026/07/08 18:00-20:00", "請假原因：病假：發燒",
+						"若有疑問可直接詢問告知");
+		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
+		verify(logRepository).save(logCaptor.capture());
+		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("STUDENT_LEAVE_SUBMITTED");
+		assertThat(logCaptor.getValue().getLineUserId()).isEqualTo("line-user-1");
+	}
+
+	@Test
+	void studentLeaveApprovedNotificationTellsParentTeacherConfirmedLeaveRecord() {
+		Student student = student();
+		StudentLeaveRequest leaveRequest = leaveRequest(student);
+		LineNotificationLogRepository logRepository = mock(LineNotificationLogRepository.class);
+		LineMessageService lineMessageService = mock(LineMessageService.class);
+		when(logRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, "STUDENT_LEAVE_APPROVED", "STUDENT_LEAVE_REQUEST", leaveRequest.getId())).thenReturn(false);
+		when(lineMessageService.pushText(eq("line-user-1"), any())).thenReturn(LineSendResult.success("request-1"));
+		LineNotificationService service = new LineNotificationService(null, mock(ParentLineBindingRepository.class),
+				logRepository, null, lineMessageService, new LineProperties());
+
+		service.sendStudentLeaveApprovedNotification(leaveRequest);
+
+		ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
+		verify(lineMessageService).pushText(eq("line-user-1"), contentCaptor.capture());
+		assertThat(contentCaptor.getValue())
+				.contains("請假審核通知", "補習班教師已確認請假紀錄", "學生：王小明",
+						"課程：國一（A班）", "時間：2026/07/08 18:00-20:00", "請假原因：病假：發燒");
+		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
+		verify(logRepository).save(logCaptor.capture());
+		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("STUDENT_LEAVE_APPROVED");
+	}
+
 	private Student student() {
 		Student student = new Student();
 		student.setId(21L);
 		student.setChineseName("王小明");
 		student.setActive(true);
 		return student;
+	}
+
+	private StudentLeaveRequest leaveRequest(Student student) {
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		classRoom.setGrade("國一");
+		classRoom.setClassType("A班");
+		StudentLeaveRequest leaveRequest = new StudentLeaveRequest();
+		leaveRequest.setId(81L);
+		leaveRequest.setStudent(student);
+		leaveRequest.setClassRoom(classRoom);
+		leaveRequest.setRequesterLineUserId("line-user-1");
+		leaveRequest.setScheduledStartAt(LocalDateTime.of(2026, 7, 8, 18, 0));
+		leaveRequest.setScheduledEndAt(LocalDateTime.of(2026, 7, 8, 20, 0));
+		leaveRequest.setReason("病假：發燒");
+		return leaveRequest;
 	}
 }

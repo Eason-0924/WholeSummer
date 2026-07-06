@@ -119,6 +119,7 @@ class GradePromotionServiceTests {
 		assertThat(oldClass.isActive()).isFalse();
 		assertThat(result.promotedStudentCount()).isEqualTo(3);
 		assertThat(result.createdClassCount()).isEqualTo(1);
+		assertThat(result.updatedClassGradeCount()).isZero();
 		assertThat(result.joinedStudentCount()).isEqualTo(2);
 
 		assertThat(savedClasses).hasSize(2);
@@ -134,6 +135,65 @@ class GradePromotionServiceTests {
 				.containsExactlyInAnyOrder(1L, 2L);
 		assertThat(savedMemberships)
 				.allMatch(membership -> membership.getClassRoom() == newClass);
+	}
+
+	@Test
+	void updatesClassGradeOnlyWithoutCreatingClassOrMemberships() {
+		Student student = student(1L, "國一學生", "國一");
+		Subject subject = new Subject();
+		subject.setId(10L);
+		subject.setName("英文");
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(20L);
+		classRoom.setGrade("國一");
+		classRoom.setSubject(subject);
+		classRoom.setClassType("A班");
+		classRoom.setActive(true);
+
+		List<ClassRoom> savedClasses = new ArrayList<>();
+		List<ClassStudent> savedMemberships = new ArrayList<>();
+		StudentRepository studentRepository = repository(StudentRepository.class, (method, arguments) -> {
+			if ("findByActiveTrue".equals(method)) {
+				return List.of(student);
+			}
+			return null;
+		});
+		ClassRoomRepository classRoomRepository = repository(ClassRoomRepository.class, (method, arguments) -> {
+			if ("findById".equals(method)) {
+				return Optional.of(classRoom);
+			}
+			if ("save".equals(method)) {
+				ClassRoom savedClass = (ClassRoom) arguments[0];
+				savedClasses.add(savedClass);
+				return savedClass;
+			}
+			return null;
+		});
+		ClassStudentRepository classStudentRepository = repository(ClassStudentRepository.class,
+				(method, arguments) -> {
+					if ("save".equals(method)) {
+						ClassStudent membership = (ClassStudent) arguments[0];
+						savedMemberships.add(membership);
+						return membership;
+					}
+					return null;
+				});
+		GradePromotionService service = new GradePromotionService(
+				studentRepository, classRoomRepository, classStudentRepository);
+		GradePromotionDraft draft = new GradePromotionDraft();
+		draft.getGradeOnlyClassIds().add(20L);
+
+		GradePromotionService.PromotionResult result = service.complete(draft);
+
+		assertThat(student.getGrade()).isEqualTo("國二");
+		assertThat(classRoom.getGrade()).isEqualTo("國二");
+		assertThat(classRoom.isActive()).isTrue();
+		assertThat(savedClasses).containsExactly(classRoom);
+		assertThat(savedMemberships).isEmpty();
+		assertThat(result.promotedStudentCount()).isEqualTo(1);
+		assertThat(result.createdClassCount()).isZero();
+		assertThat(result.updatedClassGradeCount()).isEqualTo(1);
+		assertThat(result.joinedStudentCount()).isZero();
 	}
 
 	@SuppressWarnings("unchecked")

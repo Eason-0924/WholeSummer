@@ -29,6 +29,8 @@ public class StudentAttendanceEntryForm {
 	@Size(max = 1000, message = "備註不可超過 1000 個字")
 	private String note;
 
+	private boolean lockedByApprovedLeave;
+
 	public Long getStudentId() {
 		return studentId;
 	}
@@ -84,4 +86,13 @@ public class StudentAttendanceEntryForm {
 	public void setNote(String note) {
 		this.note = note;
 	}
+
+	public boolean isLockedByApprovedLeave() {
+		return lockedByApprovedLeave;
+	}
+
+	public void setLockedByApprovedLeave(boolean lockedByApprovedLeave) {
+		this.lockedByApprovedLeave = lockedByApprovedLeave;
+	}
+
 }

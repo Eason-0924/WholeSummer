@@ -11,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.cramschool.dto.HomeNotification;
 import com.example.cramschool.entity.MakeUpClassRequest;
 import com.example.cramschool.entity.MakeUpSourceType;
+import com.example.cramschool.entity.StudentLeaveStatus;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.repository.StudentRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 
 @Service
 @Transactional(readOnly = true)
@@ -24,17 +26,20 @@ public class HomeNotificationService {
 	private final StudentRepository studentRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final MakeUpClassService makeUpClassService;
+	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 
 	public HomeNotificationService(HomeworkService homeworkService, ExamService examService,
 			TuitionRecordService tuitionRecordService, StudentRepository studentRepository,
 			TeacherPermissionService teacherPermissionService,
-			MakeUpClassService makeUpClassService) {
+			MakeUpClassService makeUpClassService,
+			StudentLeaveRequestRepository studentLeaveRequestRepository) {
 		this.homeworkService = homeworkService;
 		this.examService = examService;
 		this.tuitionRecordService = tuitionRecordService;
 		this.studentRepository = studentRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.makeUpClassService = makeUpClassService;
+		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
 	}
 
 	public List<HomeNotification> buildNotifications(Long teacherId, int warningDays) {
@@ -43,6 +48,19 @@ public class HomeNotificationService {
 		List<HomeNotification> notifications = new ArrayList<>();
 		boolean director = teacherPermissionService.hasPermission(
 				teacherId, TeacherPermissionType.MANAGE_ALL_ATTENDANCE);
+		if (teacherPermissionService.hasPermission(teacherId, TeacherPermissionType.STUDENT_UPDATE)) {
+			List<com.example.cramschool.entity.StudentLeaveRequest> pendingLeaves = studentLeaveRequestRepository
+					.findByStatusOrderByCourseDateAscScheduledStartAtAsc(StudentLeaveStatus.PENDING);
+			if (!pendingLeaves.isEmpty()) {
+				com.example.cramschool.entity.StudentLeaveRequest first = pendingLeaves.getFirst();
+				notifications.add(new HomeNotification(
+						"leave", "學生請假", "有 " + pendingLeaves.size() + " 筆學生請假待審核",
+						first.getStudent().getDisplayName() + "｜" + first.getClassRoom().getDisplayName(),
+						"點擊前往確認請假紀錄",
+						"/student-leaves",
+						first.getCourseDate() == null ? today : first.getCourseDate()));
+			}
+		}
 		List<MakeUpClassRequest> pendingMakeUpRequests = makeUpClassService.findPendingForHome(teacherId, director);
 		makeUpClassService.warmUpPendingCalendarCache(pendingMakeUpRequests);
 		for (MakeUpClassRequest request : pendingMakeUpRequests) {

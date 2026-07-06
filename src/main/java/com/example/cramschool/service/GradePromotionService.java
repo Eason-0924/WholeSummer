@@ -26,6 +26,7 @@ public class GradePromotionService {
 
 	public static final String ACTION_GRADUATE = "GRADUATE";
 	public static final String ACTION_PROMOTE = "PROMOTE";
+	public static final String ACTION_GRADE_ONLY = "GRADE_ONLY";
 
 	private static final Map<String, String> NEXT_GRADE = Map.of(
 			"國一", "國二",
@@ -94,7 +95,19 @@ public class GradePromotionService {
 		}
 
 		int createdClassCount = 0;
+		int updatedClassGradeCount = 0;
 		int joinedStudentCount = 0;
+		for (Long classId : draft.getGradeOnlyClassIds()) {
+			ClassRoom classRoom = classRoomRepository.findById(classId)
+					.orElseThrow(() -> new IllegalArgumentException("找不到要升級的班級"));
+			String nextGrade = NEXT_GRADE.get(classRoom.getGrade());
+			if (!classRoom.isActive() || nextGrade == null) {
+				throw new IllegalArgumentException("班級已結束或無法再升級：" + classRoom.getDisplayName());
+			}
+			classRoom.setGrade(nextGrade);
+			classRoomRepository.save(classRoom);
+			updatedClassGradeCount++;
+		}
 		for (Long classId : draft.getPromotedClassIds()) {
 			ClassRoom oldClass = classRoomRepository.findById(classId)
 					.orElseThrow(() -> new IllegalArgumentException("找不到要升級的班級"));
@@ -129,7 +142,8 @@ public class GradePromotionService {
 			}
 		}
 
-		return new PromotionResult(activeStudents.size(), createdClassCount, joinedStudentCount);
+		return new PromotionResult(activeStudents.size(), createdClassCount, updatedClassGradeCount,
+				joinedStudentCount);
 	}
 
 	public void validateTerminalActions(GradePromotionDraft draft) {
@@ -229,6 +243,7 @@ public class GradePromotionService {
 	public record ClassMemberOption(Long classId, String currentName, String promotedName, List<MemberOption> members) {
 	}
 
-	public record PromotionResult(int promotedStudentCount, int createdClassCount, int joinedStudentCount) {
+	public record PromotionResult(int promotedStudentCount, int createdClassCount, int updatedClassGradeCount,
+			int joinedStudentCount) {
 	}
 }

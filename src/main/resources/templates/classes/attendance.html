@@ -65,12 +65,16 @@
 					<td>
 						<input type="hidden" th:field="*{entries[__${iterStat.index}__].studentId}">
 						<span th:text="${entry.studentName}">學生姓名</span>
+						<span th:if="${entry.lockedByApprovedLeave}" class="badge text-bg-primary ms-2">已確認請假</span>
 					</td>
 					<td th:text="${entry.studentGrade ?: '-'}">-</td>
 					<td>
+						<input th:if="${entry.lockedByApprovedLeave}" type="hidden"
+								th:name="|entries[${iterStat.index}].status|"
+								th:value="${entry.status}">
 						<select class="form-select form-select-sm" data-attendance-status
 								th:field="*{entries[__${iterStat.index}__].status}"
-								th:disabled="${!classDay}">
+								th:disabled="${!classDay || entry.lockedByApprovedLeave}">
 							<option th:each="status : ${statusOptions}"
 									th:value="${status}"
 									th:text="${status.displayName}">出席</option>
@@ -79,21 +83,24 @@
 					<td>
 						<input class="form-control form-control-sm" type="time"
 								th:field="*{entries[__${iterStat.index}__].checkInTime}"
-								th:disabled="${!classDay}"
+								th:disabled="${!classDay || entry.lockedByApprovedLeave}"
 								data-attendance-time
 								aria-label="到班時間">
 					</td>
 					<td>
 						<input class="form-control form-control-sm" type="time"
 								th:field="*{entries[__${iterStat.index}__].checkOutTime}"
-								th:disabled="${!classDay}"
+								th:disabled="${!classDay || entry.lockedByApprovedLeave}"
 								data-attendance-time
 								aria-label="離班時間">
 					</td>
 					<td>
+						<input th:if="${entry.lockedByApprovedLeave}" type="hidden"
+								th:name="|entries[${iterStat.index}].note|"
+								th:value="${entry.note}">
 						<input class="form-control form-control-sm" type="text"
 								th:field="*{entries[__${iterStat.index}__].note}"
-								th:disabled="${!classDay}"
+								th:disabled="${!classDay || entry.lockedByApprovedLeave}"
 								placeholder="可留空">
 					</td>
 				</tr>

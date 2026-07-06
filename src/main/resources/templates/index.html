@@ -69,6 +69,7 @@
 		.notification-update { border-left-color: #6f42c1; }
 		.notification-birthday { border-left-color: #d63384; }
 		.notification-makeup { border-left-color: #fd7e14; }
+		.notification-leave { border-left-color: #0d6efd; }
 		.home-collapse-heading {
 			background: transparent;
 			border: 0;
@@ -401,7 +402,8 @@
 											(notification.type == 'exam' ? 'text-bg-primary' :
 											(notification.type == 'tuition' ? 'text-bg-danger' :
 											(notification.type == 'update' ? 'text-bg-info' :
-											(notification.type == 'makeup' ? 'text-bg-warning' : 'text-bg-success'))))}"
+											(notification.type == 'makeup' ? 'text-bg-warning' :
+											(notification.type == 'leave' ? 'text-bg-primary' : 'text-bg-success')))))}"
 									th:text="${notification.typeLabel}">通知</span>
 							<span class="small text-secondary"
 									th:text="${#temporals.format(notification.date, 'yyyy/MM/dd')}">2026/01/01</span>

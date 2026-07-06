@@ -13,6 +13,7 @@ public class GradePromotionDraft implements Serializable {
 	private final Map<Long, String> terminalStudentActions = new LinkedHashMap<>();
 	private final Map<Long, String> promotedStudentSchools = new LinkedHashMap<>();
 	private final Set<Long> promotedClassIds = new LinkedHashSet<>();
+	private final Set<Long> gradeOnlyClassIds = new LinkedHashSet<>();
 	private final Map<Long, Set<Long>> joinedStudentIdsByClass = new LinkedHashMap<>();
 
 	public Map<Long, String> getTerminalStudentActions() {
@@ -25,6 +26,10 @@ public class GradePromotionDraft implements Serializable {
 
 	public Set<Long> getPromotedClassIds() {
 		return promotedClassIds;
+	}
+
+	public Set<Long> getGradeOnlyClassIds() {
+		return gradeOnlyClassIds;
 	}
 
 	public Map<Long, Set<Long>> getJoinedStudentIdsByClass() {

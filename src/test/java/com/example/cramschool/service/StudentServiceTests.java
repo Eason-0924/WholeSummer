@@ -17,6 +17,7 @@ import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TuitionRecordRepository;
@@ -33,6 +34,7 @@ class StudentServiceTests {
 		ScoreRepository scoreRepository = mock(ScoreRepository.class);
 		HomeworkRecordRepository homeworkRecordRepository = mock(HomeworkRecordRepository.class);
 		StudentAttendanceRepository studentAttendanceRepository = mock(StudentAttendanceRepository.class);
+		StudentLeaveRequestRepository studentLeaveRequestRepository = mock(StudentLeaveRequestRepository.class);
 		TuitionRecordRepository tuitionRecordRepository = mock(TuitionRecordRepository.class);
 		LineNotificationLogRepository lineNotificationLogRepository = mock(LineNotificationLogRepository.class);
 		LineBindCodeRepository lineBindCodeRepository = mock(LineBindCodeRepository.class);
@@ -44,6 +46,7 @@ class StudentServiceTests {
 				scoreRepository,
 				homeworkRecordRepository,
 				studentAttendanceRepository,
+				studentLeaveRequestRepository,
 				tuitionRecordRepository,
 				lineNotificationLogRepository,
 				lineBindCodeRepository,
@@ -59,6 +62,7 @@ class StudentServiceTests {
 				scoreRepository,
 				homeworkRecordRepository,
 				studentAttendanceRepository,
+				studentLeaveRequestRepository,
 				tuitionRecordRepository,
 				lineNotificationLogRepository,
 				lineBindCodeRepository,
@@ -68,6 +72,7 @@ class StudentServiceTests {
 		inOrder.verify(scoreRepository).deleteByStudentId(student.getId());
 		inOrder.verify(homeworkRecordRepository).deleteByStudentId(student.getId());
 		inOrder.verify(studentAttendanceRepository).deleteByStudentId(student.getId());
+		inOrder.verify(studentLeaveRequestRepository).deleteByStudentId(student.getId());
 		inOrder.verify(tuitionRecordRepository).deleteByStudentId(student.getId());
 		inOrder.verify(lineNotificationLogRepository).deleteByStudentId(student.getId());
 		inOrder.verify(lineBindCodeRepository).deleteByStudentId(student.getId());

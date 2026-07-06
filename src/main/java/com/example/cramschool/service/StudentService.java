@@ -18,6 +18,7 @@ import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.TeacherRepository;
 import com.example.cramschool.repository.TuitionRecordRepository;
@@ -31,6 +32,7 @@ public class StudentService {
 	private final ScoreRepository scoreRepository;
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
+	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 	private final TuitionRecordRepository tuitionRecordRepository;
 	private final LineNotificationLogRepository lineNotificationLogRepository;
 	private final LineBindCodeRepository lineBindCodeRepository;
@@ -42,6 +44,7 @@ public class StudentService {
 	public StudentService(StudentRepository studentRepository, ClassStudentRepository classStudentRepository,
 			ScoreRepository scoreRepository, HomeworkRecordRepository homeworkRecordRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
+			StudentLeaveRequestRepository studentLeaveRequestRepository,
 			TuitionRecordRepository tuitionRecordRepository,
 			LineNotificationLogRepository lineNotificationLogRepository,
 			LineBindCodeRepository lineBindCodeRepository,
@@ -53,6 +56,7 @@ public class StudentService {
 		this.scoreRepository = scoreRepository;
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
+		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
 		this.tuitionRecordRepository = tuitionRecordRepository;
 		this.lineNotificationLogRepository = lineNotificationLogRepository;
 		this.lineBindCodeRepository = lineBindCodeRepository;
@@ -177,6 +181,7 @@ public class StudentService {
 		scoreRepository.deleteByStudentId(id);
 		homeworkRecordRepository.deleteByStudentId(id);
 		studentAttendanceRepository.deleteByStudentId(id);
+		studentLeaveRequestRepository.deleteByStudentId(id);
 		tuitionRecordRepository.deleteByStudentId(id);
 		lineNotificationLogRepository.deleteByStudentId(id);
 		lineBindCodeRepository.deleteByStudentId(id);

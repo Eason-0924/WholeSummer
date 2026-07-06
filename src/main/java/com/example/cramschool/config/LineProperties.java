@@ -15,6 +15,10 @@ public class LineProperties {
 
 	private String webhookPath = "/api/line/webhook";
 
+	private String liffId = "";
+
+	private String liffChannelId = "";
+
 	public boolean isEnabled() {
 		return enabled;
 	}
@@ -45,5 +49,21 @@ public class LineProperties {
 
 	public void setWebhookPath(String webhookPath) {
 		this.webhookPath = webhookPath;
+	}
+
+	public String getLiffId() {
+		return liffId;
+	}
+
+	public void setLiffId(String liffId) {
+		this.liffId = liffId;
+	}
+
+	public String getLiffChannelId() {
+		return liffChannelId;
+	}
+
+	public void setLiffChannelId(String liffChannelId) {
+		this.liffChannelId = liffChannelId;
 	}
 }

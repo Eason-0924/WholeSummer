@@ -22,6 +22,7 @@ public class WebConfig implements WebMvcConfigurer {
 				.excludePathPatterns(
 						"/login",
 						"/register",
+						"/liff/**",
 						"/api/line/**",
 						"/internal/desktop/**",
 						"/error",
@@ -34,6 +35,7 @@ public class WebConfig implements WebMvcConfigurer {
 				.addPathPatterns("/**")
 				.excludePathPatterns(
 						"/logout",
+						"/liff/**",
 						"/api/line/**",
 						"/internal/desktop/**",
 						"/error",

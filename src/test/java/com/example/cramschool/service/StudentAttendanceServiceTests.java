@@ -26,6 +26,7 @@ import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.form.StudentAttendanceEntryForm;
 import com.example.cramschool.form.StudentAttendanceForm;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.StudentRepository;
 
 class StudentAttendanceServiceTests {
@@ -49,7 +50,7 @@ class StudentAttendanceServiceTests {
 			}
 		};
 		StudentAttendanceService service = new StudentAttendanceService(
-				null, null, null, null, null, null, null, weeklyScheduleService, null);
+				null, null, null, null, null, null, null, weeklyScheduleService, null, null);
 
 		assertThat(service.isClassDay(classRoomId, originalDate)).isFalse();
 		assertThat(service.isClassDay(classRoomId, rescheduledDate)).isTrue();
@@ -74,7 +75,7 @@ class StudentAttendanceServiceTests {
 
 		StudentAttendanceService service = new StudentAttendanceService(
 				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
-				null);
+				null, null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -113,7 +114,7 @@ class StudentAttendanceServiceTests {
 
 		StudentAttendanceService service = new StudentAttendanceService(
 				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
-				lineNotificationService);
+				lineNotificationService, null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -150,7 +151,7 @@ class StudentAttendanceServiceTests {
 
 		StudentAttendanceService service = new StudentAttendanceService(
 				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
-				lineNotificationService);
+				lineNotificationService, null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -189,7 +190,7 @@ class StudentAttendanceServiceTests {
 
 		StudentAttendanceService service = new StudentAttendanceService(
 				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
-				lineNotificationService);
+				lineNotificationService, null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -227,7 +228,7 @@ class StudentAttendanceServiceTests {
 
 		StudentAttendanceService service = new StudentAttendanceService(
 				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
-				null);
+				null, null);
 		StudentAttendanceForm form = new StudentAttendanceForm();
 		form.setAttendanceDate(attendanceDate);
 		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
@@ -244,6 +245,53 @@ class StudentAttendanceServiceTests {
 		StudentAttendance saved = captor.getValue();
 		assertThat(saved.getCheckInTime()).isNull();
 		assertThat(saved.getCheckOutTime()).isNull();
+	}
+
+	@Test
+	void saveAttendanceKeepsApprovedLeaveLocked() {
+		LocalDate attendanceDate = LocalDate.of(2026, 7, 3);
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		Student student = new Student();
+		student.setId(21L);
+		StudentAttendance existingAttendance = new StudentAttendance();
+		existingAttendance.setStatus(AttendanceStatus.LEAVE);
+		existingAttendance.setNote("家長請假已確認：病假");
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		StudentLeaveRequestRepository leaveRequestRepository = mock(StudentLeaveRequestRepository.class);
+		StudentRepository studentRepository = mock(StudentRepository.class);
+		ClassRoomService classRoomService = mock(ClassRoomService.class);
+		WeeklyScheduleService weeklyScheduleService = weeklyScheduleServiceWithClassDay(classRoom.getId(), attendanceDate);
+		when(classRoomService.findById(classRoom.getId())).thenReturn(classRoom);
+		when(studentRepository.findById(student.getId())).thenReturn(Optional.of(student));
+		when(attendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+				classRoom.getId(), student.getId(), attendanceDate)).thenReturn(Optional.of(existingAttendance));
+		when(leaveRequestRepository.existsByStudentIdAndClassRoomIdAndCourseDateAndStatus(
+				student.getId(), classRoom.getId(), attendanceDate,
+				com.example.cramschool.entity.StudentLeaveStatus.APPROVED)).thenReturn(true);
+		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		StudentAttendanceService service = new StudentAttendanceService(
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				null, leaveRequestRepository);
+		StudentAttendanceForm form = new StudentAttendanceForm();
+		form.setAttendanceDate(attendanceDate);
+		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
+		entry.setStudentId(student.getId());
+		entry.setStatus(AttendanceStatus.PRESENT);
+		entry.setNote("老師改成出席");
+		entry.setCheckInTime(LocalTime.of(18, 0));
+		form.getEntries().add(entry);
+
+		service.saveAttendance(classRoom.getId(), form);
+
+		ArgumentCaptor<StudentAttendance> captor = ArgumentCaptor.forClass(StudentAttendance.class);
+		org.mockito.Mockito.verify(attendanceRepository).save(captor.capture());
+		StudentAttendance saved = captor.getValue();
+		assertThat(saved.getStatus()).isEqualTo(AttendanceStatus.LEAVE);
+		assertThat(saved.getNote()).isEqualTo("家長請假已確認：病假");
+		assertThat(saved.getCheckMethod()).isEqualTo("LINE_LIFF_LEAVE");
+		assertThat(saved.getCheckInTime()).isNull();
 	}
 
 	private WeeklyScheduleDto schedule(Long classRoomId, LocalDate date, ScheduleType scheduleType) {

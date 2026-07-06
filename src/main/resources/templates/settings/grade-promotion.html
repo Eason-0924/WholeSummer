@@ -112,11 +112,13 @@
 				<form th:if="${phase == 'classes'}" th:action="@{/settings/grade-promotion/classes}" method="post">
 					<div class="modal-body">
 						<div class="alert alert-info">
-							選擇「結束並建立新班」會保留舊班歷史資料、將舊班設為已結束，並複製教師、科目、班別與上課時間。
+							選擇「結束並建立新班」會保留舊班歷史資料、將舊班設為已結束，並複製教師、科目、班別與上課時間。選擇「只改年級」只會更新原班年級，其他班級資料不變。
 						</div>
 						<div class="d-flex flex-wrap gap-2 mb-3">
 							<button class="btn btn-sm btn-outline-primary" type="button"
 									onclick="setClassActions('PROMOTE')">全部結束並建立新班</button>
+							<button class="btn btn-sm btn-outline-primary" type="button"
+									onclick="setClassActions('GRADE_ONLY')">全部只改年級</button>
 							<button class="btn btn-sm btn-outline-secondary" type="button"
 									onclick="setClassActions('KEEP')">全部維持原狀</button>
 						</div>
@@ -150,10 +152,20 @@
 											</div>
 											<div class="form-check">
 												<input class="form-check-input class-action" type="radio"
+														th:id="${'gradeOnlyClass' + classOption.id}"
+														th:name="${'classAction_' + classOption.id}"
+														value="GRADE_ONLY"
+														th:checked="${promotionDraft.gradeOnlyClassIds.contains(classOption.id)}"
+														required>
+												<label class="form-check-label"
+														th:for="${'gradeOnlyClass' + classOption.id}">只改年級</label>
+											</div>
+											<div class="form-check">
+												<input class="form-check-input class-action" type="radio"
 														th:id="${'keepClass' + classOption.id}"
 														th:name="${'classAction_' + classOption.id}"
 														value="KEEP"
-														th:checked="${!promotionDraft.promotedClassIds.contains(classOption.id)}"
+														th:checked="${!promotionDraft.promotedClassIds.contains(classOption.id) && !promotionDraft.gradeOnlyClassIds.contains(classOption.id)}"
 														required>
 												<label class="form-check-label"
 														th:for="${'keepClass' + classOption.id}">維持原狀</label>
@@ -180,7 +192,7 @@
 
 						<div th:if="${#lists.isEmpty(classMembers)}"
 								class="border rounded text-center text-secondary py-5">
-							上一步未選擇建立任何新班級。提交後只會更新學生年級與畢業狀態。
+							上一步未選擇建立任何新班級。提交後只會更新學生年級、畢業狀態與選擇「只改年級」的班級年級。
 						</div>
 
 						<section th:each="classOption : ${classMembers}" class="border rounded p-3 mb-3">

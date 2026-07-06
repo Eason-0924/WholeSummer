@@ -13,6 +13,7 @@ import com.example.cramschool.entity.LineNotificationLog;
 import com.example.cramschool.entity.ParentLineBinding;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.StudentAttendance;
+import com.example.cramschool.entity.StudentLeaveRequest;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
@@ -104,6 +105,22 @@ public class LineNotificationService {
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendStudentLeaveSubmittedNotification(StudentLeaveRequest leaveRequest) {
+		sendStudentLeaveNotification(leaveRequest,
+				"STUDENT_LEAVE_SUBMITTED",
+				"LINE 請假申請確認",
+				buildStudentLeaveSubmittedMessage(leaveRequest));
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendStudentLeaveApprovedNotification(StudentLeaveRequest leaveRequest) {
+		sendStudentLeaveNotification(leaveRequest,
+				"STUDENT_LEAVE_APPROVED",
+				"LINE 請假審核通知",
+				buildStudentLeaveApprovedMessage(leaveRequest));
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void sendCardCheckInNotification(StudentAttendance attendance) {
 		if (attendance == null || attendance.getId() == null || attendance.getStudent() == null) {
 			return;
@@ -174,6 +191,30 @@ public class LineNotificationService {
 	private Student findStudent(Long studentId) {
 		return studentRepository.findById(studentId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
+	}
+
+	private void sendStudentLeaveNotification(StudentLeaveRequest leaveRequest, String notificationType,
+			String title, String content) {
+		if (leaveRequest == null || leaveRequest.getId() == null || leaveRequest.getStudent() == null) {
+			return;
+		}
+		Student student = leaveRequest.getStudent();
+		if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, notificationType, "STUDENT_LEAVE_REQUEST", leaveRequest.getId())) {
+			return;
+		}
+		String lineUserId = leaveRequest.getRequesterLineUserId();
+		if (lineUserId == null || lineUserId.isBlank()) {
+			saveStudentNotificationLog(student, lineUserId, notificationType, "STUDENT_LEAVE_REQUEST",
+					leaveRequest.getId(), title, content, LineNotificationLog.STATUS_SKIPPED,
+					"缺少請假申請 LINE 使用者", null);
+			return;
+		}
+		var result = lineMessageService.pushText(lineUserId, content);
+		saveStudentNotificationLog(student, lineUserId, notificationType, "STUDENT_LEAVE_REQUEST",
+				leaveRequest.getId(), title, content,
+				result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
+				result.errorMessage(), result.providerMessageId());
 	}
 
 	private void sendAttendanceNotification(StudentAttendance attendance, String notificationType,
@@ -251,6 +292,37 @@ public class LineNotificationService {
 				+ "系統尚未收到學生到班刷卡紀錄，請協助確認學生狀況。";
 	}
 
+	private String buildStudentLeaveSubmittedMessage(StudentLeaveRequest leaveRequest) {
+		return "【Whole Summer 請假申請確認】\n\n"
+				+ "已收到您的請假申請。\n\n"
+				+ studentLeaveDetailText(leaveRequest)
+				+ "\n\n若有疑問可直接詢問告知";
+	}
+
+	private String buildStudentLeaveApprovedMessage(StudentLeaveRequest leaveRequest) {
+		return "【Whole Summer 請假審核通知】\n\n"
+				+ "補習班教師已確認請假紀錄。\n\n"
+				+ studentLeaveDetailText(leaveRequest);
+	}
+
+	private String studentLeaveDetailText(StudentLeaveRequest leaveRequest) {
+		Student student = leaveRequest.getStudent();
+		String className = leaveRequest.getClassRoom() == null ? "-" : leaveRequest.getClassRoom().getDisplayName();
+		String startText = leaveRequest.getScheduledStartAt() == null
+				? "-"
+				: leaveRequest.getScheduledStartAt().format(DISPLAY_TIME_FORMAT);
+		String endText = leaveRequest.getScheduledEndAt() == null
+				? "-"
+				: leaveRequest.getScheduledEndAt().format(DateTimeFormatter.ofPattern("HH:mm"));
+		String reason = leaveRequest.getReason() == null || leaveRequest.getReason().isBlank()
+				? "-"
+				: leaveRequest.getReason();
+		return "學生：" + (student == null ? "-" : student.getDisplayName()) + "\n"
+				+ "課程：" + className + "\n"
+				+ "時間：" + startText + "-" + endText + "\n"
+				+ "請假原因：" + reason;
+	}
+
 	private void saveAttendanceLog(StudentAttendance attendance, String notificationType, String title,
 			String content, String status, String errorMessage, String providerMessageId) {
 		LineNotificationLog log = new LineNotificationLog();
@@ -270,8 +342,16 @@ public class LineNotificationService {
 	private void saveStudentNotificationLog(Student student, String notificationType, String referenceType,
 			Long referenceId, String title, String content, String status, String errorMessage,
 			String providerMessageId) {
+		saveStudentNotificationLog(student, null, notificationType, referenceType, referenceId, title,
+				content, status, errorMessage, providerMessageId);
+	}
+
+	private void saveStudentNotificationLog(Student student, String lineUserId, String notificationType,
+			String referenceType, Long referenceId, String title, String content, String status, String errorMessage,
+			String providerMessageId) {
 		LineNotificationLog log = new LineNotificationLog();
 		log.setStudent(student);
+		log.setLineUserId(lineUserId);
 		log.setNotificationType(notificationType);
 		log.setReferenceType(referenceType);
 		log.setReferenceId(referenceId);

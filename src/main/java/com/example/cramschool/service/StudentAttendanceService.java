@@ -27,12 +27,15 @@ import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.StudentAttendance;
+import com.example.cramschool.entity.StudentLeaveRequest;
+import com.example.cramschool.entity.StudentLeaveStatus;
 import com.example.cramschool.entity.Teacher;
 import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.form.StudentAttendanceEntryForm;
 import com.example.cramschool.form.StudentAttendanceForm;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
 import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.TeacherRepository;
 
@@ -68,13 +71,15 @@ public class StudentAttendanceService {
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final WeeklyScheduleService weeklyScheduleService;
 	private final LineNotificationService lineNotificationService;
+	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 	private Clock clock = Clock.systemDefaultZone();
 
 	public StudentAttendanceService(StudentAttendanceRepository studentAttendanceRepository,
 			StudentRepository studentRepository, ClassRoomService classRoomService,
 			ClassStudentService classStudentService, ClassStudentRepository classStudentRepository,
 			TeacherRepository teacherRepository, TeacherAttendanceService teacherAttendanceService,
-			WeeklyScheduleService weeklyScheduleService, LineNotificationService lineNotificationService) {
+			WeeklyScheduleService weeklyScheduleService, LineNotificationService lineNotificationService,
+			StudentLeaveRequestRepository studentLeaveRequestRepository) {
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.studentRepository = studentRepository;
 		this.classRoomService = classRoomService;
@@ -84,6 +89,7 @@ public class StudentAttendanceService {
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.weeklyScheduleService = weeklyScheduleService;
 		this.lineNotificationService = lineNotificationService;
+		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
 	}
 
 	@Transactional(readOnly = true)
@@ -124,6 +130,10 @@ public class StudentAttendanceService {
 				entry.setNote(attendance.getNote());
 				entry.setCheckInTime(attendance.getCheckInTime() == null ? null : attendance.getCheckInTime().toLocalTime());
 				entry.setCheckOutTime(attendance.getCheckOutTime() == null ? null : attendance.getCheckOutTime().toLocalTime());
+			}
+			if (hasApprovedLeave(student.getId(), classRoomId, targetDate)) {
+				entry.setStatus(AttendanceStatus.LEAVE);
+				entry.setLockedByApprovedLeave(true);
 			}
 			form.getEntries().add(entry);
 		}
@@ -181,6 +191,10 @@ public class StudentAttendanceService {
 			StudentAttendance attendance = studentAttendanceRepository
 					.findByClassRoomIdAndStudentIdAndAttendanceDate(classRoomId, entry.getStudentId(), attendanceDate)
 					.orElseGet(StudentAttendance::new);
+			if (hasApprovedLeave(student.getId(), classRoomId, attendanceDate)) {
+				saveApprovedLeaveAttendance(attendance, classRoom, student, attendanceDate, attendance.getNote());
+				continue;
+			}
 			boolean hadCheckInTime = attendance.getCheckInTime() != null;
 			boolean hadCheckOutTime = attendance.getCheckOutTime() != null;
 			attendance.setClassRoom(classRoom);
@@ -192,6 +206,49 @@ public class StudentAttendanceService {
 			StudentAttendance savedAttendance = studentAttendanceRepository.save(attendance);
 			sendManualAttendanceNotifications(savedAttendance, !hadCheckInTime, !hadCheckOutTime);
 		}
+	}
+
+	public StudentAttendance markApprovedLeaveAttendance(StudentLeaveRequest leaveRequest) {
+		if (leaveRequest == null || leaveRequest.getStudent() == null || leaveRequest.getClassRoom() == null
+				|| leaveRequest.getCourseDate() == null) {
+			throw new IllegalArgumentException("請假資料不完整，無法更新出席狀態");
+		}
+		StudentAttendance attendance = studentAttendanceRepository
+				.findByClassRoomIdAndStudentIdAndAttendanceDate(
+						leaveRequest.getClassRoom().getId(), leaveRequest.getStudent().getId(), leaveRequest.getCourseDate())
+				.orElseGet(StudentAttendance::new);
+		return saveApprovedLeaveAttendance(
+				attendance,
+				leaveRequest.getClassRoom(),
+				leaveRequest.getStudent(),
+				leaveRequest.getCourseDate(),
+				approvedLeaveNote(leaveRequest.getReason()));
+	}
+
+	private StudentAttendance saveApprovedLeaveAttendance(StudentAttendance attendance, ClassRoom classRoom,
+			Student student, LocalDate attendanceDate, String note) {
+		attendance.setClassRoom(classRoom);
+		attendance.setStudent(student);
+		attendance.setAttendanceDate(attendanceDate);
+		attendance.setStatus(AttendanceStatus.LEAVE);
+		attendance.setNote(note == null || note.isBlank() ? "家長請假已確認" : note);
+		attendance.setCheckMethod("LINE_LIFF_LEAVE");
+		attendance.setCheckInTime(null);
+		attendance.setCheckOutTime(null);
+		return studentAttendanceRepository.save(attendance);
+	}
+
+	private boolean hasApprovedLeave(Long studentId, Long classRoomId, LocalDate attendanceDate) {
+		return studentLeaveRequestRepository != null
+				&& studentLeaveRequestRepository.existsByStudentIdAndClassRoomIdAndCourseDateAndStatus(
+						studentId, classRoomId, attendanceDate, StudentLeaveStatus.APPROVED);
+	}
+
+	private String approvedLeaveNote(String reason) {
+		if (reason == null || reason.isBlank()) {
+			return "家長請假已確認";
+		}
+		return "家長請假已確認：" + reason.trim();
 	}
 
 	private void applyManualAttendanceTimes(StudentAttendance attendance, StudentAttendanceEntryForm entry,
