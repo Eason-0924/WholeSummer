@@ -77,7 +77,7 @@ public class TodayWorkbenchService {
 						schedule.getTeacherName(),
 						schedule.getStartTime(),
 						schedule.getEndTime(),
-						schedule.getScheduleTypeDisplayName()))
+						Boolean.TRUE.equals(schedule.getIsWeeklyExam()) ? "週考" : schedule.getScheduleTypeDisplayName()))
 				.toList();
 
 		TodayWorkbenchView.TodayAttendanceSummary attendance = summarizeAttendance(

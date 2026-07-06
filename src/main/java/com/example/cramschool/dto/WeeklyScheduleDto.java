@@ -26,6 +26,7 @@ public class WeeklyScheduleDto {
 	private final Boolean isMakeUp;
 	private final Boolean isRescheduled;
 	private final Boolean isCancelled;
+	private final Boolean isWeeklyExam;
 
 	public WeeklyScheduleDto(Long scheduleId, Long originalScheduleId,
 			String courseName, String className, String teacherName,
@@ -43,7 +44,7 @@ public class WeeklyScheduleDto {
 			String subjectKey, String teacherKey, String gradeKey) {
 		this(scheduleId, originalScheduleId, null, courseName, className, teacherName,
 				courseDate, startTime, endTime, scheduleType, note, rescheduleReason,
-				subjectKey, teacherKey, gradeKey);
+				subjectKey, teacherKey, gradeKey, false);
 	}
 
 	public WeeklyScheduleDto(Long scheduleId, Long originalScheduleId, Long classRoomId,
@@ -51,6 +52,16 @@ public class WeeklyScheduleDto {
 			LocalDate courseDate, LocalDateTime startTime, LocalDateTime endTime,
 			ScheduleType scheduleType, String note, String rescheduleReason,
 			String subjectKey, String teacherKey, String gradeKey) {
+		this(scheduleId, originalScheduleId, classRoomId, courseName, className, teacherName,
+				courseDate, startTime, endTime, scheduleType, note, rescheduleReason,
+				subjectKey, teacherKey, gradeKey, false);
+	}
+
+	public WeeklyScheduleDto(Long scheduleId, Long originalScheduleId, Long classRoomId,
+			String courseName, String className, String teacherName,
+			LocalDate courseDate, LocalDateTime startTime, LocalDateTime endTime,
+			ScheduleType scheduleType, String note, String rescheduleReason,
+			String subjectKey, String teacherKey, String gradeKey, boolean weeklyExam) {
 		this.scheduleId = scheduleId;
 		this.originalScheduleId = originalScheduleId;
 		this.classRoomId = classRoomId;
@@ -70,6 +81,7 @@ public class WeeklyScheduleDto {
 		this.isMakeUp = scheduleType == ScheduleType.MAKE_UP;
 		this.isRescheduled = scheduleType == ScheduleType.RESCHEDULED;
 		this.isCancelled = scheduleType == ScheduleType.CANCELLED;
+		this.isWeeklyExam = weeklyExam;
 	}
 
 	public Long getScheduleId() {
@@ -146,5 +158,9 @@ public class WeeklyScheduleDto {
 
 	public Boolean getIsCancelled() {
 		return isCancelled;
+	}
+
+	public Boolean getIsWeeklyExam() {
+		return isWeeklyExam;
 	}
 }

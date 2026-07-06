@@ -48,6 +48,7 @@ public class TeacherScheduleService {
 				.stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream())
 				.filter(schedule -> weekday.equals(schedule.getWeekday()))
+				.filter(schedule -> !schedule.isWeeklyExam())
 				.filter(this::hasValidTimeRange)
 				.map(schedule -> new TimeRange(schedule.getStartTime(), schedule.getEndTime()))
 				.sorted(Comparator.comparing(TimeRange::getStartTime)
@@ -77,6 +78,7 @@ public class TeacherScheduleService {
 		List<MatchedClassSchedule> matchedSchedules = classRooms.stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
 						.filter(schedule -> weekday.equals(schedule.getWeekday()))
+						.filter(schedule -> !schedule.isWeeklyExam())
 						.filter(this::hasValidTimeRange)
 						.filter(schedule -> overlaps(
 								clockInTime, clockOutTime,

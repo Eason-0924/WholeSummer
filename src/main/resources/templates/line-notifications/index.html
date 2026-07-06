@@ -10,6 +10,12 @@
 	<div th:if="${lineBindInstruction}" class="alert alert-info">
 		<div class="fw-semibold mb-1">請家長加入 LINE 官方帳號後輸入：</div>
 		<div class="fs-5 font-monospace" th:text="${lineBindInstruction}">綁定 839201</div>
+		<div th:if="${lineBindSuggestedMessage}" class="mt-3">
+			<div class="fw-semibold mb-2">建議發送文字</div>
+			<pre class="mb-0 small bg-white border rounded p-3 text-dark"
+					style="white-space: pre-wrap; word-break: break-word;"
+					th:text="${lineBindSuggestedMessage}">建議發送文字</pre>
+		</div>
 	</div>
 
 	<style>

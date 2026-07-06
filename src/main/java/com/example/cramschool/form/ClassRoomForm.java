@@ -90,7 +90,8 @@ public class ClassRoomForm {
 				.filter(ScheduleEntryForm::isComplete)
 				.sorted(Comparator.comparingInt((ScheduleEntryForm entry) -> weekdayOrder(entry.getWeekday()))
 						.thenComparing(ScheduleEntryForm::getStartTime, Comparator.nullsLast(LocalTime::compareTo)))
-				.map(entry -> new ClassSchedule(entry.getWeekday(), entry.getStartTime(), entry.getEndTime()))
+				.map(entry -> new ClassSchedule(entry.getWeekday(), entry.getStartTime(), entry.getEndTime(),
+						entry.isWeeklyExam()))
 				.toList();
 	}
 
@@ -187,6 +188,8 @@ public class ClassRoomForm {
 		@DateTimeFormat(pattern = "HH:mm")
 		private LocalTime endTime;
 
+		private boolean weeklyExam;
+
 		public static ScheduleEntryForm defaultEntry() {
 			ScheduleEntryForm entry = new ScheduleEntryForm();
 			entry.setStartTime(LocalTime.MIDNIGHT);
@@ -199,6 +202,7 @@ public class ClassRoomForm {
 			entry.setWeekday(schedule.getWeekday());
 			entry.setStartTime(schedule.getStartTime());
 			entry.setEndTime(schedule.getEndTime());
+			entry.setWeeklyExam(schedule.isWeeklyExam());
 			return entry;
 		}
 
@@ -251,6 +255,14 @@ public class ClassRoomForm {
 
 		public void setEndTime(LocalTime endTime) {
 			this.endTime = endTime;
+		}
+
+		public boolean isWeeklyExam() {
+			return weeklyExam;
+		}
+
+		public void setWeeklyExam(boolean weeklyExam) {
+			this.weeklyExam = weeklyExam;
 		}
 	}
 }

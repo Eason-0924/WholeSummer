@@ -40,6 +40,9 @@ public class ClassSchedule {
 	@Column(name = "end_time", nullable = false)
 	private LocalTime endTime;
 
+	@Column(name = "weekly_exam", nullable = false)
+	private boolean weeklyExam = false;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "schedule_type", nullable = false, length = 50)
 	private ScheduleType scheduleType = ScheduleType.NORMAL;
@@ -72,8 +75,13 @@ public class ClassSchedule {
 		this.endTime = endTime;
 	}
 
+	public ClassSchedule(String weekday, LocalTime startTime, LocalTime endTime, boolean weeklyExam) {
+		this(weekday, startTime, endTime);
+		this.weeklyExam = weeklyExam;
+	}
+
 	public String getDisplayText() {
-		return weekday + " " + getTimeRangeText();
+		return weekday + " " + getTimeRangeText() + (weeklyExam ? "（週考）" : "");
 	}
 
 	public String getTimeRangeText() {
@@ -118,6 +126,14 @@ public class ClassSchedule {
 
 	public void setEndTime(LocalTime endTime) {
 		this.endTime = endTime;
+	}
+
+	public boolean isWeeklyExam() {
+		return weeklyExam;
+	}
+
+	public void setWeeklyExam(boolean weeklyExam) {
+		this.weeklyExam = weeklyExam;
 	}
 
 	public ScheduleType getScheduleType() {

@@ -86,7 +86,8 @@ public class AbsenceService {
 		}
 		ClassRoom classRoom = schedule.getClassRoom();
 		Teacher teacher = classRoom == null ? null : classRoom.getTeacher();
-		if (classRoom == null || !classRoom.isActive() || teacher == null || weeklySchedule.getEndTime() == null) {
+		if (classRoom == null || !classRoom.isActive() || teacher == null || schedule.isWeeklyExam()
+				|| weeklySchedule.getEndTime() == null) {
 			return false;
 		}
 		if (!weeklySchedule.getEndTime().toLocalTime().plusMinutes(ABSENCE_GRACE_MINUTES).isBefore(now)) {

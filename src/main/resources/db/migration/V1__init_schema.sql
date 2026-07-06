@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS class_schedules (
     weekday VARCHAR(20) NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
+    weekly_exam BIT(1) NOT NULL DEFAULT b'0',
     PRIMARY KEY (id),
     KEY idx_class_schedules_class (class_id),
     CONSTRAINT fk_class_schedules_class FOREIGN KEY (class_id) REFERENCES classes (id)

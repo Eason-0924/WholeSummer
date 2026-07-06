@@ -249,6 +249,7 @@ public class ClassRoomService {
 		currentSchedule.setWeekday(newSchedule.getWeekday());
 		currentSchedule.setStartTime(newSchedule.getStartTime());
 		currentSchedule.setEndTime(newSchedule.getEndTime());
+		currentSchedule.setWeeklyExam(newSchedule.isWeeklyExam());
 		currentSchedule.setScheduleType(ScheduleType.NORMAL);
 		currentSchedule.setOriginalSchedule(null);
 		currentSchedule.setCourseDate(null);
@@ -276,7 +277,8 @@ public class ClassRoomService {
 			ClassSchedule updated = newSchedules.get(index);
 			if (!java.util.Objects.equals(current.getWeekday(), updated.getWeekday())
 					|| !java.util.Objects.equals(current.getStartTime(), updated.getStartTime())
-					|| !java.util.Objects.equals(current.getEndTime(), updated.getEndTime())) {
+					|| !java.util.Objects.equals(current.getEndTime(), updated.getEndTime())
+					|| current.isWeeklyExam() != updated.isWeeklyExam()) {
 				return false;
 			}
 		}

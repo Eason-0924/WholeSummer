@@ -106,7 +106,9 @@ public class ScheduleConflictService {
 
 	public boolean hasTeacherConflict(ScheduleConflictContext context, LocalDateTime start, LocalDateTime end) {
 		return context.teacherClassRooms().stream()
-				.anyMatch(classRoom -> classRoomConflicts(classRoom, start, end));
+				.anyMatch(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> !schedule.isWeeklyExam())
+						.anyMatch(schedule -> scheduleConflicts(schedule, start, end)));
 	}
 
 	public List<String> teacherConflictDetails(Long teacherId, LocalDateTime start, LocalDateTime end) {
@@ -115,6 +117,7 @@ public class ScheduleConflictService {
 		}
 		List<String> recurringConflicts = classRoomRepository.findByTeacherIdAndActiveTrue(teacherId).stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> !schedule.isWeeklyExam())
 						.filter(schedule -> scheduleConflicts(schedule, start, end))
 						.map(schedule -> classRoom.getDisplayName() + " "
 								+ schedule.getWeekday() + " " + schedule.getTimeRangeText()))

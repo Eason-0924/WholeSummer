@@ -6,5 +6,6 @@ public record LineBindCodeResult(
 		String code,
 		String relation,
 		String instructionText,
+		String suggestedMessage,
 		LocalDateTime expiredAt) {
 }

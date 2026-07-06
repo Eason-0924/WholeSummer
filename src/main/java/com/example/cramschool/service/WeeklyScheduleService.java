@@ -315,7 +315,8 @@ public class WeeklyScheduleService {
 				null,
 				subjectKey(classRoom),
 				teacherKey(classRoom),
-				gradeKey(classRoom));
+				gradeKey(classRoom),
+				schedule.isWeeklyExam());
 	}
 
 	private WeeklyScheduleDto toEventDto(ClassSchedule schedule) {

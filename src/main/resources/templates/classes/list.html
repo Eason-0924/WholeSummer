@@ -72,6 +72,13 @@
 		.schedule-type-label {
 			font-size: 0.75rem;
 		}
+		.schedule-weekly-exam {
+			border-style: dashed;
+			border-width: 2px;
+		}
+		.schedule-weekly-exam .schedule-type-label {
+			background: #198754;
+		}
 		.schedule-type-make-up .schedule-type-label,
 		.schedule-type-rescheduled .schedule-type-label {
 			background: #6c757d;
@@ -246,11 +253,13 @@
 							<td class="schedule-cell" th:each="scheduleCell : ${scheduleRow.cells}">
 								<a class="schedule-card"
 										th:each="scheduledClass : ${scheduleCell.classes}"
+										th:classappend="${scheduledClass.weeklyExam} ? ' schedule-weekly-exam'"
 										th:href="@{/classes/{slug}(slug=${scheduledClass.classRoomSlug})}"
 										th:attr="data-subject-key=${scheduledClass.subjectColorKey == null ? '未指定' : scheduledClass.subjectColorKey},
 												data-teacher-key=${scheduledClass.teacherColorKey == null ? '未指定' : scheduledClass.teacherColorKey},
 												data-grade-key=${scheduledClass.gradeKey ?: '未指定'}">
 									<div class="schedule-card-name" th:text="${scheduledClass.className}">國一數學（A班）</div>
+									<div th:if="${scheduledClass.weeklyExam}" class="badge text-bg-success schedule-type-label">週考</div>
 									<div class="schedule-card-meta" th:text="${scheduledClass.teacherName ?: '-'}">王老師</div>
 									<div class="schedule-card-meta" th:text="${scheduledClass.timeRangeText}">18:00 ~ 20:00</div>
 								</a>
@@ -280,9 +289,10 @@
 							<td class="schedule-cell" th:each="scheduleCell : ${scheduleRow.cells}">
 								<div class="schedule-card schedule-card-weekly"
 										th:each="scheduledClass : ${scheduleCell.classes}"
-										th:classappend="${scheduledClass.scheduleTypeName == 'MAKE_UP' ? ' schedule-type-make-up' :
+										th:classappend="${(scheduledClass.scheduleTypeName == 'MAKE_UP' ? ' schedule-type-make-up' :
 												(scheduledClass.scheduleTypeName == 'RESCHEDULED' ? ' schedule-type-rescheduled' :
-												(scheduledClass.scheduleTypeName == 'CANCELLED' ? ' schedule-type-cancelled' : ' schedule-type-normal'))}"
+												(scheduledClass.scheduleTypeName == 'CANCELLED' ? ' schedule-type-cancelled' : ' schedule-type-normal')))
+												+ (scheduledClass.weeklyExam ? ' schedule-weekly-exam' : '')}"
 										th:attr="data-subject-key=${scheduledClass.subjectColorKey == null ? '未指定' : scheduledClass.subjectColorKey},
 												data-teacher-key=${scheduledClass.teacherColorKey == null ? '未指定' : scheduledClass.teacherColorKey},
 												data-grade-key=${scheduledClass.gradeKey ?: '未指定'},
@@ -292,6 +302,8 @@
 										<div th:if="${scheduledClass.scheduleTypeName == 'MAKE_UP' or scheduledClass.scheduleTypeName == 'RESCHEDULED'}"
 												class="badge text-bg-secondary schedule-type-label"
 												th:text="${scheduledClass.scheduleTypeDisplayName}">補課</div>
+										<div th:if="${scheduledClass.weeklyExam}"
+												class="badge text-bg-success schedule-type-label">週考</div>
 									</div>
 									<div class="schedule-card-meta" th:text="${scheduledClass.teacherName ?: '-'}">王老師</div>
 									<div class="schedule-card-meta" th:text="${scheduledClass.timeRangeText}">18:00 ~ 20:00</div>

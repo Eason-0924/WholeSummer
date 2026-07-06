@@ -456,7 +456,8 @@ public class ClassRoomController {
 				null,
 				classRoom.getSubject() == null ? "未指定" : String.valueOf(classRoom.getSubject().getId()),
 				classRoom.getTeacher() == null ? "未指定" : String.valueOf(classRoom.getTeacher().getId()),
-				classRoom.getGrade() == null || classRoom.getGrade().isBlank() ? "未指定" : classRoom.getGrade());
+				classRoom.getGrade() == null || classRoom.getGrade().isBlank() ? "未指定" : classRoom.getGrade(),
+				schedule.isWeeklyExam());
 	}
 
 	private LocalDate nextCourseDate(ClassSchedule schedule, LocalDate today) {
@@ -680,6 +681,10 @@ public class ClassRoomController {
 
 		public String getScheduleTypeDisplayName() {
 			return weeklySchedule == null ? "原課程" : weeklySchedule.getScheduleTypeDisplayName();
+		}
+
+		public boolean isWeeklyExam() {
+			return weeklySchedule == null ? schedule.isWeeklyExam() : Boolean.TRUE.equals(weeklySchedule.getIsWeeklyExam());
 		}
 
 		public Long getScheduleId() {

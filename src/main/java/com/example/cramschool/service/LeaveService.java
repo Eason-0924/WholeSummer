@@ -64,6 +64,7 @@ public class LeaveService {
 	public List<TeacherCourseOption> findCourseOptions(Long teacherId) {
 		return classRoomRepository.findByTeacherIdAndActiveTrueOrderByGradeAscIdAsc(teacherId).stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> !schedule.isWeeklyExam())
 						.map(schedule -> new TeacherCourseOption(
 								schedule.getId(),
 								teacherId,
@@ -80,6 +81,7 @@ public class LeaveService {
 	public List<TeacherCourseOption> findAllCourseOptions() {
 		return classRoomRepository.findByActiveTrue().stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> !schedule.isWeeklyExam())
 						.map(schedule -> new TeacherCourseOption(
 								schedule.getId(),
 								classRoom.getTeacher() == null ? null : classRoom.getTeacher().getId(),
@@ -173,6 +175,7 @@ public class LeaveService {
 		return classRoomRepository.findByTeacherIdAndActiveTrueOrderByGradeAscIdAsc(teacherId).stream()
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream())
 				.filter(schedule -> weekday.equals(schedule.getWeekday()))
+				.filter(schedule -> !schedule.isWeeklyExam())
 				.toList();
 	}
 

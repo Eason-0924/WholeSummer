@@ -5,6 +5,25 @@
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 
 <main class="container py-4">
+	<style>
+		.schedule-main-field {
+			flex: 1 1 0;
+			min-width: 0;
+		}
+		.schedule-weekly-exam-field {
+			flex: 0 0 72px;
+		}
+		.schedule-action-field {
+			flex: 0 0 88px;
+		}
+		@media (max-width: 767.98px) {
+			.schedule-main-field,
+			.schedule-weekly-exam-field,
+			.schedule-action-field {
+				flex: 0 0 100%;
+			}
+		}
+	</style>
 	<div class="d-flex justify-content-between align-items-center gap-3 mb-3">
 		<div>
 			<div class="page-title-line mb-1">
@@ -70,7 +89,7 @@
 				<div id="scheduleRows" class="d-grid gap-2">
 					<div class="row g-2 align-items-center schedule-entry"
 							th:each="scheduleEntry, iterStat : *{scheduleEntries}">
-						<div class="col-md-4">
+						<div class="col schedule-main-field">
 							<select class="form-select schedule-weekday"
 									th:field="*{scheduleEntries[__${iterStat.index}__].weekday}"
 									th:classappend="${#fields.hasErrors('scheduleComplete')} ? 'is-invalid'">
@@ -78,17 +97,24 @@
 								<option th:each="weekday : ${weekdayOptions}" th:value="${weekday}" th:text="${weekday}">星期一</option>
 							</select>
 						</div>
-						<div class="col-md-3">
+						<div class="col schedule-main-field">
 							<input type="time" class="form-control schedule-start-time"
 									th:field="*{scheduleEntries[__${iterStat.index}__].startTime}"
 									th:classappend="${#fields.hasErrors('scheduleComplete') || #fields.hasErrors('endTimeAfterStartTime')} ? 'is-invalid'">
 						</div>
-						<div class="col-md-3">
+						<div class="col schedule-main-field">
 							<input type="time" class="form-control schedule-end-time"
 									th:field="*{scheduleEntries[__${iterStat.index}__].endTime}"
 									th:classappend="${#fields.hasErrors('scheduleComplete') || #fields.hasErrors('endTimeAfterStartTime')} ? 'is-invalid'">
 						</div>
-						<div class="col-md-2">
+						<div class="col-auto schedule-weekly-exam-field">
+							<div class="form-check mb-0">
+								<input type="checkbox" class="form-check-input schedule-weekly-exam"
+										th:field="*{scheduleEntries[__${iterStat.index}__].weeklyExam}">
+								<label class="form-check-label">週考</label>
+							</div>
+						</div>
+						<div class="col-auto schedule-action-field">
 							<button class="btn btn-outline-danger w-100 remove-schedule-row" type="button">刪除</button>
 						</div>
 					</div>
@@ -220,6 +246,7 @@
 		row.querySelector('.schedule-weekday').value = '';
 		row.querySelector('.schedule-start-time').value = '00:00';
 		row.querySelector('.schedule-end-time').value = '00:00';
+		row.querySelector('.schedule-weekly-exam').checked = false;
 		row.querySelectorAll('.is-invalid').forEach((field) => field.classList.remove('is-invalid'));
 		scheduleRows.appendChild(row);
 		bindScheduleRow(row);

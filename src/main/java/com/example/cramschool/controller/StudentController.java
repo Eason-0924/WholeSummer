@@ -213,6 +213,7 @@ public class StudentController {
 					"已產生 " + result.relation() + " LINE 綁定碼：" + result.code() + "，有效至 "
 							+ result.expiredAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")));
 			redirectAttributes.addFlashAttribute("lineBindInstruction", result.instructionText());
+			redirectAttributes.addFlashAttribute("lineBindSuggestedMessage", result.suggestedMessage());
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
