@@ -331,7 +331,16 @@ class PageSmokeTests {
 
 		if (!studentRepository.findAll().isEmpty()) {
 			var student = studentRepository.findAll().getFirst();
-			mockMvc.perform(get("/students/{slug}", student.getUrlSlug()).session(session)).andExpect(status().isOk());
+			mockMvc.perform(get("/students/{slug}", student.getUrlSlug()).session(session))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.not(
+							org.hamcrest.Matchers.containsString("LINE 家長通知"))));
+			mockMvc.perform(get("/line-notifications")
+					.param("student", student.getUrlSlug())
+					.session(session))
+					.andExpect(status().isOk())
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("家長綁定")))
+					.andExpect(content().string(org.hamcrest.Matchers.containsString("LINE 家長通知綁定")));
 			mockMvc.perform(get("/students/{slug}/edit", student.getUrlSlug()).session(session)).andExpect(status().isOk());
 			mockMvc.perform(get("/students/{id}", student.getId()).session(session))
 					.andExpect(status().is3xxRedirection())

@@ -37,7 +37,7 @@ public class LineWebhookController {
 		this.lineMessageService = lineMessageService;
 	}
 
-	@PostMapping("/api/line/webhook")
+	@PostMapping("${line.webhook-path:/api/line/webhook}")
 	public ResponseEntity<String> receiveWebhook(
 			@RequestBody(required = false) String body,
 			@RequestHeader(name = "x-line-signature", required = false) String signature) {

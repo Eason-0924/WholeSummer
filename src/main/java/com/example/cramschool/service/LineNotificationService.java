@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.cramschool.config.LineProperties;
 import com.example.cramschool.entity.LineNotificationLog;
 import com.example.cramschool.entity.ParentLineBinding;
 import com.example.cramschool.entity.Student;
@@ -28,16 +29,23 @@ public class LineNotificationService {
 	private final LineNotificationLogRepository lineNotificationLogRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final LineMessageService lineMessageService;
+	private final LineProperties lineProperties;
 
 	public LineNotificationService(StudentRepository studentRepository,
 			ParentLineBindingRepository parentLineBindingRepository,
 			LineNotificationLogRepository lineNotificationLogRepository,
-			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService) {
+			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService,
+			LineProperties lineProperties) {
 		this.studentRepository = studentRepository;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.lineNotificationLogRepository = lineNotificationLogRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.lineMessageService = lineMessageService;
+		this.lineProperties = lineProperties;
+	}
+
+	public boolean isLineEnabled() {
+		return lineProperties != null && lineProperties.isEnabled();
 	}
 
 	@Transactional(readOnly = true)
@@ -100,12 +108,58 @@ public class LineNotificationService {
 		if (attendance == null || attendance.getId() == null || attendance.getStudent() == null) {
 			return;
 		}
-		boolean late = attendance.getStatus() == com.example.cramschool.entity.AttendanceStatus.LATE;
 		sendAttendanceNotification(attendance,
-				late ? "ATTENDANCE_LATE" : "ATTENDANCE_CHECK_IN",
-				late ? "LINE 遲到通知" : "LINE 到班通知",
-				late ? "遲到" : "到班",
+				"ATTENDANCE_CHECK_IN",
+				"LINE 到班通知",
+				"到班",
 				attendance.getCheckInTime());
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendLateArrivalReminder(Student student, Long referenceId,
+			String className, LocalDateTime classStartTime) {
+		if (student == null || student.getId() == null || referenceId == null) {
+			return;
+		}
+		String notificationType = "ATTENDANCE_LATE_REMINDER";
+		String referenceType = "CLASS_SCHEDULE_OCCURRENCE";
+		if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, notificationType, referenceType, referenceId)) {
+			return;
+		}
+		String title = "LINE 遲到提醒";
+		List<ParentLineBinding> bindings = parentLineBindingRepository
+				.findByStudentAndStatus(student, ParentLineBinding.STATUS_BOUND);
+		if (bindings.isEmpty()) {
+			saveStudentNotificationLog(student, notificationType, referenceType, referenceId, title,
+					buildLateArrivalReminderMessage(student, null, className, classStartTime),
+					LineNotificationLog.STATUS_SKIPPED, "尚無已綁定家長", null);
+			return;
+		}
+
+		int successCount = 0;
+		String firstError = null;
+		String firstProviderMessageId = null;
+		for (ParentLineBinding binding : bindings) {
+			String content = buildLateArrivalReminderMessage(student, binding, className, classStartTime);
+			var result = lineMessageService.pushText(binding.getLineUserId(), content);
+			if (result.success()) {
+				successCount++;
+				if (firstProviderMessageId == null) {
+					firstProviderMessageId = result.providerMessageId();
+				}
+			} else if (firstError == null) {
+				firstError = result.errorMessage();
+			}
+		}
+		String status = successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
+		String error = successCount == bindings.size()
+				? null
+				: "成功 " + successCount + " / " + bindings.size()
+						+ (firstError == null ? "" : "；" + firstError);
+		saveStudentNotificationLog(student, notificationType, referenceType, referenceId, title,
+				buildLateArrivalReminderMessage(student, null, className, classStartTime),
+				status, error, firstProviderMessageId);
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -180,6 +234,23 @@ public class LineNotificationService {
 				+ "課程：" + className;
 	}
 
+	private String buildLateArrivalReminderMessage(Student student, ParentLineBinding binding,
+			String className, LocalDateTime classStartTime) {
+		String recipient = binding == null || binding.getRelation() == null || binding.getRelation().isBlank()
+				? ""
+				: studentNameSuffix(student.getChineseName()) + binding.getRelation();
+		String greeting = recipient.isBlank() ? "" : recipient + "您好：\n";
+		String timeText = classStartTime == null ? "-" : classStartTime.format(DISPLAY_TIME_FORMAT);
+		String displayClassName = className == null || className.isBlank() ? "-" : className;
+		return "【Whole Summer 遲到提醒】\n\n"
+				+ greeting
+				+ "學生：" + student.getDisplayName() + "\n"
+				+ "狀態：尚未到班\n"
+				+ "上課時間：" + timeText + "\n"
+				+ "課程：" + displayClassName + "\n\n"
+				+ "系統尚未收到學生到班刷卡紀錄，請協助確認學生狀況。";
+	}
+
 	private void saveAttendanceLog(StudentAttendance attendance, String notificationType, String title,
 			String content, String status, String errorMessage, String providerMessageId) {
 		LineNotificationLog log = new LineNotificationLog();
@@ -187,6 +258,23 @@ public class LineNotificationService {
 		log.setNotificationType(notificationType);
 		log.setReferenceType("STUDENT_ATTENDANCE");
 		log.setReferenceId(attendance.getId());
+		log.setTitle(title);
+		log.setContent(content);
+		log.setStatus(status);
+		log.setErrorMessage(errorMessage);
+		log.setProviderMessageId(providerMessageId);
+		log.setSentAt(LocalDateTime.now());
+		lineNotificationLogRepository.save(log);
+	}
+
+	private void saveStudentNotificationLog(Student student, String notificationType, String referenceType,
+			Long referenceId, String title, String content, String status, String errorMessage,
+			String providerMessageId) {
+		LineNotificationLog log = new LineNotificationLog();
+		log.setStudent(student);
+		log.setNotificationType(notificationType);
+		log.setReferenceType(referenceType);
+		log.setReferenceId(referenceId);
 		log.setTitle(title);
 		log.setContent(content);
 		log.setStatus(status);

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
@@ -89,6 +91,118 @@ class StudentAttendanceServiceTests {
 		StudentAttendance saved = captor.getValue();
 		assertThat(saved.getCheckInTime()).isEqualTo(LocalDateTime.of(attendanceDate, LocalTime.of(18, 10)));
 		assertThat(saved.getCheckOutTime()).isEqualTo(LocalDateTime.of(attendanceDate, LocalTime.of(20, 5)));
+	}
+
+	@Test
+	void saveAttendanceSendsArrivalNotificationWhenManualCheckInTimeIsAdded() {
+		LocalDate attendanceDate = LocalDate.of(2026, 7, 3);
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		Student student = new Student();
+		student.setId(21L);
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		StudentRepository studentRepository = mock(StudentRepository.class);
+		ClassRoomService classRoomService = mock(ClassRoomService.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WeeklyScheduleService weeklyScheduleService = weeklyScheduleServiceWithClassDay(classRoom.getId(), attendanceDate);
+		when(classRoomService.findById(classRoom.getId())).thenReturn(classRoom);
+		when(studentRepository.findById(student.getId())).thenReturn(Optional.of(student));
+		when(attendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+				classRoom.getId(), student.getId(), attendanceDate)).thenReturn(Optional.empty());
+		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		StudentAttendanceService service = new StudentAttendanceService(
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				lineNotificationService);
+		StudentAttendanceForm form = new StudentAttendanceForm();
+		form.setAttendanceDate(attendanceDate);
+		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
+		entry.setStudentId(student.getId());
+		entry.setStatus(AttendanceStatus.PRESENT);
+		entry.setCheckInTime(LocalTime.of(18, 0));
+		form.getEntries().add(entry);
+
+		service.saveAttendance(classRoom.getId(), form);
+
+		verify(lineNotificationService).sendCardCheckInNotification(any(StudentAttendance.class));
+		verify(lineNotificationService, never()).sendCardCheckOutNotification(any(StudentAttendance.class));
+	}
+
+	@Test
+	void saveAttendanceSendsCheckOutNotificationWhenManualCheckOutTimeIsAdded() {
+		LocalDate attendanceDate = LocalDate.of(2026, 7, 3);
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		Student student = new Student();
+		student.setId(21L);
+		StudentAttendance existingAttendance = new StudentAttendance();
+		existingAttendance.setCheckInTime(LocalDateTime.of(attendanceDate, LocalTime.of(18, 0)));
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		StudentRepository studentRepository = mock(StudentRepository.class);
+		ClassRoomService classRoomService = mock(ClassRoomService.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WeeklyScheduleService weeklyScheduleService = weeklyScheduleServiceWithClassDay(classRoom.getId(), attendanceDate);
+		when(classRoomService.findById(classRoom.getId())).thenReturn(classRoom);
+		when(studentRepository.findById(student.getId())).thenReturn(Optional.of(student));
+		when(attendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+				classRoom.getId(), student.getId(), attendanceDate)).thenReturn(Optional.of(existingAttendance));
+		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		StudentAttendanceService service = new StudentAttendanceService(
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				lineNotificationService);
+		StudentAttendanceForm form = new StudentAttendanceForm();
+		form.setAttendanceDate(attendanceDate);
+		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
+		entry.setStudentId(student.getId());
+		entry.setStatus(AttendanceStatus.PRESENT);
+		entry.setCheckInTime(LocalTime.of(18, 0));
+		entry.setCheckOutTime(LocalTime.of(20, 0));
+		form.getEntries().add(entry);
+
+		service.saveAttendance(classRoom.getId(), form);
+
+		verify(lineNotificationService, never()).sendCardCheckInNotification(any(StudentAttendance.class));
+		verify(lineNotificationService).sendCardCheckOutNotification(any(StudentAttendance.class));
+	}
+
+	@Test
+	void saveAttendanceDoesNotResendNotificationsWhenManualTimesAlreadyExist() {
+		LocalDate attendanceDate = LocalDate.of(2026, 7, 3);
+		ClassRoom classRoom = new ClassRoom();
+		classRoom.setId(11L);
+		Student student = new Student();
+		student.setId(21L);
+		StudentAttendance existingAttendance = new StudentAttendance();
+		existingAttendance.setCheckInTime(LocalDateTime.of(attendanceDate, LocalTime.of(18, 0)));
+		existingAttendance.setCheckOutTime(LocalDateTime.of(attendanceDate, LocalTime.of(20, 0)));
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		StudentRepository studentRepository = mock(StudentRepository.class);
+		ClassRoomService classRoomService = mock(ClassRoomService.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WeeklyScheduleService weeklyScheduleService = weeklyScheduleServiceWithClassDay(classRoom.getId(), attendanceDate);
+		when(classRoomService.findById(classRoom.getId())).thenReturn(classRoom);
+		when(studentRepository.findById(student.getId())).thenReturn(Optional.of(student));
+		when(attendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+				classRoom.getId(), student.getId(), attendanceDate)).thenReturn(Optional.of(existingAttendance));
+		when(attendanceRepository.save(any(StudentAttendance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		StudentAttendanceService service = new StudentAttendanceService(
+				attendanceRepository, studentRepository, classRoomService, null, null, null, null, weeklyScheduleService,
+				lineNotificationService);
+		StudentAttendanceForm form = new StudentAttendanceForm();
+		form.setAttendanceDate(attendanceDate);
+		StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
+		entry.setStudentId(student.getId());
+		entry.setStatus(AttendanceStatus.PRESENT);
+		entry.setCheckInTime(LocalTime.of(18, 5));
+		entry.setCheckOutTime(LocalTime.of(20, 5));
+		form.getEntries().add(entry);
+
+		service.saveAttendance(classRoom.getId(), form);
+
+		verify(lineNotificationService, never()).sendCardCheckInNotification(any(StudentAttendance.class));
+		verify(lineNotificationService, never()).sendCardCheckOutNotification(any(StudentAttendance.class));
 	}
 
 	@Test

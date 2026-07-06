@@ -35,6 +35,7 @@ import com.example.cramschool.entity.TeacherPosition;
 import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ClassStudentRepository;
+import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.SubjectRepository;
@@ -75,6 +76,9 @@ class StudentCardCheckInApiTests {
 
 	@Autowired
 	private StudentAttendanceRepository studentAttendanceRepository;
+
+	@Autowired
+	private LineNotificationLogRepository lineNotificationLogRepository;
 
 	@Autowired
 	private TeacherRepository teacherRepository;
@@ -149,10 +153,12 @@ class StudentCardCheckInApiTests {
 	@AfterEach
 	void tearDown() {
 		if (student != null && student.getId() != null) {
+			lineNotificationLogRepository.deleteByStudentId(student.getId());
 			studentAttendanceRepository.findByStudentIdOrderByAttendanceDateDescIdDesc(student.getId())
 					.forEach(attendance -> studentAttendanceRepository.deleteById(attendance.getId()));
 		}
 		if (noClassStudent != null && noClassStudent.getId() != null) {
+			lineNotificationLogRepository.deleteByStudentId(noClassStudent.getId());
 			studentAttendanceRepository.findByStudentIdOrderByAttendanceDateDescIdDesc(noClassStudent.getId())
 					.forEach(attendance -> studentAttendanceRepository.deleteById(attendance.getId()));
 		}

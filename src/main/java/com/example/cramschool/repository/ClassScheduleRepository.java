@@ -66,4 +66,9 @@ public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Lo
 	@Modifying
 	@Query("delete from ClassSchedule schedule where schedule.classRoom.id = :classRoomId and schedule.originalSchedule is null")
 	void deleteBaseSchedulesByClassRoomId(@Param("classRoomId") Long classRoomId);
+
+	@Transactional
+	@Modifying
+	@Query("update ClassSchedule schedule set schedule.createdByTeacherId = null where schedule.createdByTeacherId = :teacherId")
+	void clearCreatedByTeacherId(@Param("teacherId") Long teacherId);
 }

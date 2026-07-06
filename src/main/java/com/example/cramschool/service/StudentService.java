@@ -13,6 +13,9 @@ import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.form.StudentForm;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.HomeworkRecordRepository;
+import com.example.cramschool.repository.LineBindCodeRepository;
+import com.example.cramschool.repository.LineNotificationLogRepository;
+import com.example.cramschool.repository.ParentLineBindingRepository;
 import com.example.cramschool.repository.ScoreRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
@@ -29,6 +32,9 @@ public class StudentService {
 	private final HomeworkRecordRepository homeworkRecordRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final TuitionRecordRepository tuitionRecordRepository;
+	private final LineNotificationLogRepository lineNotificationLogRepository;
+	private final LineBindCodeRepository lineBindCodeRepository;
+	private final ParentLineBindingRepository parentLineBindingRepository;
 	private final TeacherRepository teacherRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final StudentUrlSlugService studentUrlSlugService;
@@ -37,6 +43,9 @@ public class StudentService {
 			ScoreRepository scoreRepository, HomeworkRecordRepository homeworkRecordRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
 			TuitionRecordRepository tuitionRecordRepository,
+			LineNotificationLogRepository lineNotificationLogRepository,
+			LineBindCodeRepository lineBindCodeRepository,
+			ParentLineBindingRepository parentLineBindingRepository,
 			TeacherRepository teacherRepository,
 			TeacherPermissionService teacherPermissionService, StudentUrlSlugService studentUrlSlugService) {
 		this.studentRepository = studentRepository;
@@ -45,6 +54,9 @@ public class StudentService {
 		this.homeworkRecordRepository = homeworkRecordRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.tuitionRecordRepository = tuitionRecordRepository;
+		this.lineNotificationLogRepository = lineNotificationLogRepository;
+		this.lineBindCodeRepository = lineBindCodeRepository;
+		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.teacherRepository = teacherRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.studentUrlSlugService = studentUrlSlugService;
@@ -166,6 +178,9 @@ public class StudentService {
 		homeworkRecordRepository.deleteByStudentId(id);
 		studentAttendanceRepository.deleteByStudentId(id);
 		tuitionRecordRepository.deleteByStudentId(id);
+		lineNotificationLogRepository.deleteByStudentId(id);
+		lineBindCodeRepository.deleteByStudentId(id);
+		parentLineBindingRepository.deleteByStudentId(id);
 		studentRepository.delete(student);
 	}
 

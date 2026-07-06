@@ -181,13 +181,16 @@ public class StudentAttendanceService {
 			StudentAttendance attendance = studentAttendanceRepository
 					.findByClassRoomIdAndStudentIdAndAttendanceDate(classRoomId, entry.getStudentId(), attendanceDate)
 					.orElseGet(StudentAttendance::new);
+			boolean hadCheckInTime = attendance.getCheckInTime() != null;
+			boolean hadCheckOutTime = attendance.getCheckOutTime() != null;
 			attendance.setClassRoom(classRoom);
 			attendance.setStudent(student);
 			attendance.setAttendanceDate(attendanceDate);
 			attendance.setStatus(entry.getStatus() == null ? AttendanceStatus.PRESENT : entry.getStatus());
 			attendance.setNote(entry.getNote());
 			applyManualAttendanceTimes(attendance, entry, attendanceDate);
-			studentAttendanceRepository.save(attendance);
+			StudentAttendance savedAttendance = studentAttendanceRepository.save(attendance);
+			sendManualAttendanceNotifications(savedAttendance, !hadCheckInTime, !hadCheckOutTime);
 		}
 	}
 
@@ -205,6 +208,19 @@ public class StudentAttendanceService {
 		attendance.setCheckOutTime(entry.getCheckOutTime() == null
 				? null
 				: LocalDateTime.of(attendanceDate, entry.getCheckOutTime()));
+	}
+
+	private void sendManualAttendanceNotifications(StudentAttendance attendance,
+			boolean canSendCheckIn, boolean canSendCheckOut) {
+		if (attendance == null) {
+			return;
+		}
+		if (canSendCheckIn && attendance.getCheckInTime() != null) {
+			sendCardCheckInNotification(attendance);
+		}
+		if (canSendCheckOut && attendance.getCheckOutTime() != null) {
+			sendCardCheckOutNotification(attendance);
+		}
 	}
 
 	public CardCheckInResponse cardCheckIn(CardCheckInRequest request) {

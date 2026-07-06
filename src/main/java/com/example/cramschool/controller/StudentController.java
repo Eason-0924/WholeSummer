@@ -121,10 +121,6 @@ public class StudentController {
 		model.addAttribute("attendances", studentAttendanceService.findByStudentId(studentId));
 		model.addAttribute("tuitionRecords", tuitionRecords);
 		model.addAttribute("tuitionSummary", tuitionRecordService.summarize(tuitionRecords));
-		model.addAttribute("lineBindCodes", lineBindingService.findRecentBindCodes(studentId));
-		model.addAttribute("lineParentBindings", lineNotificationService.findBoundParents(studentId));
-		model.addAttribute("lineNotificationLogs", lineNotificationService.findRecentLogs(studentId));
-		model.addAttribute("lineStudentNameSuffix", studentNameSuffix(student.getChineseName()));
 		return "students/detail";
 	}
 
@@ -268,14 +264,6 @@ public class StudentController {
 	private Long currentTeacherId(HttpSession session) {
 		Object teacherId = session.getAttribute(AuthController.TEACHER_ID_SESSION_KEY);
 		return teacherId instanceof Long id ? id : null;
-	}
-
-	private String studentNameSuffix(String name) {
-		if (name == null || name.isBlank()) {
-			return "";
-		}
-		String normalized = name.trim();
-		return normalized.length() <= 2 ? normalized : normalized.substring(normalized.length() - 2);
 	}
 
 	private String redirectToStudent(Student student) {

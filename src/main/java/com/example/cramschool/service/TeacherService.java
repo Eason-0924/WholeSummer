@@ -15,6 +15,7 @@ import com.example.cramschool.entity.TeacherStatus;
 import com.example.cramschool.form.TeacherForm;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.BugReportRepository;
+import com.example.cramschool.repository.ClassScheduleRepository;
 import com.example.cramschool.repository.MakeUpClassRequestRepository;
 import com.example.cramschool.repository.SubjectRepository;
 import com.example.cramschool.repository.TeacherAccountRepository;
@@ -35,6 +36,7 @@ public class TeacherService {
 	private final TeacherAttendanceService teacherAttendanceService;
 	private final TeacherAccountRepository teacherAccountRepository;
 	private final TeacherMonthlySalaryRepository teacherMonthlySalaryRepository;
+	private final ClassScheduleRepository classScheduleRepository;
 	private final BugReportRepository bugReportRepository;
 	private final TeacherPermissionRepository teacherPermissionRepository;
 	private final TeacherPermissionService teacherPermissionService;
@@ -47,6 +49,7 @@ public class TeacherService {
 			TeacherAttendanceService teacherAttendanceService,
 			TeacherAccountRepository teacherAccountRepository,
 			TeacherMonthlySalaryRepository teacherMonthlySalaryRepository,
+			ClassScheduleRepository classScheduleRepository,
 			BugReportRepository bugReportRepository,
 			TeacherPermissionRepository teacherPermissionRepository,
 			TeacherPermissionService teacherPermissionService,
@@ -60,6 +63,7 @@ public class TeacherService {
 		this.teacherAttendanceService = teacherAttendanceService;
 		this.teacherAccountRepository = teacherAccountRepository;
 		this.teacherMonthlySalaryRepository = teacherMonthlySalaryRepository;
+		this.classScheduleRepository = classScheduleRepository;
 		this.bugReportRepository = bugReportRepository;
 		this.teacherPermissionRepository = teacherPermissionRepository;
 		this.teacherPermissionService = teacherPermissionService;
@@ -197,6 +201,7 @@ public class TeacherService {
 		teacherAttendanceService.deleteByTeacherId(id);
 		makeUpClassRequestRepository.deleteByTeacherId(id);
 		teacherLeaveRepository.deleteByTeacherId(id);
+		classScheduleRepository.clearCreatedByTeacherId(id);
 		bugReportRepository.deleteByTeacherId(id);
 		teacherAccountRepository.deleteByTeacherId(id);
 		teacherMonthlySalaryRepository.deleteByTeacherId(id);

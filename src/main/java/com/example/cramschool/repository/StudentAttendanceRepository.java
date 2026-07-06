@@ -31,6 +31,9 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 	Optional<StudentAttendance> findByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
 			LocalDate attendanceDate);
 
+	boolean existsByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
+			LocalDate attendanceDate);
+
 	void deleteByClassRoomId(Long classRoomId);
 
 	void deleteByStudentId(Long studentId);

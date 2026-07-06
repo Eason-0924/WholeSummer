@@ -26,6 +26,7 @@ import com.example.cramschool.entity.Subject;
 import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ClassStudentRepository;
+import com.example.cramschool.repository.LineNotificationLogRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 import com.example.cramschool.repository.StudentRepository;
 import com.example.cramschool.repository.SubjectRepository;
@@ -35,6 +36,7 @@ class StudentCardCheckInBoundaryTests {
 
 	private static final ZoneId TAIPEI = ZoneId.of("Asia/Taipei");
 	private static final String TUESDAY = "星期二";
+	private final String cardPrefix = "BOUNDARY" + System.nanoTime();
 
 	@Autowired
 	private StudentAttendanceService studentAttendanceService;
@@ -54,6 +56,9 @@ class StudentCardCheckInBoundaryTests {
 	@Autowired
 	private StudentAttendanceRepository studentAttendanceRepository;
 
+	@Autowired
+	private LineNotificationLogRepository lineNotificationLogRepository;
+
 	private final List<Student> students = new ArrayList<>();
 	private final List<ClassStudent> memberships = new ArrayList<>();
 	private final List<ClassRoom> classRooms = new ArrayList<>();
@@ -64,6 +69,7 @@ class StudentCardCheckInBoundaryTests {
 		studentAttendanceService.setClock(null);
 		for (Student student : students) {
 			if (student.getId() != null) {
+				lineNotificationLogRepository.deleteByStudentId(student.getId());
 				studentAttendanceRepository.findByStudentIdOrderByAttendanceDateDescIdDesc(student.getId())
 						.forEach(attendance -> studentAttendanceRepository.deleteById(attendance.getId()));
 			}
@@ -157,7 +163,7 @@ class StudentCardCheckInBoundaryTests {
 		Student student = student("遲到學生", "LATECARD");
 		ClassRoom classRoom = classRoom("遲到班", LocalTime.of(17, 0), LocalTime.of(18, 0));
 		membership(classRoom, student);
-		setNow(LocalDateTime.of(2026, 6, 30, 17, 1));
+		setNow(LocalDateTime.of(2026, 6, 30, 17, 6));
 
 		CardCheckInResponse response = studentAttendanceService.cardCheckIn(request("LATECARD"));
 
@@ -165,7 +171,7 @@ class StudentCardCheckInBoundaryTests {
 		StudentAttendance attendance = studentAttendanceRepository.findByStudentIdOrderByAttendanceDateDescIdDesc(
 				student.getId()).getFirst();
 		assertThat(attendance.getStatus()).isEqualTo(AttendanceStatus.LATE);
-		assertThat(attendance.getNote()).isEqualTo("到班時間：17:01");
+		assertThat(attendance.getNote()).isEqualTo("到班時間：17:06");
 	}
 
 	@Test
@@ -194,7 +200,7 @@ class StudentCardCheckInBoundaryTests {
 
 	private CardCheckInRequest request(String cardId) {
 		CardCheckInRequest request = new CardCheckInRequest();
-		request.setCardId(cardId);
+		request.setCardId(cardId == null || cardId.isBlank() ? cardId : cardPrefix + cardId);
 		request.setDeviceName("boundary-test");
 		return request;
 	}
@@ -203,7 +209,7 @@ class StudentCardCheckInBoundaryTests {
 		Student student = new Student();
 		student.setChineseName(name);
 		student.setActive(true);
-		student.setCardId(cardId);
+		student.setCardId(cardPrefix + cardId);
 		student.setCardStatus("ACTIVE");
 		Student saved = studentRepository.save(student);
 		students.add(saved);
