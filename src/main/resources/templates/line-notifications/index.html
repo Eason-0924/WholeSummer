@@ -181,7 +181,7 @@
 </div>
 
 <div class="modal fade" id="lineParentBindingModal" tabindex="-1" aria-labelledby="lineParentBindingModalLabel"
-		aria-hidden="true" th:attr="data-open=${selectedLineStudent != null}">
+		aria-hidden="true" th:attr="data-open=${openLineBindingModal}">
 	<div class="modal-dialog modal-lg modal-dialog-scrollable">
 		<div class="modal-content">
 			<div class="modal-header">
@@ -389,8 +389,10 @@
 			const url = new URL(window.location.href);
 			if (student) {
 				url.searchParams.set('student', student);
+				url.searchParams.set('openBinding', 'true');
 			} else {
 				url.searchParams.delete('student');
+				url.searchParams.delete('openBinding');
 			}
 			window.location.href = url.toString();
 		});

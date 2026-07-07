@@ -39,11 +39,13 @@ public class LineNotificationCenterController {
 	}
 
 	@GetMapping
-	public String index(@RequestParam(name = "student", required = false) String studentSlugOrId, Model model) {
+	public String index(@RequestParam(name = "student", required = false) String studentSlugOrId,
+			@RequestParam(name = "openBinding", defaultValue = "false") boolean openBinding, Model model) {
 		model.addAttribute("pageTitle", "Line 通知");
 		model.addAttribute("lineNotificationCandidates", lineNotificationCenterService.buildCandidates());
 		model.addAttribute("lineNotificationTemplates", lineNotificationCenterService.templates());
 		model.addAttribute("lineBindingStudents", studentService.findActiveStudents());
+		model.addAttribute("openLineBindingModal", false);
 		model.addAttribute("selectedLineStudent", null);
 		model.addAttribute("lineBindCodes", List.of());
 		model.addAttribute("lineParentBindings", List.of());
@@ -57,6 +59,7 @@ public class LineNotificationCenterController {
 			model.addAttribute("lineParentBindings", lineNotificationService.findBoundParents(studentId));
 			model.addAttribute("lineNotificationLogs", lineNotificationService.findRecentLogs(studentId));
 			model.addAttribute("lineStudentNameSuffix", studentNameSuffix(student.getChineseName()));
+			model.addAttribute("openLineBindingModal", openBinding);
 		}
 		return "line-notifications/index";
 	}

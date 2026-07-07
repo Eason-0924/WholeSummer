@@ -387,12 +387,9 @@ public class ClassRoomController {
 			}
 		}
 
-		Comparator<ScheduledClass> byStartTimeThenName = Comparator
-				.comparing(ScheduledClass::getStartTime, Comparator.nullsLast(LocalTime::compareTo))
-				.thenComparing(ScheduledClass::getClassName, Comparator.nullsLast(String::compareTo));
 		for (Map<String, List<ScheduledClass>> classesByWeekday : scheduleGrid.values()) {
 			for (List<ScheduledClass> scheduledClasses : classesByWeekday.values()) {
-				scheduledClasses.sort(byStartTimeThenName);
+				scheduledClasses.sort(scheduleCardOrder());
 			}
 		}
 		return scheduleGrid;
@@ -413,12 +410,9 @@ public class ClassRoomController {
 			scheduleGrid.get(findScheduleTimeSlot(schedule.getStartTime().toLocalTime())).get(weekday)
 					.add(scheduledClass);
 		}
-		Comparator<ScheduledClass> byStartTimeThenName = Comparator
-				.comparing(ScheduledClass::getStartTime, Comparator.nullsLast(LocalTime::compareTo))
-				.thenComparing(ScheduledClass::getClassName, Comparator.nullsLast(String::compareTo));
 		for (Map<String, List<ScheduledClass>> classesByWeekday : scheduleGrid.values()) {
 			for (List<ScheduledClass> scheduledClasses : classesByWeekday.values()) {
-				scheduledClasses.sort(byStartTimeThenName);
+				scheduledClasses.sort(scheduleCardOrder());
 			}
 		}
 		return scheduleGrid;
@@ -509,6 +503,19 @@ public class ClassRoomController {
 
 	private boolean hasCompleteSchedule(ClassSchedule schedule) {
 		return hasText(schedule.getWeekday()) && schedule.getStartTime() != null && schedule.getEndTime() != null;
+	}
+
+	private Comparator<ScheduledClass> scheduleCardOrder() {
+		return Comparator
+				.comparingInt((ScheduledClass scheduledClass) -> scheduledClass.isWeeklyExam() ? 1 : 0)
+				.thenComparing(ScheduledClass::getStartTime, Comparator.nullsLast(LocalTime::compareTo))
+				.thenComparingInt(scheduledClass -> gradeOrder(scheduledClass.getGradeKey()))
+				.thenComparing(ScheduledClass::getClassName, Comparator.nullsLast(String::compareTo));
+	}
+
+	private int gradeOrder(String grade) {
+		int index = SchoolOptions.CLASS_GRADES.indexOf(grade);
+		return index >= 0 ? index : SchoolOptions.CLASS_GRADES.size();
 	}
 
 	private boolean hasText(String value) {

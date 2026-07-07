@@ -9,9 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.cramschool.dto.LineBindingReply;
 import com.example.cramschool.config.LineProperties;
-import com.example.cramschool.service.LineBindingService;
+import com.example.cramschool.service.LineMessageRouter;
 import com.example.cramschool.service.LineMessageService;
 import com.example.cramschool.service.LineSignatureValidator;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,16 +23,16 @@ public class LineWebhookController {
 
 	private final LineProperties lineProperties;
 	private final LineSignatureValidator signatureValidator;
-	private final LineBindingService lineBindingService;
+	private final LineMessageRouter lineMessageRouter;
 	private final LineMessageService lineMessageService;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	public LineWebhookController(LineProperties lineProperties,
-			LineSignatureValidator signatureValidator, LineBindingService lineBindingService,
+			LineSignatureValidator signatureValidator, LineMessageRouter lineMessageRouter,
 			LineMessageService lineMessageService) {
 		this.lineProperties = lineProperties;
 		this.signatureValidator = signatureValidator;
-		this.lineBindingService = lineBindingService;
+		this.lineMessageRouter = lineMessageRouter;
 		this.lineMessageService = lineMessageService;
 	}
 
@@ -82,10 +81,14 @@ public class LineWebhookController {
 		String lineUserId = event.path("source").path("userId").asText(null);
 		String replyToken = event.path("replyToken").asText(null);
 		String messageText = event.path("message").path("text").asText("");
-		String displayName = lineMessageService.getProfileDisplayName(lineUserId).orElse(null);
-		LineBindingReply reply = lineBindingService.bindFromLineMessage(lineUserId, displayName, messageText);
-		if (reply.handled()) {
-			lineMessageService.replyText(replyToken, reply.message());
-		}
+		String displayName = isPotentialBindCommand(messageText)
+				? lineMessageService.getProfileDisplayName(lineUserId).orElse(null)
+				: null;
+		lineMessageRouter.routeTextMessage(lineUserId, displayName, messageText)
+				.ifPresent(reply -> lineMessageService.replyText(replyToken, reply));
+	}
+
+	private boolean isPotentialBindCommand(String messageText) {
+		return messageText != null && messageText.trim().startsWith("綁定");
 	}
 }

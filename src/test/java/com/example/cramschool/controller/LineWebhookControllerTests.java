@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.example.cramschool.config.LineProperties;
-import com.example.cramschool.service.LineBindingService;
+import com.example.cramschool.service.LineMessageRouter;
 import com.example.cramschool.service.LineMessageService;
 import com.example.cramschool.service.LineSignatureValidator;
 
@@ -20,7 +20,7 @@ class LineWebhookControllerTests {
 		properties.setEnabled(false);
 		LineWebhookController controller = new LineWebhookController(properties,
 				mock(LineSignatureValidator.class),
-				mock(LineBindingService.class),
+				mock(LineMessageRouter.class),
 				mock(LineMessageService.class));
 
 		ResponseEntity<String> response = controller.receiveWebhook("{\"events\":[]}", null);
