@@ -115,6 +115,21 @@ public class LineNotificationCenterService {
 	private Map<String, NotificationTemplate> defaultTemplates() {
 		Map<String, NotificationTemplate> templates = new LinkedHashMap<>();
 		templates.put(
+				"BINDING", new NotificationTemplate("綁定邀請",
+						"{稱謂}您好：\n\n"
+								+ "霍爾夏天補習班現已推出 LINE 官方帳號通知功能，歡迎家長完成綁定，以即時接收孩子在班內的相關通知，包含：\n\n"
+								+ "(1) 到班通知：學生刷卡點名到班時，系統會通知您到班時間。\n"
+								+ "(2) 遲到通知：若學生超過上課時間尚未到班，系統會發送提醒。\n"
+								+ "(3) 簽退通知：學生下課簽退時，系統會通知您簽退時間。\n"
+								+ "(4) 調課通知：若課程時間有所調整，系統會發送調課資訊。\n"
+								+ "(5) 成績通知：學生測驗或評量成績登錄後，系統會通知您查看。\n\n"
+								+ "請家長於本補習班 LINE 官方帳號「霍爾夏天29000056」聊天室中輸入：\n\n"
+								+ "{綁定指令}\n\n"
+								+ "即可完成孩子通知功能綁定。\n"
+								+ "提醒您：綁定碼有效期限為一日，請於期限內完成綁定。若綁定碼逾期，請再向補習班重新索取。\n\n"
+								+ "感謝您的配合。\n"
+								+ "霍爾夏天補習班 敬上"));
+		templates.put(
 				"SCORE", new NotificationTemplate("成績通知",
 						"【Whole Summer 成績通知】\n\n{稱謂}您好：\n{學生姓名}本次「{項目名稱}」成績為 {成績}。\n課程：{課程名稱}"));
 		templates.put(
@@ -172,6 +187,10 @@ public class LineNotificationCenterService {
 
 	private void addScoreCandidate(List<NotificationCandidate> candidates, Score score) {
 		if (score == null || score.getId() == null || score.getStudent() == null || score.getExam() == null) {
+			return;
+		}
+		Integer fullScore = score.getExam().getFullScore();
+		if (fullScore == null || fullScore == 0) {
 			return;
 		}
 		Student student = score.getStudent();

@@ -12,10 +12,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.cramschool.dto.LineBindingReply;
 import com.example.cramschool.dto.LineBindCodeResult;
 import com.example.cramschool.entity.LineBindCode;
+import com.example.cramschool.entity.LineNotificationTemplate;
 import com.example.cramschool.entity.ParentLineBinding;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.entity.TeacherPermissionType;
 import com.example.cramschool.repository.LineBindCodeRepository;
+import com.example.cramschool.repository.LineNotificationTemplateRepository;
 import com.example.cramschool.repository.ParentLineBindingRepository;
 import com.example.cramschool.repository.StudentRepository;
 
@@ -27,16 +29,20 @@ public class LineBindingService {
 	private static final int CODE_VALID_HOURS = 24;
 	private static final Pattern BIND_COMMAND_PATTERN = Pattern.compile("^綁定[\\s　]*([0-9]{6})$");
 	private static final SecureRandom RANDOM = new SecureRandom();
+	private static final String BINDING_TEMPLATE_KEY = "BINDING";
 
 	private final LineBindCodeRepository lineBindCodeRepository;
+	private final LineNotificationTemplateRepository lineNotificationTemplateRepository;
 	private final ParentLineBindingRepository parentLineBindingRepository;
 	private final StudentRepository studentRepository;
 	private final TeacherPermissionService teacherPermissionService;
 
 	public LineBindingService(LineBindCodeRepository lineBindCodeRepository,
 			ParentLineBindingRepository parentLineBindingRepository,
-			StudentRepository studentRepository, TeacherPermissionService teacherPermissionService) {
+			StudentRepository studentRepository, TeacherPermissionService teacherPermissionService,
+			LineNotificationTemplateRepository lineNotificationTemplateRepository) {
 		this.lineBindCodeRepository = lineBindCodeRepository;
+		this.lineNotificationTemplateRepository = lineNotificationTemplateRepository;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.studentRepository = studentRepository;
 		this.teacherPermissionService = teacherPermissionService;
@@ -141,8 +147,29 @@ public class LineBindingService {
 	}
 
 	private String buildSuggestedBindingMessage(Student student, String relation, String code) {
-		String salutation = studentNameSuffix(student == null ? null : student.getChineseName()) + relation + "您好：";
-		return salutation + "\n\n"
+		String studentName = student == null ? "" : student.getDisplayName();
+		String studentGivenName = studentNameSuffix(student == null ? null : student.getChineseName());
+		String salutation = studentGivenName + relation;
+		String instruction = "綁定 " + code;
+		String template = lineNotificationTemplateRepository == null ? null : lineNotificationTemplateRepository
+				.findByTemplateKey(BINDING_TEMPLATE_KEY)
+				.map(LineNotificationTemplate::getBody)
+				.orElse(null);
+		if (template == null || template.isBlank()) {
+			template = defaultSuggestedBindingTemplate();
+		}
+		return template
+				.replace("{稱謂}", salutation)
+				.replace("{學生姓名}", studentName)
+				.replace("{學生名字}", studentGivenName)
+				.replace("{學生姓名後兩字}", studentGivenName)
+				.replace("{家長關係}", relation)
+				.replace("{綁定碼}", code)
+				.replace("{綁定指令}", instruction);
+	}
+
+	private String defaultSuggestedBindingTemplate() {
+		return "{稱謂}您好：\n\n"
 				+ "霍爾夏天補習班現已推出 LINE 官方帳號通知功能，歡迎家長完成綁定，以即時接收孩子在班內的相關通知，包含：\n\n"
 				+ "(1) 到班通知：學生刷卡點名到班時，系統會通知您到班時間。\n"
 				+ "(2) 遲到通知：若學生超過上課時間尚未到班，系統會發送提醒。\n"
@@ -150,7 +177,7 @@ public class LineBindingService {
 				+ "(4) 調課通知：若課程時間有所調整，系統會發送調課資訊。\n"
 				+ "(5) 成績通知：學生測驗或評量成績登錄後，系統會通知您查看。\n\n"
 				+ "請家長於本補習班 LINE 官方帳號「霍爾夏天29000056」聊天室中輸入：\n\n"
-				+ "綁定 " + code + "\n\n"
+				+ "{綁定指令}\n\n"
 				+ "即可完成孩子通知功能綁定。\n"
 				+ "提醒您：綁定碼有效期限為一日，請於期限內完成綁定。若綁定碼逾期，請再向補習班重新索取。\n\n"
 				+ "感謝您的配合。\n"

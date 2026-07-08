@@ -26,6 +26,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTextArea;
@@ -246,14 +247,33 @@ public class DesktopStatusWindow {
 	}
 
 	private void render(StatusSnapshot snapshot) {
-		activeUsersArea.setText(formatActiveUsers(snapshot.activeUsers()));
-		recentLoginsArea.setText(formatRecentLogins(snapshot.recentLogins()));
-		operationLogsArea.setText(formatOperationLogs(snapshot.operationLogs()));
-		cardCheckInsArea.setText(formatCardCheckIns(snapshot.cardCheckIns()));
-		activeUsersArea.setCaretPosition(0);
-		recentLoginsArea.setCaretPosition(0);
-		operationLogsArea.setCaretPosition(0);
-		cardCheckInsArea.setCaretPosition(0);
+		updateTextPreservingView(activeUsersArea, formatActiveUsers(snapshot.activeUsers()));
+		updateTextPreservingView(recentLoginsArea, formatRecentLogins(snapshot.recentLogins()));
+		updateTextPreservingView(operationLogsArea, formatOperationLogs(snapshot.operationLogs()));
+		updateTextPreservingView(cardCheckInsArea, formatCardCheckIns(snapshot.cardCheckIns()));
+	}
+
+	private void updateTextPreservingView(JTextArea area, String text) {
+		JScrollPane scrollPane = (JScrollPane) SwingUtilities.getAncestorOfClass(
+				JScrollPane.class, area);
+		JScrollBar verticalScrollBar = scrollPane == null ? null : scrollPane.getVerticalScrollBar();
+		int scrollValue = verticalScrollBar == null ? 0 : verticalScrollBar.getValue();
+		int caretPosition = area.getCaretPosition();
+
+		area.setText(text);
+		area.setCaretPosition(clamp(caretPosition, area.getDocument().getLength()));
+
+		if (verticalScrollBar == null) {
+			return;
+		}
+		SwingUtilities.invokeLater(() -> {
+			int maximumValue = verticalScrollBar.getMaximum() - verticalScrollBar.getVisibleAmount();
+			verticalScrollBar.setValue(clamp(scrollValue, maximumValue));
+		});
+	}
+
+	private int clamp(int value, int maximum) {
+		return Math.max(0, Math.min(value, maximum));
 	}
 
 	private String formatActiveUsers(List<ActiveUserRegistry.ActiveUser> activeUsers) {

@@ -36,7 +36,7 @@ class LineBindingServiceTests {
 				any(), any())).thenReturn(Optional.of(bindCode));
 		when(bindingRepository.findByStudentAndLineUserId(student, "line-user-1")).thenReturn(Optional.empty());
 
-		LineBindingService service = new LineBindingService(codeRepository, bindingRepository, null, null);
+		LineBindingService service = new LineBindingService(codeRepository, bindingRepository, null, null, null);
 
 		LineBindingReply reply = service.bindFromLineMessage("line-user-1", "家長 LINE", "綁定123456");
 

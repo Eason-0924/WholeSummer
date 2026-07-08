@@ -21,6 +21,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import com.example.cramschool.config.ExternalConfigInitializer;
 import com.example.cramschool.config.ExternalConfigPaths;
 import com.example.cramschool.desktop.StartupLoadingWindow;
+import com.example.cramschool.desktop.SwingLookAndFeel;
 
 @SpringBootApplication
 @EnableAsync
@@ -28,6 +29,7 @@ import com.example.cramschool.desktop.StartupLoadingWindow;
 public class WholeSummerApplication {
 
 	public static void main(String[] args) {
+		SwingLookAndFeel.setup();
 		StartupLoadingWindow startupWindow = StartupLoadingWindow.showIfSupported();
 		try {
 			startupWindow.updateMessage("正在準備系統設定...");

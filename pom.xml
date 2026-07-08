@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.3.2</version> <!-- Enter system version before release -->
+	<version>1.3.3</version> <!-- Enter system version before release -->
 	<name>霍爾夏天補習班 Whole Summer</name>
 	<description>Cram school management system</description>
 	<properties>
@@ -47,6 +47,11 @@
 			<groupId>org.apache.pdfbox</groupId>
 			<artifactId>pdfbox</artifactId>
 			<version>3.0.5</version>
+		</dependency>
+		<dependency>
+			<groupId>com.formdev</groupId>
+			<artifactId>flatlaf</artifactId>
+			<version>3.7</version>
 		</dependency>
 
 		<dependency>
