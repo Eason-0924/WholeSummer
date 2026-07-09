@@ -86,9 +86,11 @@ public class LineWebhookController {
 				: null;
 		lineMessageRouter.routeTextMessage(lineUserId, displayName, messageText)
 				.ifPresent(reply -> lineMessageService.replyText(replyToken, reply));
+		
 	}
 
 	private boolean isPotentialBindCommand(String messageText) {
 		return messageText != null && messageText.trim().startsWith("綁定");
 	}
+	
 }

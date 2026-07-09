@@ -50,7 +50,7 @@ public class LineScheduleService {
 		this.weeklyScheduleService = weeklyScheduleService;
 		this.clock = clock;
 	}
-
+	
 	public String buildWeeklyScheduleReply(String lineUserId) {
 		if (lineUserId == null || lineUserId.isBlank()) {
 			return UNBOUND_MESSAGE;

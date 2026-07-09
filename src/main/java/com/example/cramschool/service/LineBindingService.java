@@ -26,7 +26,7 @@ import com.example.cramschool.repository.StudentRepository;
 public class LineBindingService {
 
 	private static final int CODE_BOUND = 1_000_000;
-	private static final int CODE_VALID_HOURS = 24;
+	private static final int CODE_VALID_HOURS = 24 * 7;
 	private static final Pattern BIND_COMMAND_PATTERN = Pattern.compile("^綁定[\\s　]*([0-9]{6})$");
 	private static final SecureRandom RANDOM = new SecureRandom();
 	private static final String BINDING_TEMPLATE_KEY = "BINDING";
@@ -179,7 +179,7 @@ public class LineBindingService {
 				+ "請家長於本補習班 LINE 官方帳號「霍爾夏天29000056」聊天室中輸入：\n\n"
 				+ "{綁定指令}\n\n"
 				+ "即可完成孩子通知功能綁定。\n"
-				+ "提醒您：綁定碼有效期限為一日，請於期限內完成綁定。若綁定碼逾期，請再向補習班重新索取。\n\n"
+				+ "提醒您：綁定碼有效期限為一週，請於期限內完成綁定。若綁定碼逾期，請再向補習班重新索取。\n\n"
 				+ "感謝您的配合。\n"
 				+ "霍爾夏天補習班 敬上";
 	}
