@@ -3,7 +3,9 @@ package com.example.cramschool.service;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,18 +45,27 @@ public class LateArrivalReminderService {
 		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
-	@Scheduled(fixedDelayString = "${line.late-reminder.scan-delay-ms:300000}",
-			initialDelayString = "${line.late-reminder.initial-delay-ms:60000}")
+	@Scheduled(cron = "${line.late-reminder.cron:0 * * * * *}", zone = "Asia/Taipei")
 	public void sendDueLateArrivalReminders() {
-		sendDueLateArrivalReminders(LocalDateTime.now(clock));
+		sendDueLateArrivalReminders(LocalDateTime.now(clock), true, false);
+	}
+
+	@Scheduled(cron = "${webpush.late-arrival.cron:0 */10 * * * *}", zone = "Asia/Taipei")
+	public void sendDueLateArrivalWebPushNotifications() {
+		sendDueLateArrivalReminders(LocalDateTime.now(clock), false, true);
 	}
 
 	void sendDueLateArrivalReminders(LocalDateTime now) {
+		sendDueLateArrivalReminders(now, true, true);
+	}
+
+	private void sendDueLateArrivalReminders(LocalDateTime now, boolean sendLine, boolean sendWebPush) {
 		if (now == null) {
 			return;
 		}
 		LocalDate today = now.toLocalDate();
 		Set<Long> processedScheduleIds = new HashSet<>();
+		List<LineNotificationService.LateArrivalReminder> lineReminders = new ArrayList<>();
 		for (WeeklyScheduleDto schedule : weeklyScheduleService.findWeeklySchedules(today, null, true, null, null)) {
 			if (schedule == null || !processedScheduleIds.add(schedule.getScheduleId())) {
 				continue;
@@ -62,7 +73,10 @@ public class LateArrivalReminderService {
 			if (!isDueSchedule(schedule, now)) {
 				continue;
 			}
-			sendReminderForSchedule(schedule);
+			sendReminderForSchedule(schedule, sendLine, sendWebPush, lineReminders);
+		}
+		if (sendLine && !lineReminders.isEmpty() && lineNotificationService != null && lineNotificationService.isLineEnabled()) {
+			lineNotificationService.sendLateArrivalReminders(lineReminders);
 		}
 	}
 
@@ -81,7 +95,8 @@ public class LateArrivalReminderService {
 				&& !now.isAfter(schedule.getEndTime());
 	}
 
-	private void sendReminderForSchedule(WeeklyScheduleDto schedule) {
+	private void sendReminderForSchedule(WeeklyScheduleDto schedule, boolean sendLine, boolean sendWebPush,
+			List<LineNotificationService.LateArrivalReminder> lineReminders) {
 		Long referenceId = occurrenceReferenceId(schedule);
 		Long responsibleTeacherId = classRoomRepository.findById(schedule.getClassRoomId())
 				.map(classRoom -> classRoom.getTeacher() == null ? null : classRoom.getTeacher().getId())
@@ -96,12 +111,14 @@ public class LateArrivalReminderService {
 			if (arrived) {
 				continue;
 			}
-			if (lineNotificationService != null && lineNotificationService.isLineEnabled()) {
-				lineNotificationService.sendLateArrivalReminder(
-						classStudent.getStudent(), referenceId, schedule.getClassName(), schedule.getStartTime());
+			if (sendLine) {
+				lineReminders.add(new LineNotificationService.LateArrivalReminder(
+						classStudent.getStudent(), referenceId, schedule.getClassName(), schedule.getStartTime()));
 			}
-			webPushEventNotificationService.notifyLateArrival(
-					classStudent.getStudent().getDisplayName(), schedule.getClassName(), responsibleTeacherId);
+			if (sendWebPush) {
+				webPushEventNotificationService.notifyLateArrival(
+						classStudent.getStudent().getDisplayName(), schedule.getClassName(), responsibleTeacherId);
+			}
 		}
 	}
 

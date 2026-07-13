@@ -2,6 +2,7 @@ package com.example.cramschool.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -60,8 +61,10 @@ class LateArrivalReminderServiceTests {
 
 		service.sendDueLateArrivalReminders();
 
-		verify(lineNotificationService).sendLateArrivalReminder(eq(missingStudent), eq(20639000000101L),
-				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
+		verify(lineNotificationService).sendLateArrivalReminders(argThat(reminders -> reminders.size() == 1
+				&& reminders.get(0).student() == missingStudent
+				&& reminders.get(0).referenceId().equals(20639000000101L)
+				&& reminders.get(0).className().equals("國一數學")));
 		verify(lineNotificationService, never()).sendLateArrivalReminder(eq(arrivedStudent), eq(20639000000101L),
 				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
 	}
@@ -105,20 +108,23 @@ class LateArrivalReminderServiceTests {
 				mock(ClassRoomRepository.class), webPushEventNotificationService);
 		setNow(service, LocalDateTime.of(date, LocalTime.of(18, 6)));
 
-		service.sendDueLateArrivalReminders();
+		service.sendDueLateArrivalWebPushNotifications();
 
-		verify(lineNotificationService, times(1)).sendLateArrivalReminder(eq(student), eq(20639000000101L),
-				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
+		verifyNoInteractions(lineNotificationService);
 		verify(webPushEventNotificationService, times(1)).notifyLateArrival(eq("尚未到班"), eq("國一數學"), eq(null));
 	}
 
 	@Test
-	void scansForLateArrivalsEveryFiveMinutesByDefault() throws NoSuchMethodException {
+	void scansLineRemindersOnTheMinuteAndWebPushEveryTenMinutesOnTheMinute() throws NoSuchMethodException {
 		Scheduled scheduled = LateArrivalReminderService.class
 				.getMethod("sendDueLateArrivalReminders")
 				.getAnnotation(Scheduled.class);
+		Scheduled webPushScheduled = LateArrivalReminderService.class
+				.getMethod("sendDueLateArrivalWebPushNotifications")
+				.getAnnotation(Scheduled.class);
 
-		assertThat(scheduled.fixedDelayString()).isEqualTo("${line.late-reminder.scan-delay-ms:300000}");
+		assertThat(scheduled.cron()).isEqualTo("${line.late-reminder.cron:0 * * * * *}");
+		assertThat(webPushScheduled.cron()).isEqualTo("${webpush.late-arrival.cron:0 */10 * * * *}");
 	}
 
 	private void setNow(LateArrivalReminderService service, LocalDateTime now) {

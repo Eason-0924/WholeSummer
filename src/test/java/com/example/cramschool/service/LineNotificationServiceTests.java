@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -81,6 +82,39 @@ class LineNotificationServiceTests {
 		service.sendLateArrivalReminder(student, 123L, "國一（A班）", LocalDateTime.of(2026, 7, 5, 18, 0));
 
 		verifyNoInteractions(bindingRepository, lineMessageService);
+	}
+
+	@Test
+	void combinesLateRemindersForMultipleStudentsBoundToTheSameParent() {
+		Student firstStudent = student();
+		Student secondStudent = new Student();
+		secondStudent.setId(22L);
+		secondStudent.setChineseName("王小華");
+		ParentLineBinding firstBinding = new ParentLineBinding();
+		firstBinding.setStudent(firstStudent);
+		firstBinding.setLineUserId("shared-parent");
+		ParentLineBinding secondBinding = new ParentLineBinding();
+		secondBinding.setStudent(secondStudent);
+		secondBinding.setLineUserId("shared-parent");
+		ParentLineBindingRepository bindingRepository = mock(ParentLineBindingRepository.class);
+		LineNotificationLogRepository logRepository = mock(LineNotificationLogRepository.class);
+		LineMessageService lineMessageService = mock(LineMessageService.class);
+		when(bindingRepository.findByStudentAndStatus(firstStudent, ParentLineBinding.STATUS_BOUND))
+				.thenReturn(List.of(firstBinding));
+		when(bindingRepository.findByStudentAndStatus(secondStudent, ParentLineBinding.STATUS_BOUND))
+				.thenReturn(List.of(secondBinding));
+		when(lineMessageService.pushText(eq("shared-parent"), any())).thenReturn(LineSendResult.success("request-1"));
+		LineNotificationService service = new LineNotificationService(null, bindingRepository, logRepository,
+				null, lineMessageService, new LineProperties());
+
+		service.sendLateArrivalReminders(List.of(
+				new LineNotificationService.LateArrivalReminder(firstStudent, 101L, "國一數學", LocalDateTime.of(2026, 7, 5, 18, 0)),
+				new LineNotificationService.LateArrivalReminder(secondStudent, 102L, "國一英文", LocalDateTime.of(2026, 7, 5, 18, 0))));
+
+		ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
+		verify(lineMessageService, times(1)).pushText(eq("shared-parent"), contentCaptor.capture());
+		assertThat(contentCaptor.getValue()).contains("王小明", "王小華", "國一數學", "國一英文");
+		verify(logRepository, times(2)).save(any(LineNotificationLog.class));
 	}
 
 	@Test

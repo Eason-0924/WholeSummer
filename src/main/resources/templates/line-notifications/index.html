@@ -22,13 +22,53 @@
 		.line-notice-grid {
 			display: grid;
 			gap: 1rem;
-			grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+			grid-template-columns: minmax(0, 1fr);
 		}
 		.line-notice-card {
 			border: 1px solid rgba(0, 0, 0, 0.1);
 			border-left-width: 0.45rem;
 			border-radius: 0.5rem;
-			min-height: 15rem;
+			min-height: 0;
+		}
+		.line-notice-items {
+			display: grid !important;
+			column-gap: 0.75rem;
+			grid-auto-columns: max-content;
+			grid-auto-flow: column;
+			grid-template-rows: minmax(0, 1fr);
+			overflow-x: auto;
+			padding-bottom: 0.4rem;
+			scrollbar-gutter: stable;
+		}
+		.line-notice-items .list-group-item {
+			border: 0;
+			border-right: 1px solid #dee2e6;
+			border-radius: 0;
+			box-sizing: border-box;
+			width: 20rem;
+			padding: 0.75rem 1.25rem;
+			white-space: normal;
+		}
+		.line-notice-items .list-group-item:last-child {
+			border-right: 0;
+		}
+		.line-notice-items .form-check-input {
+			margin-left: 0.75rem;
+			margin-right: 0.25rem;
+		}
+		.line-notice-items .line-card-score {
+			width: 12rem;
+		}
+		.line-notice-items .line-card-makeup {
+			width: 20rem;
+		}
+		.line-notice-items .line-card-tuition {
+			width: 12rem;
+		}
+		.line-notice-items .list-group-item .d-flex.flex-wrap {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 0.3rem !important;
 		}
 		.line-card-score {
 			border-left-color: #198754;
@@ -97,57 +137,58 @@
 	</div>
 
 	<section class="line-notice-grid">
-		<div th:if="${#lists.isEmpty(lineNotificationCandidates)}" class="bg-white border rounded p-4 text-center text-secondary">
+		<div th:if="${#lists.isEmpty(lineNotificationGroups)}" class="bg-white border rounded p-4 text-center text-secondary">
 			目前沒有可發送的 LINE 通知項目
 		</div>
 
-		<article th:each="candidate : ${lineNotificationCandidates}"
-				th:class="${'bg-white p-3 d-flex flex-column line-notice-card ' + candidate.cardClass}"
-				th:attr="data-template-key=${candidate.templateKey},data-student-given-name=${candidate.studentGivenName}">
+		<article th:each="group : ${lineNotificationGroups}" class="bg-white p-3 d-flex flex-column line-notice-card"
+				th:attr="data-student-name=${group.studentName},data-student-given-name=${group.studentGivenName}">
 			<div class="d-flex justify-content-between align-items-start gap-2 mb-2">
 				<div>
-					<span class="badge"
-							th:classappend="${candidate.templateKey == 'SCORE' ? ' text-bg-success' : (candidate.templateKey == 'TUITION' ? ' text-bg-primary' : ' text-bg-warning text-dark')}"
-							th:text="${candidate.typeLabel}">成績</span>
-					<h2 class="h5 mt-2 mb-1" th:text="${candidate.studentName}">學生姓名</h2>
-					<div class="text-secondary small" th:text="${candidate.courseName}">課程</div>
-				</div>
-				<div class="text-end small text-secondary" th:text="${candidate.title}">通知</div>
-			</div>
-
-			<div class="mb-3">
-				<div class="fw-semibold" th:text="${candidate.itemName}">通知項目</div>
-				<div class="d-flex flex-wrap gap-2 mt-2">
-					<span th:each="valueEntry : ${candidate.values}" class="badge text-bg-light border text-dark">
-						<span th:text="${valueEntry.key}">參數</span>：
-						<span th:text="${valueEntry.value}">內容</span>
-					</span>
+					<h2 class="h5 mb-1" th:text="${group.studentName}">學生姓名</h2>
+					<div class="text-secondary small">勾選通知後可合併為一則訊息發送</div>
 				</div>
 			</div>
 
-			<div class="visually-hidden">
-				<span th:each="valueEntry : ${candidate.values}" data-line-var
-						th:attr="data-name=${valueEntry.key},data-value=${valueEntry.value}"></span>
-			</div>
-
-			<form class="mt-auto line-send-form" th:action="@{/line-notifications/send}" method="post">
-				<input type="hidden" name="candidateId" th:value="${candidate.id}">
-				<input type="hidden" name="template" data-template-input>
+			<form class="mt-auto" data-combined-send-form th:action="@{/line-notifications/send-combined}" method="post">
+				<div class="list-group line-notice-items mb-3">
+					<label th:each="candidate : ${group.candidates}" class="list-group-item px-0 d-flex gap-2 align-items-start"
+							th:classappend="${candidate.cardClass}"
+							th:attr="data-template-key=${candidate.templateKey},data-item-name=${candidate.itemName},data-course-name=${candidate.courseName}">
+						<span class="flex-grow-1">
+							<span class="badge me-2"
+									th:classappend="${candidate.templateKey == 'SCORE' ? ' text-bg-success' : (candidate.templateKey == 'TUITION' ? ' text-bg-primary' : ' text-bg-warning text-dark')}"
+									th:text="${candidate.typeLabel}">成績</span>
+							<span class="fw-semibold" th:text="${candidate.itemName}">通知項目</span>
+							<span class="d-flex flex-wrap gap-1 mt-2">
+								<span th:each="valueEntry : ${candidate.values}" class="badge text-bg-light border text-dark">
+									<span th:text="${valueEntry.key}">參數</span>：<span th:text="${valueEntry.value}">內容</span>
+								</span>
+							</span>
+						</span>
+						<input class="form-check-input mt-1" type="checkbox" name="candidateIds" th:value="${candidate.id}"
+								aria-label="選取通知以合併發送">
+						<span class="visually-hidden">
+							<span th:each="valueEntry : ${candidate.values}" data-line-var
+									th:attr="data-name=${valueEntry.key},data-value=${valueEntry.value}"></span>
+						</span>
+					</label>
+				</div>
 				<div class="d-flex align-items-end gap-2">
 					<div class="flex-grow-1">
 						<label class="form-label small text-secondary mb-1">收件家長</label>
-						<select class="form-select form-select-sm" name="bindingIds" data-parent-select
-								th:disabled="${#lists.isEmpty(candidate.parents)}">
+						<select class="form-select form-select-sm" name="bindingIds"
+								th:disabled="${#lists.isEmpty(group.parents)}">
 							<option value="-1">全選</option>
-							<option th:each="parent : ${candidate.parents}" th:value="${parent.id}"
+							<option th:each="parent : ${group.parents}" th:value="${parent.id}"
 									th:text="${parent.label}">家長</option>
 						</select>
-						<div th:if="${#lists.isEmpty(candidate.parents)}" class="form-text text-danger">
+						<div th:if="${#lists.isEmpty(group.parents)}" class="form-text text-danger">
 							尚無已綁定家長
 						</div>
 					</div>
 					<button class="btn btn-sm btn-primary" type="submit"
-							th:disabled="${#lists.isEmpty(candidate.parents)}">發送</button>
+							th:disabled="${#lists.isEmpty(group.parents)}">合併發送</button>
 				</div>
 			</form>
 		</article>
@@ -389,7 +430,7 @@
 			</div>
 			<div class="modal-body">
 				<div class="small text-secondary mb-2" id="linePreviewRecipients"></div>
-				<div class="line-preview-box p-3" id="linePreviewContent"></div>
+				<div id="linePreviewContent"></div>
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
@@ -617,18 +658,59 @@
 			button.addEventListener('click', () => insertTemplateToken(button.dataset.templateToken));
 		});
 		syncTemplates();
-		document.querySelectorAll('.line-send-form').forEach((form) => {
+		document.querySelectorAll('[data-combined-send-form]').forEach((form) => {
 			form.addEventListener('submit', (event) => {
 				event.preventDefault();
 				syncTemplates();
 				const card = form.closest('.line-notice-card');
-				const select = form.querySelector('[data-parent-select]');
-				const templateKey = card.dataset.templateKey;
-				const template = templates.get(templateKey) || '';
-				form.querySelector('[data-template-input]').value = template;
+				const select = form.querySelector('select[name="bindingIds"]');
+				const selectedItems = Array.from(form.querySelectorAll('input[name="candidateIds"]:checked'))
+						.map((checkbox) => checkbox.closest('[data-template-key]'));
+				if (selectedItems.length === 0) {
+					window.alert('請至少勾選一則通知');
+					return;
+				}
+				const labels = selectedLabels(select);
+				const renderedItems = selectedItems.map((item) => {
+					let text = templates.get(item.dataset.templateKey) || '';
+					text = text.replaceAll('{稱謂}', labels[0] || '家長')
+							.replaceAll('{學生姓名}', card.dataset.studentName || '')
+							.replaceAll('{學生名字}', card.dataset.studentGivenName || '')
+							.replaceAll('{學生姓名後兩字}', card.dataset.studentGivenName || '')
+							.replaceAll('{家長關係}', labels[0] || '家長')
+							.replaceAll('{項目名稱}', item.dataset.itemName || '')
+							.replaceAll('{課程名稱}', item.dataset.courseName || '');
+					valuesForCard(item).forEach((value, name) => {
+						text = text.replaceAll(`{${name}}`, value);
+					});
+					return { templateKey: item.dataset.templateKey, text };
+				});
+				const groups = new Map();
+				renderedItems.forEach((item) => {
+					if (!groups.has(item.templateKey)) {
+						groups.set(item.templateKey, []);
+					}
+					groups.get(item.templateKey).push(item.text);
+				});
+				const removeRepeatedIntro = (text) => {
+					const greetingEnd = text.indexOf('您好：\n');
+					if (greetingEnd >= 0) {
+						return text.substring(greetingEnd + '您好：\n'.length);
+					}
+					const headerEnd = text.indexOf('\n\n');
+					return headerEnd >= 0 ? text.substring(headerEnd + 2) : text;
+				};
+				const messageBlocks = Array.from(groups.values()).map((messages) =>
+						messages.map((message, index) => index === 0 ? message : removeRepeatedIntro(message)).join('\n')
+				);
 				pendingForm = form;
-				previewRecipients.textContent = '收件人：' + selectedLabels(select).join('、');
-				previewContent.textContent = renderPreview(template, card, select);
+				previewRecipients.textContent = '收件人：' + labels.join('、');
+				previewContent.replaceChildren(...messageBlocks.map((content) => {
+					const block = document.createElement('div');
+					block.className = 'line-preview-box p-3 mb-3';
+					block.textContent = content;
+					return block;
+				}));
 				previewModal.show();
 			});
 		});

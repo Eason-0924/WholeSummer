@@ -2,7 +2,10 @@ package com.example.cramschool.service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -135,48 +138,66 @@ public class LineNotificationService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void sendLateArrivalReminder(Student student, Long referenceId,
 			String className, LocalDateTime classStartTime) {
-		if (student == null || student.getId() == null || referenceId == null) {
+		sendLateArrivalReminders(List.of(new LateArrivalReminder(student, referenceId, className, classStartTime)));
+	}
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	public void sendLateArrivalReminders(List<LateArrivalReminder> reminders) {
+		if (reminders == null || reminders.isEmpty()) {
 			return;
+		}
+		Map<String, List<LateArrivalReminder>> remindersByParentAndTime = new LinkedHashMap<>();
+		for (LateArrivalReminder reminder : reminders) {
+			if (!isUnsentLateArrivalReminder(reminder)) {
+				continue;
+			}
+			List<ParentLineBinding> bindings = parentLineBindingRepository.findByStudentAndStatus(
+					reminder.student(), ParentLineBinding.STATUS_BOUND);
+			if (bindings.isEmpty()) {
+				saveStudentNotificationLog(reminder.student(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
+						reminder.referenceId(), "LINE 遲到提醒",
+						buildLateArrivalReminderMessage(reminder.student(), null, reminder.className(), reminder.classStartTime()),
+						LineNotificationLog.STATUS_SKIPPED, "尚無已綁定家長", null);
+			}
+			for (ParentLineBinding binding : bindings) {
+				String key = binding.getLineUserId() + "|" + reminder.classStartTime();
+				remindersByParentAndTime.computeIfAbsent(key, ignored -> new ArrayList<>())
+						.add(reminder.withBinding(binding));
+			}
+		}
+		for (List<LateArrivalReminder> parentReminders : remindersByParentAndTime.values()) {
+			sendGroupedLateArrivalReminder(parentReminders);
+		}
+	}
+
+	private boolean isUnsentLateArrivalReminder(LateArrivalReminder reminder) {
+		if (reminder == null || reminder.student() == null || reminder.student().getId() == null
+				|| reminder.referenceId() == null) {
+			return false;
 		}
 		String notificationType = "ATTENDANCE_LATE_REMINDER";
 		String referenceType = "CLASS_SCHEDULE_OCCURRENCE";
 		if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
-				student, notificationType, referenceType, referenceId)) {
+				reminder.student(), notificationType, referenceType, reminder.referenceId())) {
+			return false;
+		}
+		return true;
+	}
+
+	private void sendGroupedLateArrivalReminder(List<LateArrivalReminder> reminders) {
+		if (reminders == null || reminders.isEmpty()) {
 			return;
 		}
 		String title = "LINE 遲到提醒";
-		List<ParentLineBinding> bindings = parentLineBindingRepository
-				.findByStudentAndStatus(student, ParentLineBinding.STATUS_BOUND);
-		if (bindings.isEmpty()) {
-			saveStudentNotificationLog(student, notificationType, referenceType, referenceId, title,
-					buildLateArrivalReminderMessage(student, null, className, classStartTime),
-					LineNotificationLog.STATUS_SKIPPED, "尚無已綁定家長", null);
-			return;
+		ParentLineBinding binding = reminders.get(0).binding();
+		String content = buildGroupedLateArrivalReminderMessage(reminders, binding);
+		var result = lineMessageService.pushText(binding.getLineUserId(), content);
+		for (LateArrivalReminder reminder : reminders) {
+			saveStudentNotificationLog(reminder.student(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
+					reminder.referenceId(), title, content,
+					result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
+					result.errorMessage(), result.providerMessageId());
 		}
-
-		int successCount = 0;
-		String firstError = null;
-		String firstProviderMessageId = null;
-		for (ParentLineBinding binding : bindings) {
-			String content = buildLateArrivalReminderMessage(student, binding, className, classStartTime);
-			var result = lineMessageService.pushText(binding.getLineUserId(), content);
-			if (result.success()) {
-				successCount++;
-				if (firstProviderMessageId == null) {
-					firstProviderMessageId = result.providerMessageId();
-				}
-			} else if (firstError == null) {
-				firstError = result.errorMessage();
-			}
-		}
-		String status = successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
-		String error = successCount == bindings.size()
-				? null
-				: "成功 " + successCount + " / " + bindings.size()
-						+ (firstError == null ? "" : "；" + firstError);
-		saveStudentNotificationLog(student, notificationType, referenceType, referenceId, title,
-				buildLateArrivalReminderMessage(student, null, className, classStartTime),
-				status, error, firstProviderMessageId);
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -292,6 +313,22 @@ public class LineNotificationService {
 				+ "系統尚未收到學生到班刷卡紀錄，請協助確認學生狀況。";
 	}
 
+	private String buildGroupedLateArrivalReminderMessage(List<LateArrivalReminder> reminders,
+			ParentLineBinding binding) {
+		String greeting = binding == null || binding.getRelation() == null || binding.getRelation().isBlank()
+				? "家長您好：\n"
+				: binding.getRelation() + "您好：\n";
+		String timeText = reminders.get(0).classStartTime() == null ? "-"
+				: reminders.get(0).classStartTime().format(DISPLAY_TIME_FORMAT);
+		String details = reminders.stream()
+				.map(reminder -> "學生：" + reminder.student().getDisplayName()
+						+ "\n課程：" + (reminder.className() == null || reminder.className().isBlank() ? "-" : reminder.className()))
+				.collect(java.util.stream.Collectors.joining("\n\n"));
+		return "【Whole Summer 遲到提醒】\n\n" + greeting
+				+ "以下學生於 " + timeText + " 尚未到班：\n\n" + details
+				+ "\n\n系統尚未收到學生到班刷卡紀錄，請協助確認學生狀況。";
+	}
+
 	private String buildStudentLeaveSubmittedMessage(StudentLeaveRequest leaveRequest) {
 		return "【Whole Summer 請假申請確認】\n\n"
 				+ "已收到您的請假申請。\n\n"
@@ -393,5 +430,16 @@ public class LineNotificationService {
 		log.setProviderMessageId(providerMessageId);
 		log.setSentAt(LocalDateTime.now());
 		lineNotificationLogRepository.save(log);
+	}
+
+	public record LateArrivalReminder(Student student, Long referenceId, String className,
+			LocalDateTime classStartTime, ParentLineBinding binding) {
+		public LateArrivalReminder(Student student, Long referenceId, String className, LocalDateTime classStartTime) {
+			this(student, referenceId, className, classStartTime, null);
+		}
+
+		LateArrivalReminder withBinding(ParentLineBinding binding) {
+			return new LateArrivalReminder(student, referenceId, className, classStartTime, binding);
+		}
 	}
 }

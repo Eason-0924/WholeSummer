@@ -42,7 +42,7 @@ public class LineNotificationCenterController {
 	public String index(@RequestParam(name = "student", required = false) String studentSlugOrId,
 			@RequestParam(name = "openBinding", defaultValue = "false") boolean openBinding, Model model) {
 		model.addAttribute("pageTitle", "Line 通知");
-		model.addAttribute("lineNotificationCandidates", lineNotificationCenterService.buildCandidates());
+		model.addAttribute("lineNotificationGroups", lineNotificationCenterService.buildCandidateGroups());
 		model.addAttribute("lineNotificationTemplates", lineNotificationCenterService.templates());
 		model.addAttribute("lineBindingStudents", studentService.findActiveStudents());
 		model.addAttribute("openLineBindingModal", false);
@@ -84,6 +84,18 @@ public class LineNotificationCenterController {
 			} else {
 				redirectAttributes.addFlashAttribute("errorMessage", "LINE 通知發送失敗，請查看通知紀錄。");
 			}
+		} catch (IllegalArgumentException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		}
+		return "redirect:/line-notifications";
+	}
+
+	@PostMapping("/send-combined")
+	public String sendCombined(@RequestParam(required = false) List<String> candidateIds,
+			@RequestParam(required = false) List<Long> bindingIds, RedirectAttributes redirectAttributes) {
+		try {
+			int successCount = lineNotificationCenterService.sendCandidates(candidateIds, bindingIds);
+			redirectAttributes.addFlashAttribute("message", "已合併發送 LINE 通知，成功 " + successCount + " 位家長。");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}

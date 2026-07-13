@@ -4,10 +4,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,6 +75,8 @@ public class LineNotificationCenterService {
 	public List<NotificationCandidate> buildCandidates() {
 		List<NotificationCandidate> candidates = new ArrayList<>();
 		scoreRepository.findAll().forEach(score -> addScoreCandidate(candidates, score));
+		makeUpClassRequestRepository.findByStatusOrderByOriginalCourseDateAscIdAsc(MakeUpStatus.PENDING)
+				.forEach(request -> addMakeUpCandidates(candidates, request));
 		makeUpClassRequestRepository.findByStatusOrderBySelectedMakeUpStartAscIdAsc(MakeUpStatus.SCHEDULED)
 				.forEach(request -> addMakeUpCandidates(candidates, request));
 		tuitionRecordRepository.findAllByOrderByDueDateDescIdDesc().stream()
@@ -82,6 +86,18 @@ public class LineNotificationCenterService {
 				.sorted(Comparator.comparing(NotificationCandidate::kindOrder)
 						.thenComparing(NotificationCandidate::studentName, Comparator.nullsLast(String::compareTo))
 						.thenComparing(NotificationCandidate::title, Comparator.nullsLast(String::compareTo)))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<NotificationStudentGroup> buildCandidateGroups() {
+		Map<Long, List<NotificationCandidate>> candidatesByStudent = new LinkedHashMap<>();
+		for (NotificationCandidate candidate : buildCandidates()) {
+			candidatesByStudent.computeIfAbsent(candidate.studentId(), ignored -> new ArrayList<>()).add(candidate);
+		}
+		return candidatesByStudent.values().stream()
+				.map(candidates -> new NotificationStudentGroup(candidates.get(0).studentId(), candidates.get(0).studentName(),
+						candidates.get(0).studentGivenName(), candidates.get(0).parents(), candidates))
 				.toList();
 	}
 
@@ -136,8 +152,14 @@ public class LineNotificationCenterService {
 				"MAKE_UP", new NotificationTemplate("補課通知",
 						"【Whole Summer 補課通知】\n\n{稱謂}您好：\n{學生姓名}原 {原上課時間} 的課程，補課時間已安排為 {新上課時間}。\n課程：{課程名稱}"));
 		templates.put(
+				"MAKE_UP_PENDING", new NotificationTemplate("補課時間待定通知",
+						"【Whole Summer 補課通知】\n\n{稱謂}您好：\n{學生姓名}原 {原上課時間} 的課程需要補課，補課時間待定。\n課程：{課程名稱}"));
+		templates.put(
 				"RESCHEDULE", new NotificationTemplate("調課通知",
 						"【Whole Summer 調課通知】\n\n{稱謂}您好：\n{學生姓名}原 {原上課時間} 的課程，調課時間已安排為 {新上課時間}。\n課程：{課程名稱}"));
+		templates.put(
+				"RESCHEDULE_PENDING", new NotificationTemplate("調課時間待定通知",
+						"【Whole Summer 調課通知】\n\n{稱謂}您好：\n{學生姓名}原 {原上課時間} 的課程將調整上課時間，新時間待定。\n課程：{課程名稱}"));
 		templates.put(
 				"TUITION", new NotificationTemplate("繳費提醒",
 						"【Whole Summer 繳費提醒】\n\n{稱謂}您好：\n{學生姓名}目前待繳費用為 {應繳費用}。\n繳費項目：{項目名稱}\n到期日：{到期日}"));
@@ -185,6 +207,93 @@ public class LineNotificationCenterService {
 		return successCount;
 	}
 
+	public int sendCandidates(List<String> candidateIds, List<Long> bindingIds) {
+		if (candidateIds == null || candidateIds.isEmpty()) {
+			throw new IllegalArgumentException("請至少勾選一則通知");
+		}
+		Map<String, NotificationCandidate> available = new LinkedHashMap<>();
+		for (NotificationCandidate candidate : buildCandidates()) {
+			available.put(candidate.id(), candidate);
+		}
+		List<NotificationCandidate> candidates = candidateIds.stream().distinct()
+				.map(available::get)
+				.toList();
+		if (candidates.stream().anyMatch(java.util.Objects::isNull)) {
+			throw new IllegalArgumentException("部分通知項目已發送或不存在，請重新整理頁面");
+		}
+		Student student = candidates.get(0).student();
+		if (candidates.stream().anyMatch(candidate -> !candidate.studentId().equals(student.getId()))) {
+			throw new IllegalArgumentException("只能合併同一位學生的通知");
+		}
+		List<ParentLineBinding> bindings = resolveBindings(student, bindingIds);
+		if (bindings.isEmpty()) {
+			throw new IllegalArgumentException("此學生尚無可發送的 LINE 家長");
+		}
+		String firstProviderMessageId = null;
+		Map<String, List<NotificationCandidate>> candidatesByTemplate = groupCandidatesByTemplate(candidates);
+		Map<String, String> firstContentByTemplate = new LinkedHashMap<>();
+		Map<String, Integer> successByTemplate = new LinkedHashMap<>();
+		Map<String, String> firstErrorByTemplate = new LinkedHashMap<>();
+		Set<String> successfulParentIds = new HashSet<>();
+		for (ParentLineBinding binding : bindings) {
+			for (Map.Entry<String, List<NotificationCandidate>> entry : candidatesByTemplate.entrySet()) {
+				String templateKey = entry.getKey();
+				String content = renderTemplateGroup(entry.getValue(), binding);
+				firstContentByTemplate.putIfAbsent(templateKey, content);
+				var result = lineMessageService.pushText(binding.getLineUserId(), content);
+				if (result.success()) {
+					successByTemplate.merge(templateKey, 1, Integer::sum);
+					successfulParentIds.add(binding.getLineUserId());
+					if (firstProviderMessageId == null) {
+						firstProviderMessageId = result.providerMessageId();
+					}
+				} else {
+					firstErrorByTemplate.putIfAbsent(templateKey, result.errorMessage());
+				}
+			}
+		}
+		for (Map.Entry<String, List<NotificationCandidate>> entry : candidatesByTemplate.entrySet()) {
+			int templateSuccessCount = successByTemplate.getOrDefault(entry.getKey(), 0);
+			String status = templateSuccessCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
+			String error = templateSuccessCount == bindings.size() ? null
+					: "成功 " + templateSuccessCount + " / " + bindings.size()
+							+ (firstErrorByTemplate.get(entry.getKey()) == null ? "" : "；" + firstErrorByTemplate.get(entry.getKey()));
+			for (NotificationCandidate candidate : entry.getValue()) {
+				saveLog(candidate, firstContentByTemplate.get(entry.getKey()), status, error, firstProviderMessageId);
+			}
+		}
+		return successfulParentIds.size();
+	}
+
+	private Map<String, List<NotificationCandidate>> groupCandidatesByTemplate(List<NotificationCandidate> candidates) {
+		Map<String, List<NotificationCandidate>> candidatesByTemplate = new LinkedHashMap<>();
+		for (NotificationCandidate candidate : candidates) {
+			candidatesByTemplate.computeIfAbsent(candidate.templateKey(), ignored -> new ArrayList<>()).add(candidate);
+		}
+		return candidatesByTemplate;
+	}
+
+	private String renderTemplateGroup(List<NotificationCandidate> candidates, ParentLineBinding binding) {
+		List<String> messages = candidates.stream().map(candidate -> renderTemplate(null, candidate, binding)).toList();
+		if (messages.isEmpty()) {
+			return "";
+		}
+		StringBuilder content = new StringBuilder(messages.get(0));
+		for (int index = 1; index < messages.size(); index++) {
+			content.append("\n").append(removeRepeatedTemplateIntro(messages.get(index)));
+		}
+		return content.toString();
+	}
+
+	private String removeRepeatedTemplateIntro(String content) {
+		int greetingEnd = content.indexOf("您好：\n");
+		if (greetingEnd >= 0) {
+			return content.substring(greetingEnd + "您好：\n".length());
+		}
+		int headerEnd = content.indexOf("\n\n");
+		return headerEnd >= 0 ? content.substring(headerEnd + 2) : content;
+	}
+
 	private void addScoreCandidate(List<NotificationCandidate> candidates, Score score) {
 		if (score == null || score.getId() == null || score.getStudent() == null || score.getExam() == null) {
 			return;
@@ -204,12 +313,15 @@ public class LineNotificationCenterService {
 	}
 
 	private void addMakeUpCandidates(List<NotificationCandidate> candidates, MakeUpClassRequest request) {
-		if (request == null || request.getId() == null || request.getClassRoom() == null
-				|| request.getSelectedMakeUpStart() == null) {
+		if (request == null || request.getId() == null || request.getClassRoom() == null) {
 			return;
 		}
 		ClassRoom classRoom = request.getClassRoom();
+		boolean timePending = request.getSelectedMakeUpStart() == null;
 		String templateKey = request.getSourceType() == MakeUpSourceType.RESCHEDULE ? "RESCHEDULE" : "MAKE_UP";
+		if (timePending) {
+			templateKey += "_PENDING";
+		}
 		String typeLabel = request.getSourceType() == MakeUpSourceType.RESCHEDULE ? "調課" : "補課";
 		for (ClassStudent classStudent : classStudentRepository
 				.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(classRoom.getId())) {
@@ -222,7 +334,8 @@ public class LineNotificationCenterService {
 					classRoom.getDisplayName(), REF_MAKE_UP, request.getId(),
 					Map.of(
 							"原上課時間", formatOriginalCourseTime(request),
-							"新上課時間", formatDateTimeRange(request.getSelectedMakeUpStart(), request.getSelectedMakeUpEnd()),
+							"新上課時間", timePending ? "待定"
+									: formatDateTimeRange(request.getSelectedMakeUpStart(), request.getSelectedMakeUpEnd()),
 							"項目名稱", typeLabel,
 							"課程名稱", classRoom.getDisplayName())));
 		}
@@ -359,6 +472,10 @@ public class LineNotificationCenterService {
 	}
 
 	public record ParentOption(Long id, String label, String relation) {
+	}
+
+	public record NotificationStudentGroup(Long studentId, String studentName, String studentGivenName,
+			List<ParentOption> parents, List<NotificationCandidate> candidates) {
 	}
 
 	public record NotificationCandidate(String id, String templateKey, String typeLabel, String cardClass,
