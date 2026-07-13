@@ -18,13 +18,17 @@ import com.example.cramschool.dto.data.DataDtos;
 import com.example.cramschool.repository.JdbcDynamicDataRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Service
 public class DataManagementService {
 	private final DataResourceRegistry registry;
 	private final JdbcDynamicDataRepository repository;
 	private final NamedParameterJdbcTemplate jdbc;
-	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final ObjectMapper objectMapper = new ObjectMapper()
+			.registerModule(new JavaTimeModule())
+			.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 	private final StudentService studentService;
 	private final TeacherService teacherService;
 	private final ClassRoomService classRoomService;

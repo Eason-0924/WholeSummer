@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
 <head th:replace="~{fragments/layout :: head('資料管理')}"></head>
-<head><link rel="stylesheet" th:href="@{/css/data-management.css(v=5)}" href="/css/data-management.css?v=5"></head>
+<head><link rel="stylesheet" th:href="@{/css/data-management.css(v=6)}" href="/css/data-management.css?v=6"></head>
 <body th:attr="data-can-edit=${teacherPermissions.dataEdit},data-can-delete=${teacherPermissions.dataDelete},data-can-export=${teacherPermissions.dataExport}">
 <nav th:replace="~{fragments/layout :: navbar}"></nav>
 <main class="data-shell">
@@ -42,5 +42,5 @@
 	<form id="editor-form"><div id="editor-fields" class="editor-fields"></div><div class="editor-actions"><button type="button" id="cancel-editor" class="btn btn-outline-secondary">取消</button><button type="submit" class="btn btn-primary">儲存變更</button></div></form>
 </aside>
 <div th:replace="~{fragments/layout :: scripts}"></div>
-<script th:src="@{/js/data-management.js(v=5)}" src="/js/data-management.js?v=5"></script>
+<script th:src="@{/js/data-management.js(v=6)}" src="/js/data-management.js?v=6"></script>
 </body></html>

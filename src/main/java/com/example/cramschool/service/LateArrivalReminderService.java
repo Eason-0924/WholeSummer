@@ -3,6 +3,8 @@ package com.example.cramschool.service;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -41,7 +43,7 @@ public class LateArrivalReminderService {
 		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
-	@Scheduled(fixedDelayString = "${line.late-reminder.scan-delay-ms:60000}",
+	@Scheduled(fixedDelayString = "${line.late-reminder.scan-delay-ms:300000}",
 			initialDelayString = "${line.late-reminder.initial-delay-ms:60000}")
 	public void sendDueLateArrivalReminders() {
 		sendDueLateArrivalReminders(LocalDateTime.now(clock));
@@ -52,7 +54,11 @@ public class LateArrivalReminderService {
 			return;
 		}
 		LocalDate today = now.toLocalDate();
+		Set<Long> processedScheduleIds = new HashSet<>();
 		for (WeeklyScheduleDto schedule : weeklyScheduleService.findWeeklySchedules(today, null, true, null, null)) {
+			if (schedule == null || !processedScheduleIds.add(schedule.getScheduleId())) {
+				continue;
+			}
 			if (!isDueSchedule(schedule, now)) {
 				continue;
 			}
@@ -71,7 +77,7 @@ public class LateArrivalReminderService {
 			return false;
 		}
 		return schedule.getCourseDate().equals(now.toLocalDate())
-				&& !now.isBefore(schedule.getStartTime().plusMinutes(5))
+				&& now.isAfter(schedule.getStartTime().plusMinutes(5))
 				&& !now.isAfter(schedule.getEndTime());
 	}
 

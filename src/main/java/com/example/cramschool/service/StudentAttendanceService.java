@@ -9,6 +9,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -303,19 +304,21 @@ public class StudentAttendanceService {
 
 		LocalDateTime cardTime = LocalDateTime.now(clock);
 		LocalDate attendanceDate = cardTime.toLocalDate();
-		Optional<StudentAttendance> openAttendance = studentAttendanceRepository
+		List<StudentAttendance> openAttendances = studentAttendanceRepository
 				.findByStudentIdAndAttendanceDateOrderByIdDesc(student.getId(), attendanceDate)
 				.stream()
 				.filter(attendance -> attendance.getCheckInTime() != null && attendance.getCheckOutTime() == null)
-				.findFirst();
-		if (openAttendance.isPresent()) {
-			StudentAttendance attendance = openAttendance.get();
-			attendance.setCheckOutTime(cardTime);
-			attendance.setCheckMethod("CARD");
-			attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
-			attendance.setCardId(normalizedCardId);
-			studentAttendanceRepository.save(attendance);
-			sendCardCheckOutNotification(attendance);
+				.toList();
+		if (!openAttendances.isEmpty()) {
+			for (StudentAttendance attendance : openAttendances) {
+				attendance.setCheckOutTime(cardTime);
+				attendance.setCheckMethod("CARD");
+				attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
+				attendance.setCardId(normalizedCardId);
+				studentAttendanceRepository.save(attendance);
+				sendCardCheckOutNotification(attendance);
+			}
+			StudentAttendance attendance = openAttendances.getFirst();
 
 			CardCheckInResponse response = CardCheckInResponse.studentCheckOut(
 					student.getId(), student.getDisplayName(), attendance.getClassRoom().getDisplayName(),
@@ -324,8 +327,8 @@ public class StudentAttendanceService {
 			return response;
 		}
 
-		Optional<CardClassMatch> matchOptional = findTodayCardClass(student, cardTime);
-		if (matchOptional.isEmpty()) {
+		List<CardClassMatch> matches = findTodayCardClasses(student, cardTime);
+		if (matches.isEmpty()) {
 			CardCheckInResponse response = CardCheckInResponse.fail("NO_CLASS_TODAY",
 					student.getDisplayName() + " 今日沒有需要點名的課程");
 			response.setStudentId(student.getId());
@@ -334,33 +337,43 @@ public class StudentAttendanceService {
 			return response;
 		}
 
-		CardClassMatch match = matchOptional.get();
-		Optional<StudentAttendance> existingAttendance = studentAttendanceRepository
-				.findByClassRoomIdAndStudentIdAndAttendanceDate(match.classRoom().getId(), student.getId(), attendanceDate);
-		if (existingAttendance.isPresent()) {
+		CardClassMatch match = matches.getFirst();
+		List<StudentAttendance> existingAttendances = new ArrayList<>();
+		for (CardClassMatch candidate : matches) {
+			studentAttendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+					candidate.classRoom().getId(), student.getId(), attendanceDate)
+					.ifPresent(existingAttendances::add);
+		}
+		if (existingAttendances.size() == matches.size()) {
 			CardCheckInResponse response = CardCheckInResponse.fail("DUPLICATE_CHECK_IN",
 					student.getDisplayName() + "已完成本堂課點名與簽退，請勿重複刷卡");
 			response.setStudentId(student.getId());
 			response.setStudentName(student.getDisplayName());
 			response.setClassName(match.classRoom().getDisplayName());
 			response.setCardId(normalizedCardId);
-			response.setCheckInTime(existingAttendance.get().getCheckInTime());
-			response.setCheckOutTime(existingAttendance.get().getCheckOutTime());
+			response.setCheckInTime(existingAttendances.getFirst().getCheckInTime());
+			response.setCheckOutTime(existingAttendances.getFirst().getCheckOutTime());
 			return response;
 		}
 
-		StudentAttendance attendance = new StudentAttendance();
-		attendance.setStudent(student);
-		attendance.setClassRoom(match.classRoom());
-		attendance.setAttendanceDate(attendanceDate);
-		attendance.setStatus(resolveCardAttendanceStatus(match.schedule(), cardTime));
-		attendance.setNote("到班時間：" + cardTime.toLocalTime().format(ARRIVAL_TIME_FORMATTER));
-		attendance.setCheckMethod("CARD");
-		attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
-		attendance.setCardId(normalizedCardId);
-		attendance.setCheckInTime(cardTime);
-		studentAttendanceRepository.save(attendance);
-		sendCardCheckInNotification(attendance);
+		for (CardClassMatch candidate : matches) {
+			if (studentAttendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
+					candidate.classRoom().getId(), student.getId(), attendanceDate).isPresent()) {
+				continue;
+			}
+			StudentAttendance attendance = new StudentAttendance();
+			attendance.setStudent(student);
+			attendance.setClassRoom(candidate.classRoom());
+			attendance.setAttendanceDate(attendanceDate);
+			attendance.setStatus(resolveCardAttendanceStatus(candidate.schedule(), cardTime));
+			attendance.setNote("到班時間：" + cardTime.toLocalTime().format(ARRIVAL_TIME_FORMATTER));
+			attendance.setCheckMethod("CARD");
+			attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
+			attendance.setCardId(normalizedCardId);
+			attendance.setCheckInTime(cardTime);
+			studentAttendanceRepository.save(attendance);
+			sendCardCheckInNotification(attendance);
+		}
 
 		CardCheckInResponse response = CardCheckInResponse.success(
 				student.getId(), student.getDisplayName(), match.classRoom().getDisplayName(), cardTime);
@@ -597,16 +610,29 @@ public class StudentAttendanceService {
 		this.clock = clock == null ? Clock.systemDefaultZone() : clock;
 	}
 
-	private Optional<CardClassMatch> findTodayCardClass(Student student, LocalDateTime checkInTime) {
+	private List<CardClassMatch> findTodayCardClasses(Student student, LocalDateTime checkInTime) {
 		String weekdayName = WEEKDAY_NAMES.get(checkInTime.getDayOfWeek());
-		return classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
+		List<CardClassMatch> candidates = classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
 				.map(ClassStudent::getClassRoom)
 				.filter(ClassRoom::isActive)
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
 						.filter(schedule -> weekdayName.equals(schedule.getWeekday()))
 						.filter(schedule -> isWithinCardCheckInWindow(schedule, checkInTime))
 						.map(schedule -> new CardClassMatch(classRoom, schedule, distanceFromSchedule(schedule, checkInTime))))
-				.min(Comparator.comparingLong(CardClassMatch::distanceSeconds));
+				.sorted(Comparator.comparingLong(CardClassMatch::distanceSeconds))
+				.toList();
+		if (candidates.isEmpty()) {
+			return candidates;
+		}
+		List<CardClassMatch> concurrent = candidates.stream()
+				.filter(candidate -> isDuringSchedule(candidate.schedule(), checkInTime))
+				.toList();
+		return concurrent.isEmpty() ? List.of(candidates.getFirst()) : concurrent;
+	}
+
+	private boolean isDuringSchedule(ClassSchedule schedule, LocalDateTime checkInTime) {
+		LocalTime time = checkInTime.toLocalTime();
+		return !time.isBefore(schedule.getStartTime()) && !time.isAfter(schedule.getEndTime());
 	}
 
 	private boolean isWithinCardCheckInWindow(ClassSchedule schedule, LocalDateTime checkInTime) {

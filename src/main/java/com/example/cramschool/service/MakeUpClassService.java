@@ -424,8 +424,21 @@ public class MakeUpClassService {
 		ClassSchedule rescheduled = findAllowedDirectReschedule(rescheduleScheduleId, currentTeacherId, director);
 		ClassSchedule cancelled = findPairedCancelledSchedule(rescheduled)
 				.orElseThrow(() -> new IllegalArgumentException("找不到配對的原課取消紀錄，無法刪除調課"));
+		Long originalScheduleId = rescheduled.getOriginalSchedule().getId();
+		// Historical leave/absence records may still point to one of the two
+		// event rows. Move those references back to the weekly source schedule
+		// before removing the event rows, otherwise MySQL rejects the delete.
+		classScheduleRepository.reassignTeacherLeaveSchedule(rescheduled.getId(), originalScheduleId);
+		classScheduleRepository.reassignTeacherLeaveSchedule(cancelled.getId(), originalScheduleId);
+		classScheduleRepository.reassignMakeUpRequestSchedule(rescheduled.getId(), originalScheduleId);
+		classScheduleRepository.reassignMakeUpRequestSchedule(cancelled.getId(), originalScheduleId);
+		classScheduleRepository.reassignStudentLeaveSchedule(rescheduled.getId(), originalScheduleId);
+		classScheduleRepository.reassignStudentLeaveSchedule(cancelled.getId(), originalScheduleId);
 		classScheduleRepository.delete(rescheduled);
 		classScheduleRepository.delete(cancelled);
+		// Force the FK checks while the request is still in this operation so the
+		// controller can show the actual database failure reason.
+		classScheduleRepository.flush();
 		clearDirectRescheduleCaches(rescheduleScheduleId);
 	}
 

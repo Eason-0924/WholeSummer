@@ -60,7 +60,7 @@
 
 	async function registerServiceWorker() {
 		if (!registrationPromise) {
-			registrationPromise = navigator.serviceWorker.register("/service-worker.js");
+			registrationPromise = navigator.serviceWorker.register("/service-worker.js?v=20260713-2");
 		}
 		return registrationPromise;
 	}

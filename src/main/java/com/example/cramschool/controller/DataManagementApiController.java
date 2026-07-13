@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -123,6 +124,19 @@ public class DataManagementApiController {
 		String code = ex.getMessage() != null && ex.getMessage().contains("權限") ? "PERMISSION_DENIED" : "VALIDATION_FAILED";
 		HttpStatus status = code.equals("PERMISSION_DENIED") ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST;
 		return ResponseEntity.status(status).body(new DataDtos.ErrorResponse(false, code, ex.getMessage()));
+	}
+
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<DataDtos.ErrorResponse> dataIntegrity(DataIntegrityViolationException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(new DataDtos.ErrorResponse(false, "DATA_IN_USE", "操作失敗：此資料仍被其他紀錄使用，無法刪除。"));
+	}
+
+	@ExceptionHandler(IllegalStateException.class)
+	public ResponseEntity<DataDtos.ErrorResponse> operationFailed(IllegalStateException ex) {
+		String message = ex.getMessage() == null || ex.getMessage().isBlank() ? "操作失敗，請查看系統紀錄。" : ex.getMessage();
+		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+				.body(new DataDtos.ErrorResponse(false, "OPERATION_FAILED", "操作失敗：" + message));
 	}
 
 	private void require(HttpSession session, TeacherPermissionType permission) {

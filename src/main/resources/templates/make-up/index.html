@@ -127,72 +127,8 @@
 		</section>
 	</div>
 
-	<div class="modal fade" id="deleteMakeUpModal" tabindex="-1" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h3 class="modal-title h5">刪除補課紀錄</h3>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
-				</div>
-				<div class="modal-body">
-					<p class="mb-1">要如何處理這筆已安排的補課？</p>
-					<p class="text-secondary mb-0" id="deleteMakeUpTitle">補課紀錄</p>
-				</div>
-				<div class="modal-footer">
-					<form method="post" id="reopenMakeUpForm">
-						<button type="submit" class="btn btn-warning">重新安排時間</button>
-					</form>
-					<form method="post" id="ignoreMakeUpForm">
-						<button type="submit" class="btn btn-outline-danger">忽略補課</button>
-					</form>
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div class="modal fade" id="deleteDirectRescheduleModal" tabindex="-1" aria-hidden="true">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h3 class="modal-title h5">刪除調課紀錄</h3>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
-				</div>
-				<div class="modal-body">
-					<p class="mb-1">刪除後會恢復原課程。</p>
-					<p class="text-secondary mb-0" id="deleteDirectRescheduleTitle">調課紀錄</p>
-				</div>
-				<div class="modal-footer">
-					<form method="post" id="deleteDirectRescheduleForm">
-						<button type="submit" class="btn btn-danger">刪除調課</button>
-					</form>
-					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-				</div>
-			</div>
-		</div>
-	</div>
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
-<script>
-	const deleteMakeUpModal = document.getElementById('deleteMakeUpModal');
-	if (deleteMakeUpModal) {
-		deleteMakeUpModal.addEventListener('show.bs.modal', (event) => {
-			const button = event.relatedTarget;
-			document.getElementById('deleteMakeUpTitle').textContent = button?.dataset.title || '補課紀錄';
-			document.getElementById('reopenMakeUpForm').action = button?.dataset.reopenAction || '#';
-			document.getElementById('ignoreMakeUpForm').action = button?.dataset.ignoreAction || '#';
-		});
-	}
-
-	const deleteDirectRescheduleModal = document.getElementById('deleteDirectRescheduleModal');
-	if (deleteDirectRescheduleModal) {
-		deleteDirectRescheduleModal.addEventListener('show.bs.modal', (event) => {
-			const button = event.relatedTarget;
-			document.getElementById('deleteDirectRescheduleTitle').textContent = button?.dataset.title || '調課紀錄';
-			document.getElementById('deleteDirectRescheduleForm').action = button?.dataset.deleteAction || '#';
-		});
-	}
-</script>
 </body>
 </html>

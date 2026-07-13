@@ -1,9 +1,12 @@
 package com.example.cramschool.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -15,6 +18,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassStudent;
@@ -60,6 +64,61 @@ class LateArrivalReminderServiceTests {
 				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
 		verify(lineNotificationService, never()).sendLateArrivalReminder(eq(arrivedStudent), eq(20639000000101L),
 				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
+	}
+
+	@Test
+	void doesNotSendReminderWhenStudentArrivesWithinFiveMinutes() {
+		LocalDate date = LocalDate.of(2026, 7, 5);
+		WeeklyScheduleService weeklyScheduleService = mock(WeeklyScheduleService.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
+		when(weeklyScheduleService.findWeeklySchedules(eq(date), eq(null), eq(true), eq(null), eq(null)))
+				.thenReturn(List.of(schedule(date)));
+		LateArrivalReminderService service = new LateArrivalReminderService(
+				weeklyScheduleService, mock(ClassStudentRepository.class), mock(StudentAttendanceRepository.class),
+				lineNotificationService, mock(ClassRoomRepository.class), webPushEventNotificationService);
+		setNow(service, LocalDateTime.of(date, LocalTime.of(18, 5)));
+
+		service.sendDueLateArrivalReminders();
+
+		verifyNoInteractions(lineNotificationService, webPushEventNotificationService);
+	}
+
+	@Test
+	void sendsOneBrowserNotificationWhenTheSameScheduleIsReturnedTwice() {
+		LocalDate date = LocalDate.of(2026, 7, 5);
+		WeeklyScheduleDto schedule = schedule(date);
+		Student student = student(21L, "尚未到班");
+		WeeklyScheduleService weeklyScheduleService = mock(WeeklyScheduleService.class);
+		ClassStudentRepository classStudentRepository = mock(ClassStudentRepository.class);
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
+		when(lineNotificationService.isLineEnabled()).thenReturn(true);
+		when(weeklyScheduleService.findWeeklySchedules(eq(date), eq(null), eq(true), eq(null), eq(null)))
+				.thenReturn(List.of(schedule, schedule));
+		when(classStudentRepository.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(11L))
+				.thenReturn(List.of(classStudent(student)));
+		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 21L, date)).thenReturn(false);
+		LateArrivalReminderService service = new LateArrivalReminderService(
+				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService,
+				mock(ClassRoomRepository.class), webPushEventNotificationService);
+		setNow(service, LocalDateTime.of(date, LocalTime.of(18, 6)));
+
+		service.sendDueLateArrivalReminders();
+
+		verify(lineNotificationService, times(1)).sendLateArrivalReminder(eq(student), eq(20639000000101L),
+				eq("國一數學"), eq(LocalDateTime.of(date, LocalTime.of(18, 0))));
+		verify(webPushEventNotificationService, times(1)).notifyLateArrival(eq("尚未到班"), eq("國一數學"), eq(null));
+	}
+
+	@Test
+	void scansForLateArrivalsEveryFiveMinutesByDefault() throws NoSuchMethodException {
+		Scheduled scheduled = LateArrivalReminderService.class
+				.getMethod("sendDueLateArrivalReminders")
+				.getAnnotation(Scheduled.class);
+
+		assertThat(scheduled.fixedDelayString()).isEqualTo("${line.late-reminder.scan-delay-ms:300000}");
 	}
 
 	private void setNow(LateArrivalReminderService service, LocalDateTime now) {

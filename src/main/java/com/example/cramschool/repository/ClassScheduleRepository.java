@@ -71,4 +71,22 @@ public interface ClassScheduleRepository extends JpaRepository<ClassSchedule, Lo
 	@Modifying
 	@Query("update ClassSchedule schedule set schedule.createdByTeacherId = null where schedule.createdByTeacherId = :teacherId")
 	void clearCreatedByTeacherId(@Param("teacherId") Long teacherId);
+
+	@Transactional
+	@Modifying
+	@Query(value = "update teacher_leaves set course_schedule_id = :targetId where course_schedule_id = :sourceId",
+			nativeQuery = true)
+	int reassignTeacherLeaveSchedule(@Param("sourceId") Long sourceId, @Param("targetId") Long targetId);
+
+	@Transactional
+	@Modifying
+	@Query(value = "update make_up_class_requests set original_course_schedule_id = :targetId "
+			+ "where original_course_schedule_id = :sourceId", nativeQuery = true)
+	int reassignMakeUpRequestSchedule(@Param("sourceId") Long sourceId, @Param("targetId") Long targetId);
+
+	@Transactional
+	@Modifying
+	@Query(value = "update student_leave_requests set class_schedule_id = :targetId where class_schedule_id = :sourceId",
+			nativeQuery = true)
+	int reassignStudentLeaveSchedule(@Param("sourceId") Long sourceId, @Param("targetId") Long targetId);
 }

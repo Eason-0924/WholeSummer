@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
@@ -64,6 +65,22 @@ class LineNotificationServiceTests {
 		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
 		verify(logRepository).save(logCaptor.capture());
 		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("ATTENDANCE_CHECK_IN");
+	}
+
+	@Test
+	void lateArrivalReminderIsNotSentAgainForTheSameClassOccurrence() {
+		Student student = student();
+		ParentLineBindingRepository bindingRepository = mock(ParentLineBindingRepository.class);
+		LineNotificationLogRepository logRepository = mock(LineNotificationLogRepository.class);
+		LineMessageService lineMessageService = mock(LineMessageService.class);
+		when(logRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+				student, "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE", 123L)).thenReturn(true);
+		LineNotificationService service = new LineNotificationService(null, bindingRepository, logRepository,
+				null, lineMessageService, new LineProperties());
+
+		service.sendLateArrivalReminder(student, 123L, "國一（A班）", LocalDateTime.of(2026, 7, 5, 18, 0));
+
+		verifyNoInteractions(bindingRepository, lineMessageService);
 	}
 
 	@Test

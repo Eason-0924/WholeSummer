@@ -193,6 +193,31 @@ class StudentCardCheckInBoundaryTests {
 		assertThat(attendances.getFirst().getClassRoom().getId()).isEqualTo(earlierClass.getId());
 	}
 
+	@Test
+	void recordsAndChecksOutEveryConcurrentClass() {
+		Student student = student("同時段學生", "CONCURRENT");
+		ClassRoom firstClass = classRoom("同時段甲班", LocalTime.of(18, 0), LocalTime.of(20, 0));
+		ClassRoom secondClass = classRoom("同時段乙班", LocalTime.of(18, 0), LocalTime.of(20, 0));
+		membership(firstClass, student);
+		membership(secondClass, student);
+		setNow(LocalDateTime.of(2026, 6, 30, 18, 2));
+
+		assertThat(studentAttendanceService.cardCheckIn(request("CONCURRENT")).getStatus()).isEqualTo("CHECKED_IN");
+		List<StudentAttendance> checkedIn = studentAttendanceRepository
+				.findByStudentIdOrderByAttendanceDateDescIdDesc(student.getId());
+		assertThat(checkedIn).hasSize(2);
+		assertThat(checkedIn).extracting(attendance -> attendance.getClassRoom().getId())
+				.containsExactlyInAnyOrder(firstClass.getId(), secondClass.getId());
+		assertThat(checkedIn).allSatisfy(attendance -> assertThat(attendance.getCheckOutTime()).isNull());
+
+		setNow(LocalDateTime.of(2026, 6, 30, 19, 0));
+		assertThat(studentAttendanceService.cardCheckIn(request("CONCURRENT")).getStatus()).isEqualTo("CHECKED_OUT");
+		List<StudentAttendance> checkedOut = studentAttendanceRepository
+				.findByStudentIdOrderByAttendanceDateDescIdDesc(student.getId());
+		assertThat(checkedOut).allSatisfy(attendance -> assertThat(attendance.getCheckOutTime())
+				.isEqualTo(LocalDateTime.of(2026, 6, 30, 19, 0)));
+	}
+
 	private void setNow(LocalDateTime now) {
 		Instant instant = now.atZone(TAIPEI).toInstant();
 		studentAttendanceService.setClock(Clock.fixed(instant, TAIPEI));

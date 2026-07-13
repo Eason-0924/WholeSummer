@@ -1,5 +1,5 @@
 name: Build Windows EXE
-run-name: Release 1.4.0
+run-name: Release 1.4.1
 
 on:
   workflow_dispatch:

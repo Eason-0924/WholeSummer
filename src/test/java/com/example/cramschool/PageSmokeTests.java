@@ -450,8 +450,9 @@ class PageSmokeTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("補課紀錄")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("安排補課時間")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("段考調整")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("重新安排時間")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("忽略補課")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("編輯")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("刪除調課"))));
 	}
 
 	@Test

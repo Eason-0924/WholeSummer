@@ -6,6 +6,7 @@ import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,8 +63,8 @@ public class MakeUpClassController {
 			model.addAttribute("view", view);
 			model.addAttribute("makeUpEditMode", false);
 			return "make-up/detail";
-		} catch (IllegalArgumentException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		} catch (RuntimeException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", operationFailureMessage(ex));
 			return "redirect:/make-up";
 		}
 	}
@@ -170,8 +171,8 @@ public class MakeUpClassController {
 		try {
 			makeUpClassService.reopenScheduledMakeUp(requestId, teacherId, director);
 			redirectAttributes.addFlashAttribute("message", "已移回待安排補課清單");
-		} catch (IllegalArgumentException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		} catch (RuntimeException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", operationFailureMessage(ex));
 		}
 		return "redirect:/make-up";
 	}
@@ -184,8 +185,8 @@ public class MakeUpClassController {
 		try {
 			makeUpClassService.ignoreScheduledMakeUp(requestId, teacherId, director);
 			redirectAttributes.addFlashAttribute("message", "已忽略此補課紀錄");
-		} catch (IllegalArgumentException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		} catch (RuntimeException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", operationFailureMessage(ex));
 		}
 		return "redirect:/make-up";
 	}
@@ -203,11 +204,26 @@ public class MakeUpClassController {
 			makeUpClassService.updateDirectReschedule(
 					scheduleId, newStart, reason, teacherId, director, allowTeacherConflict);
 			redirectAttributes.addFlashAttribute("message", "已更新調課紀錄");
-		} catch (IllegalArgumentException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		} catch (RuntimeException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", operationFailureMessage(ex));
 			return "redirect:/make-up/reschedules/" + scheduleId + "/edit";
 		}
 		return "redirect:/make-up";
+	}
+
+	private String operationFailureMessage(RuntimeException ex) {
+		Throwable cause = ex;
+		while (cause != null) {
+			if (cause instanceof DataIntegrityViolationException) {
+				return "操作失敗：調課紀錄仍被其他請假、補課或出席資料引用，請先確認相關紀錄。";
+			}
+			if (cause.getCause() == null) {
+				break;
+			}
+			cause = cause.getCause();
+		}
+		String reason = cause.getMessage();
+		return reason == null || reason.isBlank() ? "操作失敗：請查看系統紀錄" : "操作失敗：" + reason;
 	}
 
 	@PostMapping("/reschedules/{scheduleId}/delete")
@@ -218,8 +234,8 @@ public class MakeUpClassController {
 		try {
 			makeUpClassService.deleteDirectReschedule(scheduleId, teacherId, director);
 			redirectAttributes.addFlashAttribute("message", "已刪除調課紀錄");
-		} catch (IllegalArgumentException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
+		} catch (RuntimeException ex) {
+			redirectAttributes.addFlashAttribute("errorMessage", operationFailureMessage(ex));
 		}
 		return "redirect:/make-up";
 	}
