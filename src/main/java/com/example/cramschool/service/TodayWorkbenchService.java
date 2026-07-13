@@ -123,6 +123,11 @@ public class TodayWorkbenchService {
 
 		Map<Long, List<ClassStudent>> studentsByClassId = new LinkedHashMap<>();
 		Map<Long, Map<Long, StudentAttendance>> attendancesByClassId = new LinkedHashMap<>();
+		java.util.Set<Long> studentsOnCampus = studentAttendanceRepository
+				.findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(today).stream()
+				.map(attendance -> attendance.getStudent() == null ? null : attendance.getStudent().getId())
+				.filter(java.util.Objects::nonNull)
+				.collect(java.util.stream.Collectors.toSet());
 
 		for (WeeklyScheduleDto schedule : todaySchedules) {
 			Long classRoomId = schedule.getClassRoomId();
@@ -136,6 +141,11 @@ public class TodayWorkbenchService {
 			for (ClassStudent classStudent : students) {
 				StudentAttendance attendance = attendanceByStudentId.get(classStudent.getStudent().getId());
 				if (attendance == null) {
+					if (studentsOnCampus.contains(classStudent.getStudent().getId())) {
+						presentCount++;
+						presentNames.add(classStudent.getStudent().getDisplayName());
+						continue;
+					}
 					if (hasClassStarted(schedule.getStartTime(), now)) {
 						lateCount++;
 						lateNames.add(classStudent.getStudent().getDisplayName());

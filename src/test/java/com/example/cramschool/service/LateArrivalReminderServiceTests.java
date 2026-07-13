@@ -88,6 +88,35 @@ class LateArrivalReminderServiceTests {
 	}
 
 	@Test
+	void doesNotSendLateReminderWhenStudentIsAlreadyOnCampusFromAnotherClassThatDay() {
+		LocalDate date = LocalDate.of(2026, 7, 5);
+		WeeklyScheduleService weeklyScheduleService = mock(WeeklyScheduleService.class);
+		ClassStudentRepository classStudentRepository = mock(ClassStudentRepository.class);
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
+		Student student = student(21L, "下午已到班");
+		when(lineNotificationService.isLineEnabled()).thenReturn(true);
+		when(weeklyScheduleService.findWeeklySchedules(eq(date), eq(null), eq(true), eq(null), eq(null)))
+				.thenReturn(List.of(schedule(date)));
+		when(classStudentRepository.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(11L))
+				.thenReturn(List.of(classStudent(student)));
+		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 21L, date)).thenReturn(false);
+		when(attendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date))
+				.thenReturn(true);
+		LateArrivalReminderService service = new LateArrivalReminderService(
+				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService,
+				mock(ClassRoomRepository.class), webPushEventNotificationService);
+		setNow(service, LocalDateTime.of(date, LocalTime.of(18, 6)));
+
+		service.sendDueLateArrivalReminders();
+
+		verifyNoInteractions(webPushEventNotificationService);
+		verify(lineNotificationService, never()).sendLateArrivalReminders(org.mockito.ArgumentMatchers.anyList());
+		verify(attendanceRepository).existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date);
+	}
+
+	@Test
 	void sendsOneBrowserNotificationWhenTheSameScheduleIsReturnedTwice() {
 		LocalDate date = LocalDate.of(2026, 7, 5);
 		WeeklyScheduleDto schedule = schedule(date);

@@ -78,6 +78,9 @@ class TodayWorkbenchServiceTests {
 								attendance(classRoomId, lateStudent, today, AttendanceStatus.LATE,
 										LocalDateTime.of(today, LocalTime.of(19, 0))));
 					}
+					if ("findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull".equals(method.getName())) {
+						return List.of();
+					}
 					throw new UnsupportedOperationException(method.getName());
 				});
 
@@ -179,6 +182,9 @@ class TodayWorkbenchServiceTests {
 					if ("findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc".equals(method.getName())) {
 						return List.of(attendance(classRoomId, presentStudent, today, AttendanceStatus.PRESENT,
 								LocalDateTime.of(today, LocalTime.of(21, 0))));
+					}
+					if ("findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull".equals(method.getName())) {
+						return List.of();
 					}
 					throw new UnsupportedOperationException(method.getName());
 				});
@@ -289,6 +295,11 @@ class TodayWorkbenchServiceTests {
 				(method, args) -> {
 					if ("findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc".equals(method.getName())) {
 						return attendances;
+					}
+					if ("findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull".equals(method.getName())) {
+						return attendances.stream()
+								.filter(attendance -> attendance.getCheckInTime() != null && attendance.getCheckOutTime() == null)
+								.toList();
 					}
 					throw new UnsupportedOperationException(method.getName());
 				});

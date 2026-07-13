@@ -24,6 +24,8 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
 	List<StudentAttendance> findByStudentIdAndAttendanceDateOrderByIdDesc(Long studentId, LocalDate attendanceDate);
 
+	List<StudentAttendance> findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(LocalDate attendanceDate);
+
 	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher",
 			"classRoom.schedules" })
 	List<StudentAttendance> findAllByOrderByAttendanceDateDescIdDesc();
@@ -33,6 +35,9 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 
 	boolean existsByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
 			LocalDate attendanceDate);
+
+	boolean existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(
+			Long studentId, LocalDate attendanceDate);
 
 	void deleteByClassRoomId(Long classRoomId);
 
