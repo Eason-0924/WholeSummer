@@ -17,6 +17,7 @@ public class UpdateStateService {
 
 	private static final String LAST_CHECK_TIME = "lastCheckTime";
 	private static final String LAST_IGNORED_VERSION = "lastIgnoredVersion";
+	private static final String LAST_PUSH_NOTIFIED_VERSION = "lastPushNotifiedVersion";
 
 	private final Path stateFile;
 	private final long checkIntervalHours;
@@ -55,6 +56,20 @@ public class UpdateStateService {
 
 	public boolean isIgnored(String version) {
 		return version != null && version.equals(load().getProperty(LAST_IGNORED_VERSION, ""));
+	}
+
+	public boolean shouldNotifyVersion(String version) {
+		return version != null && !version.isBlank()
+				&& !version.equals(load().getProperty(LAST_PUSH_NOTIFIED_VERSION, ""));
+	}
+
+	public void markVersionNotified(String version) {
+		if (version == null || version.isBlank()) {
+			return;
+		}
+		Properties state = load();
+		state.setProperty(LAST_PUSH_NOTIFIED_VERSION, version.trim());
+		save(state);
 	}
 
 	private Properties load() {

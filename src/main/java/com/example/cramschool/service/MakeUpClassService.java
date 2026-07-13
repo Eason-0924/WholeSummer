@@ -53,6 +53,7 @@ public class MakeUpClassService {
 	private final MakeUpClassRequestRepository makeUpClassRequestRepository;
 	private final ScheduleConflictService scheduleConflictService;
 	private final ClassScheduleRepository classScheduleRepository;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 	private final Map<CalendarCacheKey, List<MakeUpCalendarDay>> calendarCache = new ConcurrentHashMap<>();
 	private final Map<DailySlotCacheKey, List<MakeUpSlotOption>> dailySlotCache = new ConcurrentHashMap<>();
 	private final Map<DirectRescheduleSlotCacheKey, List<MakeUpSlotOption>> directRescheduleDailySlotCache =
@@ -60,10 +61,12 @@ public class MakeUpClassService {
 
 	public MakeUpClassService(MakeUpClassRequestRepository makeUpClassRequestRepository,
 			ScheduleConflictService scheduleConflictService,
-			ClassScheduleRepository classScheduleRepository) {
+			ClassScheduleRepository classScheduleRepository,
+			WebPushEventNotificationService webPushEventNotificationService) {
 		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
 		this.scheduleConflictService = scheduleConflictService;
 		this.classScheduleRepository = classScheduleRepository;
+		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
 	public MakeUpClassRequest createRequiredMakeUpFromLeave(TeacherLeave leave) {
@@ -875,7 +878,10 @@ public class MakeUpClassService {
 		request.setSourceRecordId(sourceRecordId);
 		request.setStatus(MakeUpStatus.PENDING);
 		request.setNote(note == null || note.isBlank() ? null : note.trim());
-		return makeUpClassRequestRepository.save(request);
+		MakeUpClassRequest saved = makeUpClassRequestRepository.save(request);
+		webPushEventNotificationService.notifyMakeUpRequired(saved.getId(), sourceType.getDisplayName(),
+				classRoom == null ? null : classRoom.getDisplayName(), teacherId);
+		return saved;
 	}
 
 	private LocalTime businessStart(LocalDate date) {

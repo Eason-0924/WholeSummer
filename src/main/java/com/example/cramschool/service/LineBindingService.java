@@ -36,16 +36,19 @@ public class LineBindingService {
 	private final ParentLineBindingRepository parentLineBindingRepository;
 	private final StudentRepository studentRepository;
 	private final TeacherPermissionService teacherPermissionService;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 
 	public LineBindingService(LineBindCodeRepository lineBindCodeRepository,
 			ParentLineBindingRepository parentLineBindingRepository,
 			StudentRepository studentRepository, TeacherPermissionService teacherPermissionService,
-			LineNotificationTemplateRepository lineNotificationTemplateRepository) {
+			LineNotificationTemplateRepository lineNotificationTemplateRepository,
+			WebPushEventNotificationService webPushEventNotificationService) {
 		this.lineBindCodeRepository = lineBindCodeRepository;
 		this.lineNotificationTemplateRepository = lineNotificationTemplateRepository;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.studentRepository = studentRepository;
 		this.teacherPermissionService = teacherPermissionService;
+		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
 	public LineBindCodeResult createBindCode(Long studentId, Long currentTeacherId, String relation) {
@@ -121,6 +124,7 @@ public class LineBindingService {
 		binding.setLineDisplayName(normalizeNullable(lineDisplayName));
 		consumeBindCode(bindCode);
 		parentLineBindingRepository.save(binding);
+		webPushEventNotificationService.notifyLineBindingCompleted(student.getDisplayName(), relation);
 		return LineBindingReply.success("綁定成功！\n學生：" + student.getDisplayName()
 				+ "\n之後您將收到上課、缺席、補課、成績等通知。");
 	}

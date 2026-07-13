@@ -74,6 +74,12 @@ public record TeacherPermissionView(Set<TeacherPermissionType> granted) {
 		return has(TeacherPermissionType.TEACHER_UPDATE);
 	}
 
+	public boolean isDataView() { return has(TeacherPermissionType.DATA_VIEW); }
+	public boolean isDataEdit() { return has(TeacherPermissionType.DATA_EDIT); }
+	public boolean isDataDelete() { return has(TeacherPermissionType.DATA_DELETE); }
+	public boolean isDataExport() { return has(TeacherPermissionType.DATA_EXPORT); }
+	public boolean isDataViewSensitive() { return has(TeacherPermissionType.DATA_VIEW_SENSITIVE); }
+
 	private boolean has(TeacherPermissionType permissionType) {
 		return granted != null && granted.contains(permissionType);
 	}

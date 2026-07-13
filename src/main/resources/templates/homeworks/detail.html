@@ -18,10 +18,6 @@
 			<a class="btn btn-outline-secondary" th:href="@{/homeworks}">返回</a>
 			<a class="btn btn-outline-success" th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
 			<a class="btn btn-outline-primary" th:href="@{/homeworks/{id}/edit(id=${homework.id})}">編輯</a>
-			<form th:action="@{/homeworks/{id}/delete(id=${homework.id})}"
-					method="post" onsubmit="return confirm('確定要刪除這份作業嗎？');">
-				<button class="btn btn-outline-danger" type="submit">刪除</button>
-			</form>
 		</div>
 	</div>
 

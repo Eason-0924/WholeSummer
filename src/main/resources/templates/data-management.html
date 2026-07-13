@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('資料管理')}"></head>
+<head><link rel="stylesheet" th:href="@{/css/data-management.css(v=5)}" href="/css/data-management.css?v=5"></head>
+<body th:attr="data-can-edit=${teacherPermissions.dataEdit},data-can-delete=${teacherPermissions.dataDelete},data-can-export=${teacherPermissions.dataExport}">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+<main class="data-shell">
+	<aside class="resource-panel">
+		<div class="resource-heading"><strong>資料類別</strong><span class="security-badge">白名單</span></div>
+		<label class="visually-hidden" for="resource-search">搜尋資料表</label>
+		<input id="resource-search" class="form-control" type="search" placeholder="搜尋資料表……" autocomplete="off">
+		<nav id="resource-list" class="resource-list" aria-label="資料表清單"></nav>
+	</aside>
+	<section class="data-content">
+		<header class="data-toolbar">
+			<div><p class="eyebrow">資料管理</p><h1 id="resource-title">載入中……</h1><p id="record-count" class="record-count"></p></div>
+			<div class="toolbar-actions">
+				<label class="visually-hidden" for="keyword">搜尋資料</label>
+				<input id="keyword" class="form-control search-input" type="search" placeholder="搜尋目前資料……" autocomplete="off">
+				<button id="columns-button" class="btn btn-outline-secondary" type="button">欄位</button>
+				<button id="refresh-button" class="btn btn-outline-secondary" type="button">重新整理</button>
+				<button id="new-button" class="btn btn-primary" type="button">＋ 新增</button>
+			</div>
+		</header>
+		<div id="columns-menu" class="columns-menu" hidden></div>
+		<div id="notice" class="alert" role="status" hidden></div>
+		<div class="table-card">
+			<div class="table-responsive"><table class="table data-table"><thead id="data-head"></thead><tbody id="data-body"></tbody></table></div>
+			<div id="loading" class="loading-state">正在載入資料……</div>
+			<div id="empty" class="empty-state" hidden>目前沒有符合條件的資料。</div>
+		</div>
+		<footer class="pagination-bar">
+			<label>每頁 <select id="page-size" class="form-select form-select-sm"><option>20</option><option selected>50</option><option>100</option></select></label>
+			<span id="page-status"></span>
+			<div><button id="previous-page" class="btn btn-sm btn-outline-secondary">上一頁</button> <button id="next-page" class="btn btn-sm btn-outline-secondary">下一頁</button></div>
+		</footer>
+	</section>
+</main>
+<div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+<aside id="editor" class="editor-drawer" aria-hidden="true" aria-labelledby="editor-title">
+	<header><div><p class="eyebrow">受控資料異動</p><h2 id="editor-title">編輯資料</h2></div><button id="close-editor" class="btn-close" aria-label="關閉"></button></header>
+	<form id="editor-form"><div id="editor-fields" class="editor-fields"></div><div class="editor-actions"><button type="button" id="cancel-editor" class="btn btn-outline-secondary">取消</button><button type="submit" class="btn btn-primary">儲存變更</button></div></form>
+</aside>
+<div th:replace="~{fragments/layout :: scripts}"></div>
+<script th:src="@{/js/data-management.js(v=5)}" src="/js/data-management.js?v=5"></script>
+</body></html>

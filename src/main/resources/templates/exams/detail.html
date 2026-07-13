@@ -19,10 +19,6 @@
 			<a class="btn btn-outline-secondary" th:href="@{/exams}">返回</a>
 			<a class="btn btn-outline-success" th:href="@{/exams/{id}/scores(id=${exam.id})}">分數登記</a>
 			<a class="btn btn-outline-primary" th:href="@{/exams/{id}/edit(id=${exam.id})}">編輯</a>
-			<form th:action="@{/exams/{id}/delete(id=${exam.id})}"
-					method="post" onsubmit="return confirm('確定要永久刪除這場測驗嗎？');">
-				<button class="btn btn-outline-danger" type="submit">刪除</button>
-			</form>
 		</div>
 	</div>
 

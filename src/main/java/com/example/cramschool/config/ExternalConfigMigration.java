@@ -30,6 +30,7 @@ public final class ExternalConfigMigration {
 						.append(System.lineSeparator());
 			}
 		}
+		appendVapidKeyPairIfNeeded(existing, additions);
 		if (!additions.isEmpty()) {
 			String section = System.lineSeparator()
 					+ "# Added automatically by WholeSummer" + System.lineSeparator()
@@ -70,7 +71,32 @@ public final class ExternalConfigMigration {
 		values.put("app.report.mail.api-key", "${RESEND_API_KEY:}");
 		values.put("app.report.mail.from", "${WHOLESUMMER_REPORT_FROM:}");
 		values.put("app.report.mail.recipient", "${WHOLESUMMER_REPORT_RECIPIENT:}");
+		values.put("webpush.vapid.auto-generate", "true");
 		return values;
+	}
+
+	private static void appendVapidKeyPairIfNeeded(Properties existing, StringBuilder additions) {
+		if (!Boolean.parseBoolean(existing.getProperty("webpush.vapid.auto-generate", "true"))) {
+			return;
+		}
+		String publicKey = existing.getProperty("webpush.vapid.public-key", "").trim();
+		String privateKey = existing.getProperty("webpush.vapid.private-key", "").trim();
+		if (!publicKey.isEmpty() && !privateKey.isEmpty()) {
+			return;
+		}
+		if (!publicKey.isEmpty() || !privateKey.isEmpty()) {
+			throw new IllegalStateException("VAPID 公鑰與私鑰必須同時設定；請修正 "
+					+ "webpush.vapid.public-key 與 webpush.vapid.private-key");
+		}
+		VapidKeyGenerator.VapidKeyPair keyPair = VapidKeyGenerator.generate();
+		additions.append("# Web Push VAPID key pair generated automatically by WholeSummer")
+				.append(System.lineSeparator())
+				.append("webpush.vapid.public-key=").append(keyPair.publicKey())
+				.append(System.lineSeparator())
+				.append("webpush.vapid.private-key=").append(keyPair.privateKey())
+				.append(System.lineSeparator())
+				.append("webpush.vapid.subject=mailto:admin@whole-summer.com")
+				.append(System.lineSeparator());
 	}
 
 	private static void replaceLegacyDdlAuto(Path configFile) throws IOException {

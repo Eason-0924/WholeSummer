@@ -232,7 +232,7 @@ class TeacherAttendanceServiceTests {
 			}
 		};
 		AtomicLong deletedAttendanceId = new AtomicLong();
-		MakeUpClassService makeUpClassService = new MakeUpClassService(null, null, null) {
+		MakeUpClassService makeUpClassService = new MakeUpClassService(null, null, null, null) {
 			@Override
 			public void deleteAbsenceMakeUpForAttendance(Long attendanceId) {
 				deletedAttendanceId.set(attendanceId);

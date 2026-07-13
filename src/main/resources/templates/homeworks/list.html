@@ -11,7 +11,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0">作業管理</h1>
-				<span th:replace="~{fragments/layout :: help('查看作業資料\n∙ 新增作業：加入新派發作業\n∙ 登記：紀錄學生作業完成狀態\n∙ 編輯：變更作業資料\n∙ 刪除：將作業自資料庫中刪除\n逾期未完成作業\n∙ 追蹤尚未繳交且已超過截止日的作業\n學生完成率排行已移至分析頁面')}"></span>
+				<span th:replace="~{fragments/layout :: help('查看作業資料\n∙ 新增作業：加入新派發作業\n∙ 登記：紀錄學生作業完成狀態\n∙ 編輯：變更作業資料\n∙ 永久刪除請至設定中的資料表管理頁執行\n逾期未完成作業\n∙ 追蹤尚未繳交且已超過截止日的作業\n學生完成率排行已移至分析頁面')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
@@ -69,10 +69,6 @@
 									th:href="@{/homeworks/{id}/records(id=${homework.id})}">登記</a>
 							<a class="btn btn-sm btn-outline-primary"
 									th:href="@{/homeworks/{id}/edit(id=${homework.id})}">編輯</a>
-							<form th:action="@{/homeworks/{id}/delete(id=${homework.id})}"
-									method="post" onsubmit="return confirm('確定要刪除這份作業嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
-							</form>
 						</div>
 					</td>
 				</tr>

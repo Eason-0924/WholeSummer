@@ -9,10 +9,13 @@ public class WebConfig implements WebMvcConfigurer {
 
 	private final AuthInterceptor authInterceptor;
 	private final OperationLogInterceptor operationLogInterceptor;
+	private final DataManagementPermissionInterceptor dataManagementPermissionInterceptor;
 
-	public WebConfig(AuthInterceptor authInterceptor, OperationLogInterceptor operationLogInterceptor) {
+	public WebConfig(AuthInterceptor authInterceptor, OperationLogInterceptor operationLogInterceptor,
+			DataManagementPermissionInterceptor dataManagementPermissionInterceptor) {
 		this.authInterceptor = authInterceptor;
 		this.operationLogInterceptor = operationLogInterceptor;
+		this.dataManagementPermissionInterceptor = dataManagementPermissionInterceptor;
 	}
 
 	@Override
@@ -27,7 +30,10 @@ public class WebConfig implements WebMvcConfigurer {
 						"/internal/desktop/**",
 						"/error",
 						"/favicon.ico",
+						"/manifest.json",
+						"/service-worker.js",
 						"/css/**",
+						"/icons/**",
 						"/js/**",
 						"/images/**",
 						"/webjars/**");
@@ -40,9 +46,14 @@ public class WebConfig implements WebMvcConfigurer {
 						"/internal/desktop/**",
 						"/error",
 						"/favicon.ico",
+						"/manifest.json",
+						"/service-worker.js",
 						"/css/**",
+						"/icons/**",
 						"/js/**",
 						"/images/**",
 						"/webjars/**");
+		registry.addInterceptor(dataManagementPermissionInterceptor)
+				.addPathPatterns("/data-management", "/api/admin/data/**");
 	}
 }

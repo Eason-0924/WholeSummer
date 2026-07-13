@@ -110,24 +110,12 @@
 									<div class="d-flex justify-content-end gap-2" th:if="${record.makeUpRequest}">
 										<a class="btn btn-outline-primary btn-sm"
 												th:href="@{/make-up/{id}/edit(id=${record.makeUpRequestId})}">編輯</a>
-										<button class="btn btn-outline-danger btn-sm" type="button"
-												data-bs-toggle="modal"
-												data-bs-target="#deleteMakeUpModal"
-												th:attr="data-reopen-action=@{/make-up/{id}/reopen(id=${record.makeUpRequestId})},data-ignore-action=@{/make-up/{id}/ignore(id=${record.makeUpRequestId})},data-title=${record.className}">
-											刪除
-										</button>
 									</div>
 									<div class="d-flex justify-content-end gap-2" th:unless="${record.makeUpRequest}">
 										<a class="btn btn-outline-primary btn-sm"
 												th:href="@{/make-up/reschedules/{id}/edit(id=${record.rescheduleScheduleId})}">
 											編輯
 										</a>
-										<button class="btn btn-outline-danger btn-sm" type="button"
-												data-bs-toggle="modal"
-												data-bs-target="#deleteDirectRescheduleModal"
-												th:attr="data-delete-action=@{/make-up/reschedules/{id}/delete(id=${record.rescheduleScheduleId})},data-title=${record.className}">
-											刪除
-										</button>
 									</div>
 								</td>
 							</tr>

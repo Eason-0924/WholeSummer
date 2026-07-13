@@ -12,7 +12,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0">學生管理</h1>
-				<span th:replace="~{fragments/layout :: help('管理在學中與已畢業學生資料\n∙ 新增學生：加入新進學生\n∙ 編輯：變更學生資料\n∙ 畢業：將學生設定為「已畢業」\n∙ 復學：將學生設定為「在學中」\n∙ 刪除：將學生資料自資料庫中移除。')}"></span>
+				<span th:replace="~{fragments/layout :: help('管理在學中與已畢業學生資料\n∙ 新增學生：加入新進學生\n∙ 編輯：變更學生資料\n∙ 畢業：將學生設定為「已畢業」\n∙ 復學：將學生設定為「在學中」\n∙ 永久刪除請至設定中的資料表管理頁執行')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
@@ -63,10 +63,6 @@
 									method="post" onsubmit="return confirm('確定要將這位學生設為已畢業嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">畢業</button>
 							</form>
-							<form th:action="@{/students/{slug}/delete(slug=${student.urlSlug})}"
-									method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
-							</form>
 						</div>
 					</td>
 				</tr>
@@ -116,10 +112,6 @@
 							<form th:action="@{/students/{slug}/activate(slug=${student.urlSlug})}"
 									method="post">
 								<button class="btn btn-sm btn-outline-success" type="submit">復學</button>
-							</form>
-							<form th:action="@{/students/{slug}/delete(slug=${student.urlSlug})}"
-									method="post" onsubmit="return confirm('確定要永久刪除這位學生嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
 						</div>
 					</td>

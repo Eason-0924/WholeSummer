@@ -16,6 +16,7 @@ public class UpdateCoordinator {
 
 	private final UpdateChecker updateChecker;
 	private final UpdateStateService updateStateService;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 	private final boolean enabled;
 	private final boolean checkOnStartup;
 	private final AtomicBoolean checking = new AtomicBoolean();
@@ -24,10 +25,12 @@ public class UpdateCoordinator {
 	private volatile String lastError;
 
 	public UpdateCoordinator(UpdateChecker updateChecker, UpdateStateService updateStateService,
+			WebPushEventNotificationService webPushEventNotificationService,
 			@Value("${app.auto-update.enabled:false}") boolean enabled,
 			@Value("${app.update.check-on-startup:true}") boolean checkOnStartup) {
 		this.updateChecker = updateChecker;
 		this.updateStateService = updateStateService;
+		this.webPushEventNotificationService = webPushEventNotificationService;
 		this.enabled = enabled;
 		this.checkOnStartup = checkOnStartup;
 	}
@@ -63,6 +66,10 @@ public class UpdateCoordinator {
 			availableUpdate = result
 					.filter(update -> !updateStateService.isIgnored(update.latestVersion()))
 					.orElse(null);
+			if (availableUpdate != null && updateStateService.shouldNotifyVersion(availableUpdate.latestVersion())) {
+				webPushEventNotificationService.notifySystemUpdateAvailable(availableUpdate.latestVersion());
+				updateStateService.markVersionNotified(availableUpdate.latestVersion());
+			}
 			lastError = null;
 			updateStateService.recordCheckNow();
 			return Optional.ofNullable(availableUpdate);

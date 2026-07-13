@@ -141,7 +141,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0">班級管理</h1>
-				<span th:replace="~{fragments/layout :: help('管理開課中與已結束班級。\n∙ 新增班級：加入新開課程\n∙ 編輯：變更班級資料\n∙ 結束：將班級設定為「已結束」\n∙ 重新開課：將班級設定為「開課中」\n∙ 刪除：將班級自資料庫中移除\n查看上課時間表並匯出課表。\n∙ 標記方式：選擇課表依照科目/老師/年級標記不同顏色\n∙ 匯出格式：選擇JPEG/DOCX/XLSX格式匯出')}"></span>
+				<span th:replace="~{fragments/layout :: help('管理開課中與已結束班級。\n∙ 新增班級：加入新開課程\n∙ 編輯：變更班級資料\n∙ 結束：將班級設定為「已結束」\n∙ 重新開課：將班級設定為「開課中」\n∙ 永久刪除請至設定中的資料表管理頁執行\n查看上課時間表並匯出課表。\n∙ 標記方式：選擇課表依照科目/老師/年級標記不同顏色\n∙ 匯出格式：選擇JPEG/DOCX/XLSX格式匯出')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
@@ -189,10 +189,6 @@
 							<form th:action="@{/classes/{slug}/deactivate(slug=${classRoom.urlSlug})}"
 									method="post" onsubmit="return confirm('確定要將這個班級設為已結束嗎？');">
 								<button class="btn btn-sm btn-outline-danger" type="submit">結束</button>
-							</form>
-							<form th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
-									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
 						</div>
 					</td>
@@ -445,10 +441,6 @@
 							<form th:action="@{/classes/{slug}/activate(slug=${classRoom.urlSlug})}"
 									method="post">
 								<button class="btn btn-sm btn-outline-success" type="submit">重新開課</button>
-							</form>
-							<form th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
-									method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
 							</form>
 						</div>
 					</td>

@@ -1,0 +1,20 @@
+CREATE TABLE web_push_subscriptions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+    endpoint TEXT NOT NULL,
+    endpoint_hash CHAR(64) NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    browser VARCHAR(100),
+    user_agent TEXT,
+    device_name VARCHAR(100),
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    last_success_at DATETIME NULL,
+    last_failure_at DATETIME NULL,
+    failure_count INT NOT NULL DEFAULT 0,
+    UNIQUE KEY uk_web_push_endpoint_hash (endpoint_hash),
+    KEY idx_web_push_user_enabled (user_id, enabled),
+    KEY idx_web_push_user_endpoint_hash (user_id, endpoint_hash)
+);

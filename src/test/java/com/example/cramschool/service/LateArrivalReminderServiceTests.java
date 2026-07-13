@@ -21,6 +21,7 @@ import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Student;
 import com.example.cramschool.repository.ClassStudentRepository;
+import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 
 class LateArrivalReminderServiceTests {
@@ -37,6 +38,8 @@ class LateArrivalReminderServiceTests {
 		ClassStudentRepository classStudentRepository = mock(ClassStudentRepository.class);
 		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
 		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		ClassRoomRepository classRoomRepository = mock(ClassRoomRepository.class);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
 		when(lineNotificationService.isLineEnabled()).thenReturn(true);
 		when(weeklyScheduleService.findWeeklySchedules(eq(date), eq(null), eq(true), eq(null), eq(null)))
 				.thenReturn(List.of(schedule));
@@ -47,7 +50,8 @@ class LateArrivalReminderServiceTests {
 		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 22L, date))
 				.thenReturn(true);
 		LateArrivalReminderService service = new LateArrivalReminderService(
-				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService);
+				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService,
+				classRoomRepository, webPushEventNotificationService);
 		setNow(service, LocalDateTime.of(date, LocalTime.of(18, 6)));
 
 		service.sendDueLateArrivalReminders();

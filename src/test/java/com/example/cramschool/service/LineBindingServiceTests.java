@@ -36,7 +36,9 @@ class LineBindingServiceTests {
 				any(), any())).thenReturn(Optional.of(bindCode));
 		when(bindingRepository.findByStudentAndLineUserId(student, "line-user-1")).thenReturn(Optional.empty());
 
-		LineBindingService service = new LineBindingService(codeRepository, bindingRepository, null, null, null);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
+		LineBindingService service = new LineBindingService(codeRepository, bindingRepository, null, null, null,
+				webPushEventNotificationService);
 
 		LineBindingReply reply = service.bindFromLineMessage("line-user-1", "家長 LINE", "綁定123456");
 
@@ -48,5 +50,6 @@ class LineBindingServiceTests {
 		assertThat(saved.getStudent()).isSameAs(student);
 		assertThat(saved.getRelation()).isEqualTo("媽媽");
 		assertThat(saved.getLineUserId()).isEqualTo("line-user-1");
+		verify(webPushEventNotificationService).notifyLineBindingCompleted("王小明", "媽媽");
 	}
 }

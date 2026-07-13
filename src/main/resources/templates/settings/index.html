@@ -69,6 +69,51 @@
 		</div>
 	</section>
 
+	<section class="bg-white border rounded p-4 mb-4"
+			data-settings-section data-settings-title="桌面通知設定">
+		<div data-push-settings>
+			<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+				<div>
+					<h2 class="h5 mb-1">桌面通知設定</h2>
+					<div class="text-secondary small">
+						桌面通知可以在學生請假、逾時未到班、補課申請、系統更新等重要事件發生時提醒您。
+						請只在常用的電腦上啟用通知。
+					</div>
+				</div>
+			</div>
+			<div class="row g-3 mb-3">
+				<div class="col-md-4">
+					<div class="border rounded p-3 h-100">
+						<div class="text-secondary small mb-1">瀏覽器支援</div>
+						<span class="badge text-bg-secondary" data-push-browser-support>檢查中</span>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="border rounded p-3 h-100">
+						<div class="text-secondary small mb-1">通知權限</div>
+						<span class="badge text-bg-secondary" data-push-permission>檢查中</span>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="border rounded p-3 h-100">
+						<div class="text-secondary small mb-1">推播訂閱</div>
+						<span class="badge text-bg-secondary" data-push-subscription>檢查中</span>
+					</div>
+				</div>
+			</div>
+			<div class="d-flex flex-wrap gap-2 mb-3">
+				<button class="btn btn-primary" type="button" data-push-enable>啟用桌面通知</button>
+				<button class="btn btn-outline-secondary" type="button" data-push-disable>停用桌面通知</button>
+				<button class="btn btn-outline-primary" type="button" data-push-test>發送測試通知</button>
+			</div>
+			<div class="alert mb-0" data-push-message hidden></div>
+			<div class="text-secondary small mt-3">
+				若您使用 Mac，可先在 Safari 將本系統加入 Dock，再於 Web App 中啟用通知。
+				Chrome 或 Edge 可將本系統安裝成應用程式，之後可像桌面 App 一樣開啟。
+			</div>
+		</div>
+	</section>
+
 	<section th:if="${teacherPermissions.generalSettings}" class="bg-white border rounded p-4 mb-4"
 			data-settings-section data-settings-title="一般設定">
 		<h2 class="h5 mb-3">一般設定</h2>
@@ -361,16 +406,19 @@
 		<div th:replace="~{backup/index :: content}"></div>
 	</th:block>
 
-	<section th:if="${teacherPermissions.gradePromotion}" class="border border-danger rounded p-4 mt-4 mb-4"
+	<section th:if="${teacherPermissions.gradePromotion or teacherPermissions.dataView}" class="border border-danger rounded p-4 mt-4 mb-4"
 			data-settings-section data-settings-title="危險操作區域">
 		<div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
 			<div>
 				<h2 class="h5 text-danger mb-1">危險操作區域</h2>
 				<div class="text-secondary small">
-					批次變更學生年級、畢業狀態與班級資料。執行前會分三個步驟逐項確認。
+					批次變更與直接資料管理可能影響多項關聯資料，操作前請先確認內容並建立備份。
 				</div>
 			</div>
-			<a class="btn btn-outline-danger" th:href="@{/settings/grade-promotion(restart=true)}">一鍵升年級</a>
+			<div class="d-flex flex-wrap gap-2">
+				<a th:if="${teacherPermissions.dataView}" class="btn btn-outline-danger" th:href="@{/data-management}">資料表管理</a>
+				<a th:if="${teacherPermissions.gradePromotion}" class="btn btn-outline-danger" th:href="@{/settings/grade-promotion(restart=true)}">一鍵升年級</a>
+			</div>
 		</div>
 	</section>
 
@@ -380,6 +428,7 @@
 </main>
 
 <script th:replace="~{fragments/layout :: scripts}"></script>
+<script th:src="@{/js/push-notifications.js(v=2)}" src="/js/push-notifications.js?v=2"></script>
 <script>
 	document.querySelectorAll('[data-settings-section]').forEach(function (section) {
 		const details = document.createElement('details');

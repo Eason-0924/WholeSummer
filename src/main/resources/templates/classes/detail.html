@@ -52,7 +52,7 @@
 		<div>
 			<div class="page-title-line mb-1">
 				<h1 class="h3 mb-0" th:text="${classRoom.displayName}">班級名稱</h1>
-				<span th:replace="~{fragments/layout :: help('查看班級詳細資料\n∙ 返回：回到班級管理頁\n∙ 編輯：變更班級資料\n∙ 刪除：將班級自資料庫中移除\n管理班級學生資料\n∙ 選擇學生：列出所有在學中學生\n∙ 新增學生：將所選學生加入班級（若學生與班級年級不相符將跳出提示）\n管理作業與測驗，查看完成狀況\n∙ 新增作業/測驗：跳轉至新增頁面')}"></span>
+				<span th:replace="~{fragments/layout :: help('查看班級詳細資料\n∙ 返回：回到班級管理頁\n∙ 編輯：變更班級資料\n∙ 永久刪除請至設定中的資料表管理頁執行\n管理班級學生資料\n∙ 選擇學生：列出所有在學中學生\n∙ 新增學生：將所選學生加入班級（若學生與班級年級不相符將跳出提示）\n管理作業與測驗，查看完成狀況\n∙ 新增作業/測驗：跳轉至新增頁面')}"></span>
 			</div>
 		</div>
 		<div class="d-flex align-items-center gap-2">
@@ -60,11 +60,6 @@
 			<a class="btn btn-outline-success" th:href="@{/classes/{slug}/attendance(slug=${classRoom.urlSlug})}">點名</a>
 			<a th:if="${teacherPermissions.classUpdate}" class="btn btn-outline-primary"
 					th:href="@{/classes/{slug}/edit(slug=${classRoom.urlSlug})}">編輯</a>
-			<form th:if="${teacherPermissions.classUpdate}"
-					th:action="@{/classes/{slug}/delete(slug=${classRoom.urlSlug})}"
-					method="post" onsubmit="return confirm('確定要永久刪除這個班級嗎？');">
-				<button class="btn btn-outline-danger" type="submit">刪除</button>
-			</form>
 		</div>
 	</div>
 
@@ -168,13 +163,7 @@
 					<td th:text="${classStudent.student.grade ?: '-'}">-</td>
 					<td th:text="${classStudent.student.school ?: '-'}">-</td>
 					<td th:text="${#temporals.format(classStudent.joinedAt, 'yyyy/MM/dd HH:mm')}">-</td>
-					<td class="text-end">
-						<form th:if="${teacherPermissions.classUpdate}"
-								th:action="@{/classes/{slug}/students/{classStudentId}/remove(slug=${classRoom.urlSlug}, classStudentId=${classStudent.id})}"
-								method="post" onsubmit="return confirm('確定要刪除這筆班級學生紀錄嗎？');">
-							<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
-						</form>
-					</td>
+					<td class="text-end text-secondary small">請至資料表管理頁刪除</td>
 				</tr>
 				</tbody>
 			</table>

@@ -31,11 +31,6 @@
 					method="post">
 				<button class="btn btn-outline-success" type="submit">復職</button>
 			</form>
-			<form th:if="${teacherPermissions.teacherUpdate}"
-					th:action="@{/teachers/{slug}/delete(slug=${teacher.urlSlug})}"
-					method="post" onsubmit="return confirm('確定要永久刪除這位教師嗎？班級與科目中的教師關聯會一併移除。');">
-				<button class="btn btn-outline-danger" type="submit">刪除</button>
-			</form>
 		</div>
 	</div>
 

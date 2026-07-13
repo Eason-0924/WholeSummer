@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.3.4**
+目前版本：**1.4.0**
 
 ## 使用者操作教學與須知
 
@@ -387,6 +387,22 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
 
+## 1.4.0 更新內容
+
+- 1.4.0 發布。
+- 新增資料管理頁與 `/api/admin/data` 管理 API，可集中查看、搜尋、新增、編輯、停用、刪除學生、教師、班級、科目、班級學生、課表、測驗、成績、作業、出缺勤、請假、學費與補課/調課需求等資料。
+- 資料管理新增獨立權限：查看資料管理、新增與編輯資料、停用或刪除資料、匯出資料、查看敏感欄位；敏感欄位會依權限遮蔽。
+- 資料管理支援外鍵選項查詢、子資料檢視、刪除影響檢查、硬刪除、並以 `updated_at` 做併發修改保護，降低多人同時編輯造成覆蓋的風險。
+- 新增資料異動稽核資料表，保存資料管理操作的帳號、教師、資料類型、資料 ID、動作與時間，方便追蹤後台大量資料調整。
+- 新增 Web Push / PWA 桌面通知，使用者可在系統內啟用通知、取消訂閱或發送測試通知。
+- 新增學生請假、LINE 綁定完成、學生逾時未到班、補課/調課需求與系統更新可用時的 Web Push 事件通知。
+- Windows 外部設定新增 Web Push VAPID 自動金鑰產生；首次啟動或升級時會自動補齊金鑰，既有完整金鑰不會被覆蓋，更換金鑰後會停用舊推播訂閱並要求重新啟用。
+- 新增 PWA manifest、service worker、桌面通知前端腳本、PWA 圖示與靜態資源 UTF-8 編碼設定。
+- 新增 Web Push 訂閱資料表、VAPID key hash 欄位與資料異動稽核 migration。
+- 修正 LINE 遲到提醒在 LINE 未啟用時仍可透過 Web Push 通知負責教師與出勤管理者。
+- 補課/調課需求建立時會同步發送 Web Push 通知給負責教師與出勤管理者。
+- 系統更新檢查發現新版本時會發送 Web Push 通知，並記錄已通知版本避免重複推送。
+
 ## 1.3.4 更新內容
 
 - Line Official Account 查詢課表功能修復
@@ -592,6 +608,20 @@ line.liff-channel-id=
 ```
 
 新版啟動時只會補充缺少的設定，不會覆蓋既有資料庫連線資訊。
+
+### Web Push VAPID 金鑰
+
+Windows 安裝版首次啟動或升級後，若外部設定檔尚未設定 VAPID 公私鑰，
+WholeSummer 會在本機自動產生一組並寫入
+`%ProgramData%\WholeSummer\config\application.properties`。既有完整金鑰不會被覆蓋。
+
+```properties
+webpush.vapid.auto-generate=true
+webpush.vapid.subject=mailto:admin@whole-summer.com
+```
+
+若要自行管理金鑰，請將 `webpush.vapid.auto-generate=false`，再自行設定
+`webpush.vapid.public-key` 與 `webpush.vapid.private-key`。更換金鑰後，所有使用者都必須重新啟用桌面通知。
 
 LINE 通知、家長綁定與 LIFF 請假功能需先在 LINE Developers 建立 Messaging API 與 LIFF 設定。
 可使用外部設定或環境變數提供 channel secret、channel access token、webhook path、LIFF ID

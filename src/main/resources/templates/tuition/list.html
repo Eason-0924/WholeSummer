@@ -89,10 +89,6 @@
 									onsubmit="return confirm('確定已收到全部款項並設為已繳清嗎？');">
 								<button class="btn btn-sm btn-outline-success" type="submit">繳清</button>
 							</form>
-							<form th:action="@{/tuition/{id}/delete(id=${record.id})}" method="post"
-									onsubmit="return confirm('確定要刪除這筆學費紀錄嗎？');">
-								<button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
-							</form>
 						</div>
 					</td>
 				</tr>

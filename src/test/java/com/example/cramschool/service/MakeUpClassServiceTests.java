@@ -83,7 +83,7 @@ class MakeUpClassServiceTests {
 					throw new UnsupportedOperationException(method.getName());
 				});
 		MakeUpClassService service = new MakeUpClassService(
-				makeUpClassRequestRepository, null, classScheduleRepository);
+				makeUpClassRequestRepository, null, classScheduleRepository, null);
 
 		List<MakeUpRecordView> records = service.findScheduledRecords(teacher.getId(), false);
 
@@ -140,7 +140,7 @@ class MakeUpClassServiceTests {
 					throw new UnsupportedOperationException(method.getName());
 				});
 		MakeUpClassService service = new MakeUpClassService(
-				makeUpClassRequestRepository, null, classScheduleRepository);
+				makeUpClassRequestRepository, null, classScheduleRepository, null);
 
 		assertThat(service.createRequiredMakeUpFromAbsence(attendance)).isNull();
 		assertThat(saved).isFalse();

@@ -56,6 +56,7 @@ public class LineStudentLeaveService {
 	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 	private final WeeklyScheduleService weeklyScheduleService;
 	private final LineNotificationService lineNotificationService;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 
 	public LineStudentLeaveService(LineLiffAuthService lineLiffAuthService,
 			ParentLineBindingRepository parentLineBindingRepository,
@@ -64,7 +65,8 @@ public class LineStudentLeaveService {
 			ClassScheduleRepository classScheduleRepository,
 			StudentLeaveRequestRepository studentLeaveRequestRepository,
 			WeeklyScheduleService weeklyScheduleService,
-			LineNotificationService lineNotificationService) {
+			LineNotificationService lineNotificationService,
+			WebPushEventNotificationService webPushEventNotificationService) {
 		this.lineLiffAuthService = lineLiffAuthService;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.studentRepository = studentRepository;
@@ -73,6 +75,7 @@ public class LineStudentLeaveService {
 		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
 		this.weeklyScheduleService = weeklyScheduleService;
 		this.lineNotificationService = lineNotificationService;
+		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
 	@Transactional(readOnly = true)
@@ -159,6 +162,8 @@ public class LineStudentLeaveService {
 		leaveRequest.setParentRelation(binding.getRelation());
 		StudentLeaveRequest saved = studentLeaveRequestRepository.save(leaveRequest);
 		lineNotificationService.sendStudentLeaveSubmittedNotification(saved);
+		webPushEventNotificationService.notifyStudentLeaveSubmitted(
+				student.getDisplayName(), schedule.getClassRoom().getDisplayName());
 		return new LiffLeaveRequestResponse(true, saved.getId(), saved.getStatus().name(),
 				"已收到請假申請，待補習班確認。");
 	}

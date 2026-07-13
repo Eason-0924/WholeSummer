@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassStudent;
+import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
 
@@ -23,24 +24,26 @@ public class LateArrivalReminderService {
 	private final ClassStudentRepository classStudentRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
 	private final LineNotificationService lineNotificationService;
+	private final ClassRoomRepository classRoomRepository;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 	private Clock clock = Clock.systemDefaultZone();
 
 	public LateArrivalReminderService(WeeklyScheduleService weeklyScheduleService,
 			ClassStudentRepository classStudentRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
-			LineNotificationService lineNotificationService) {
+			LineNotificationService lineNotificationService, ClassRoomRepository classRoomRepository,
+			WebPushEventNotificationService webPushEventNotificationService) {
 		this.weeklyScheduleService = weeklyScheduleService;
 		this.classStudentRepository = classStudentRepository;
 		this.studentAttendanceRepository = studentAttendanceRepository;
 		this.lineNotificationService = lineNotificationService;
+		this.classRoomRepository = classRoomRepository;
+		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
 	@Scheduled(fixedDelayString = "${line.late-reminder.scan-delay-ms:60000}",
 			initialDelayString = "${line.late-reminder.initial-delay-ms:60000}")
 	public void sendDueLateArrivalReminders() {
-		if (lineNotificationService == null || !lineNotificationService.isLineEnabled()) {
-			return;
-		}
 		sendDueLateArrivalReminders(LocalDateTime.now(clock));
 	}
 
@@ -74,6 +77,9 @@ public class LateArrivalReminderService {
 
 	private void sendReminderForSchedule(WeeklyScheduleDto schedule) {
 		Long referenceId = occurrenceReferenceId(schedule);
+		Long responsibleTeacherId = classRoomRepository.findById(schedule.getClassRoomId())
+				.map(classRoom -> classRoom.getTeacher() == null ? null : classRoom.getTeacher().getId())
+				.orElse(null);
 		for (ClassStudent classStudent : classStudentRepository
 				.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(schedule.getClassRoomId())) {
 			if (classStudent.getStudent() == null || !classStudent.getStudent().isActive()) {
@@ -84,8 +90,12 @@ public class LateArrivalReminderService {
 			if (arrived) {
 				continue;
 			}
-			lineNotificationService.sendLateArrivalReminder(
-					classStudent.getStudent(), referenceId, schedule.getClassName(), schedule.getStartTime());
+			if (lineNotificationService != null && lineNotificationService.isLineEnabled()) {
+				lineNotificationService.sendLateArrivalReminder(
+						classStudent.getStudent(), referenceId, schedule.getClassName(), schedule.getStartTime());
+			}
+			webPushEventNotificationService.notifyLateArrival(
+					classStudent.getStudent().getDisplayName(), schedule.getClassName(), responsibleTeacherId);
 		}
 	}
 

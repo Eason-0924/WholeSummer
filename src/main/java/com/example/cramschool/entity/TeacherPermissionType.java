@@ -17,7 +17,12 @@ public enum TeacherPermissionType {
 	REGISTRATION_CODE("教師註冊安全碼"),
 	SYSTEM_UPDATE("系統更新"),
 	DATABASE_BACKUP("資料庫備份與還原"),
-	GRADE_PROMOTION("一鍵升年級");
+	GRADE_PROMOTION("一鍵升年級"),
+	DATA_VIEW("查看資料管理"),
+	DATA_EDIT("新增與編輯資料"),
+	DATA_DELETE("停用或刪除資料"),
+	DATA_EXPORT("匯出資料"),
+	DATA_VIEW_SENSITIVE("查看資料管理敏感欄位");
 
 	private final String displayName;
 
