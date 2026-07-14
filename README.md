@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.4.2**
+目前版本：**1.4.3**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,17 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.4.3 更新內容
+
+- 1.4.3 發布。
+- Windows 發布流程改為同時建立 EXE 與 MSI 安裝檔，GitHub Release 會上傳兩種安裝檔與刷卡監聽工具壓縮檔。
+- Windows 安裝檔命名改為 `WholeSummer-Windows-Installer-{version}.exe` 與 `WholeSummer-Windows-Installer-{version}.msi`，並在 GitHub Actions 中檢查檔名版本必須符合 `pom.xml`。
+- 系統更新檢查支援 `.msi` 與 `.exe` 安裝檔，並優先選擇 MSI 更新檔。
+- 系統更新下載與安裝流程支援 MSI；MSI 會使用 `msiexec` 靜默安裝、產生詳細安裝紀錄，並在 Windows Installer 忙碌時自動重試。
+- 更新安裝器會等待 WholeSummer 關閉最多 60 秒，並將更新開始、安裝結果、重啟與失敗原因寫入 `%ProgramData%\WholeSummer\logs\updater.log`。
+- 更新下載目錄預設改用外部資料目錄，避免更新檔落在 jpackage 安裝目錄內；也可透過 `WHOLESUMMER_UPDATE_DIR` 指定。
+- 更新安裝頁文字調整為自動安裝流程，提醒使用者若 Windows 顯示權限確認，只需按一次「是」。
 
 ## 1.4.2 更新內容
 

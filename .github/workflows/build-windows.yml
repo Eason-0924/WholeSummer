@@ -1,5 +1,5 @@
-name: Build Windows EXE
-run-name: Release 1.4.2
+name: Build Windows Installers
+run-name: Release ${{ github.ref_name }}
 
 on:
   workflow_dispatch:
@@ -44,7 +44,8 @@ jobs:
 
           echo "APP_VERSION=$version" >> $env:GITHUB_ENV
           echo "WINDOWS_APP_VERSION=$windowsAppVersion" >> $env:GITHUB_ENV
-          echo "EXE_NAME=WholeSummer-Windows-Installer-v$version.exe" >> $env:GITHUB_ENV
+          echo "EXE_NAME=WholeSummer-Windows-Installer-$version.exe" >> $env:GITHUB_ENV
+          echo "MSI_NAME=WholeSummer-Windows-Installer-$version.msi" >> $env:GITHUB_ENV
           echo "CARD_LISTENER_ZIP=WholeSummer-CardListener-v$version.zip" >> $env:GITHUB_ENV
           Write-Host "Release version: $version"
           Write-Host "Windows installer internal version: $windowsAppVersion"
@@ -123,25 +124,63 @@ jobs:
             --java-options "-Dwholesummer.external-config.enabled=true" ^
             --java-options "-Dwholesummer.app-exe=$APPDIR/../WholeSummer.exe"
 
+      - name: Build Windows MSI with jpackage
+        shell: cmd
+        run: |
+          jpackage ^
+            --type msi ^
+            --name WholeSummer ^
+            --app-version %WINDOWS_APP_VERSION% ^
+            --input input ^
+            --main-jar WholeSummer.jar ^
+            --dest dist-msi ^
+            --icon packaging\windows\WholeSummer.ico ^
+            --win-menu ^
+            --win-menu-group WholeSummer ^
+            --win-shortcut ^
+            --win-dir-chooser ^
+            --win-upgrade-uuid "6f3c08df-767c-4b13-9d6c-e7bf77709561" ^
+            --vendor "WholeSummer" ^
+            --description "WholeSummer cram school management system" ^
+            --java-options "-Dwholesummer.external-config.enabled=true" ^
+            --java-options "-Dwholesummer.app-exe=$APPDIR/../WholeSummer.exe"
+
       - name: Rename Windows installer
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release
 
           $exe = Get-ChildItem dist -Filter "*.exe" | Select-Object -First 1
+          $msi = Get-ChildItem dist-msi -Filter "*.msi" | Select-Object -First 1
 
           if ($null -eq $exe) {
             Write-Error "No exe file found in dist folder."
             exit 1
           }
+          if ($null -eq $msi) {
+            Write-Error "No msi file found in dist-msi folder."
+            exit 1
+          }
+          if ($exe.Name -notmatch '^WholeSummer(-[0-9.]+)?\.exe$' -or
+              $msi.Name -notmatch '^WholeSummer(-[0-9.]+)?\.msi$') {
+            Write-Error "Unexpected jpackage output name."
+            exit 1
+          }
+          if ("${{ env.EXE_NAME }}" -notmatch "-$([regex]::Escape('${{ env.APP_VERSION }}'))\.exe$" -or
+              "${{ env.MSI_NAME }}" -notmatch "-$([regex]::Escape('${{ env.APP_VERSION }}'))\.msi$") {
+            Write-Error "Installer filename version does not match pom.xml version."
+            exit 1
+          }
 
           Copy-Item $exe.FullName "release\${{ env.EXE_NAME }}"
+          Copy-Item $msi.FullName "release\${{ env.MSI_NAME }}"
           Compress-Archive `
             -Path card-listener-publish\WholeSummer.CardListener.exe, card-listener-publish\appsettings.json `
             -DestinationPath "release\${{ env.CARD_LISTENER_ZIP }}" `
             -Force
 
           Write-Host "Installer prepared: release\${{ env.EXE_NAME }}"
+          Write-Host "Installer prepared: release\${{ env.MSI_NAME }}"
           Write-Host "Card listener package prepared: release\${{ env.CARD_LISTENER_ZIP }}"
 
       - name: Upload Windows artifacts
@@ -150,6 +189,7 @@ jobs:
           name: WholeSummer-Windows-v${{ env.APP_VERSION }}
           path: |
             release/${{ env.EXE_NAME }}
+            release/${{ env.MSI_NAME }}
             release/${{ env.CARD_LISTENER_ZIP }}
 
       - name: Create or update GitHub Release
@@ -160,6 +200,7 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $file = "release\${{ env.EXE_NAME }}"
+          $msiFile = "release\${{ env.MSI_NAME }}"
           $listenerZip = "release\${{ env.CARD_LISTENER_ZIP }}"
           $version = "${{ env.APP_VERSION }}"
           $title = if ($version -eq "1.2.4") { "WholeSummer $version BETA" } else { "WholeSummer $version" }
@@ -180,10 +221,10 @@ jobs:
             gh release edit $tag `
               --title $title `
               --notes-file $notesFile
-            gh release upload $tag $file $listenerZip --clobber
+            gh release upload $tag $file $msiFile $listenerZip --clobber
           } else {
             Write-Host "Release does not exist. Creating release..."
-            gh release create $tag $file $listenerZip `
+            gh release create $tag $file $msiFile $listenerZip `
               --title $title `
               --notes-file $notesFile
           }

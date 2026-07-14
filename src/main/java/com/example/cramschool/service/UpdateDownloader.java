@@ -13,6 +13,7 @@ import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.example.cramschool.config.ExternalConfigPaths;
 import com.example.cramschool.dto.AvailableUpdate;
 
 @Service
@@ -21,8 +22,10 @@ public class UpdateDownloader {
 	private final Path updateDirectory;
 	private final HttpClient httpClient;
 
-	public UpdateDownloader(@Value("${app.update.dir:${user.dir}/data/update}") String updateDirectory) {
-		this.updateDirectory = Path.of(updateDirectory).toAbsolutePath().normalize();
+	public UpdateDownloader(@Value("${app.update.dir:}") String updateDirectory) {
+		this.updateDirectory = updateDirectory == null || updateDirectory.isBlank()
+				? ExternalConfigPaths.updateDirectory()
+				: Path.of(updateDirectory).toAbsolutePath().normalize();
 		this.httpClient = HttpClient.newBuilder()
 				.connectTimeout(Duration.ofSeconds(15))
 				.followRedirects(HttpClient.Redirect.NORMAL)
@@ -67,7 +70,8 @@ public class UpdateDownloader {
 		if (update == null || update.downloadUri() == null
 				|| update.assetName() == null
 				|| !update.assetName().startsWith("WholeSummer-Windows-Installer-")
-				|| !update.assetName().toLowerCase().endsWith(".exe")) {
+				|| !(update.assetName().toLowerCase().endsWith(".exe")
+						|| update.assetName().toLowerCase().endsWith(".msi"))) {
 			throw new IllegalArgumentException("更新安裝檔資訊不合法");
 		}
 		URI uri = update.downloadUri();

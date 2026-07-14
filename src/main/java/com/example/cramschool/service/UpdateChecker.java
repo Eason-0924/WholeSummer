@@ -6,6 +6,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -60,16 +62,17 @@ public class UpdateChecker {
 		if (!isNewerVersion(latestVersion, currentVersion)) {
 			return Optional.empty();
 		}
-		for (JsonNode asset : release.path("assets")) {
+		List<JsonNode> assets = new ArrayList<>();
+		release.path("assets").forEach(assets::add);
+		assets.sort((left, right) -> Boolean.compare(
+				!isMsiInstaller(left.path("name").asText()),
+				!isMsiInstaller(right.path("name").asText())));
+		for (JsonNode asset : assets) {
 			String assetName = asset.path("name").asText();
 			String downloadUrl = asset.path("browser_download_url").asText();
 			if (isWindowsInstaller(assetName) && isTrustedDownloadUrl(downloadUrl)) {
-				return Optional.of(new AvailableUpdate(
-						currentVersion,
-						latestVersion,
-						release.path("body").asText(""),
-						assetName,
-						URI.create(downloadUrl)));
+				return Optional.of(new AvailableUpdate(currentVersion, latestVersion,
+						release.path("body").asText(""), assetName, URI.create(downloadUrl)));
 			}
 		}
 		return Optional.empty();
@@ -112,7 +115,11 @@ public class UpdateChecker {
 	private boolean isWindowsInstaller(String assetName) {
 		return assetName != null
 				&& assetName.startsWith("WholeSummer-Windows-Installer-")
-				&& assetName.toLowerCase().endsWith(".exe");
+				&& (assetName.toLowerCase().endsWith(".exe") || isMsiInstaller(assetName));
+	}
+
+	private boolean isMsiInstaller(String assetName) {
+		return assetName != null && assetName.toLowerCase().endsWith(".msi");
 	}
 
 	private boolean isTrustedDownloadUrl(String downloadUrl) {
