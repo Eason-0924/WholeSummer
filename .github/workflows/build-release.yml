@@ -1,0 +1,86 @@
+name: Build Release Artifacts
+run-name: Release ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set release version
+        shell: bash
+        run: |
+          VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            [[ "$TAG_VERSION" == "$VERSION" ]] || { echo "Tag version does not match pom.xml"; exit 1; }
+          fi
+          echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "JAR_NAME=WholeSummer-$VERSION.jar" >> "$GITHUB_ENV"
+          echo "CARD_LISTENER_ZIP=WholeSummer-CardListener-v$VERSION.zip" >> "$GITHUB_ENV"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build EC2 Spring Boot JAR
+        run: ./mvnw clean package -DskipTests
+
+      - name: Build Windows card listener only
+        run: |
+          dotnet publish tools/card-listener/WholeSummer.CardListener.csproj \
+            -c Release -r win-x64 --self-contained true \
+            -p:PublishSingleFile=true -o card-listener-publish
+          test -f card-listener-publish/WholeSummer.CardListener.exe
+          test -f card-listener-publish/appsettings.json
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          JAR=$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1)
+          test -n "$JAR"
+          cp "$JAR" "release/$JAR_NAME"
+          cp card-listener-publish/WholeSummer.CardListener.exe .
+          cp card-listener-publish/appsettings.json .
+          zip -j "release/$CARD_LISTENER_ZIP" \
+            WholeSummer.CardListener.exe appsettings.json
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: WholeSummer-Release-v${{ env.APP_VERSION }}
+          path: |
+            release/${{ env.JAR_NAME }}
+            release/${{ env.CARD_LISTENER_ZIP }}
+
+      - name: Create or update GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          NOTES_FILE=release/release-notes.md
+          echo "Release $APP_VERSION" > "$NOTES_FILE"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --title "WholeSummer $APP_VERSION" --notes-file "$NOTES_FILE"
+          gh release upload "$TAG" \
+            "release/$JAR_NAME" "release/$CARD_LISTENER_ZIP" --clobber

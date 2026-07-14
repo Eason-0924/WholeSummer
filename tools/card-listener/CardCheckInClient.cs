@@ -28,7 +28,15 @@ internal sealed class CardCheckInClient : IDisposable
             cardId,
             deviceName = settings.CardReader.DeviceName
         };
-        using var response = await httpClient.PostAsJsonAsync(settings.CheckInUri, payload, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Post, settings.CheckInUri)
+        {
+            Content = JsonContent.Create(payload)
+        };
+        if (!string.IsNullOrWhiteSpace(settings.WholeSummer.ApiToken))
+        {
+            request.Headers.TryAddWithoutValidation("X-WholeSummer-Card-Token", settings.WholeSummer.ApiToken);
+        }
+        using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             string body = await response.Content.ReadAsStringAsync(cancellationToken);

@@ -1,0 +1,3 @@
+# Required only when the EC2 web UI is allowed to install a JAR update.
+# Install as /etc/sudoers.d/wholesummer-update and validate with visudo.
+wholesummer ALL=(root) NOPASSWD: /usr/bin/systemctl restart wholesummer.service

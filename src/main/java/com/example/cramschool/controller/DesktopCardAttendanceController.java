@@ -1,12 +1,16 @@
 package com.example.cramschool.controller;
 
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,6 +34,9 @@ public class DesktopCardAttendanceController {
 	private final RecentCardCheckInService recentCardCheckInService;
 	private final CardBindingModeService cardBindingModeService;
 
+	@Value("${app.card-listener.token:}")
+	private String cardListenerToken = "";
+
 	public DesktopCardAttendanceController(StudentAttendanceService studentAttendanceService,
 			RecentCardCheckInService recentCardCheckInService,
 			CardBindingModeService cardBindingModeService) {
@@ -40,9 +47,13 @@ public class DesktopCardAttendanceController {
 
 	@PostMapping("/card-check-in")
 	public CardCheckInResponse cardCheckIn(@RequestBody CardCheckInRequest request,
-			HttpServletRequest httpRequest) {
-		if (!isLoopback(httpRequest.getRemoteAddr())) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只允許本機刷卡程式呼叫");
+			HttpServletRequest httpRequest,
+			@RequestHeader(name = "X-WholeSummer-Card-Token", required = false) String requestToken) {
+		if (!isAuthorized(httpRequest, requestToken)) {
+			if (cardListenerToken == null || cardListenerToken.isBlank()) {
+				throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只允許本機刷卡程式呼叫");
+			}
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "刷卡監聽器驗證失敗");
 		}
 		try {
 			CardCheckInResponse response = cardBindingModeService.completeIfPending(request)
@@ -59,6 +70,22 @@ public class DesktopCardAttendanceController {
 			recentCardCheckInService.record(request, response);
 			return response;
 		}
+	}
+
+	/** 保留給本機舊版呼叫端與既有測試使用；遠端呼叫會由 Spring 走含 Token 的方法。 */
+	public CardCheckInResponse cardCheckIn(CardCheckInRequest request, HttpServletRequest httpRequest) {
+		return cardCheckIn(request, httpRequest, null);
+	}
+
+	private boolean isAuthorized(HttpServletRequest httpRequest, String requestToken) {
+		if (cardListenerToken == null || cardListenerToken.isBlank()) {
+			return isLoopback(httpRequest.getRemoteAddr());
+		}
+		if (requestToken == null || requestToken.isBlank()) {
+			return false;
+		}
+		return MessageDigest.isEqual(cardListenerToken.getBytes(StandardCharsets.UTF_8),
+				requestToken.getBytes(StandardCharsets.UTF_8));
 	}
 
 	private String safeMessage(RuntimeException ex) {

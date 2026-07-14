@@ -39,8 +39,8 @@ refresh_version_state() {
 update_project_version() {
   NEW_VERSION="$1"
   ./mvnw -q versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
-  sed -i.bak -E "s/^run-name: Release .*/run-name: Release $NEW_VERSION/" .github/workflows/build-windows.yml
-  rm -f .github/workflows/build-windows.yml.bak
+  sed -i.bak -E "s/^run-name: Release .*/run-name: Release $NEW_VERSION/" .github/workflows/build-release.yml
+  rm -f .github/workflows/build-release.yml.bak
 }
 
 read_release_notes_from_readme() {
@@ -218,7 +218,7 @@ echo "發布 tag 完成：$TAG"
 
 if [ "$REPUBLISH" = true ]; then
   echo "這是重新發布版本：$TAG"
-  echo "GitHub Actions 會重新打包 exe，並更新 GitHub Release 中的安裝檔。"
+  echo "GitHub Actions 會重新打包 JAR 與 Card Listener，並更新 GitHub Release。"
 else
-  echo "GitHub Actions 會自動建立 Windows exe 並上傳到 GitHub Releases。"
+  echo "GitHub Actions 會自動建立 EC2 JAR 與 Windows Card Listener 並上傳到 GitHub Releases。"
 fi

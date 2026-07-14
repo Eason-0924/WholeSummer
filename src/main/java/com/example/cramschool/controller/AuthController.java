@@ -123,6 +123,7 @@ public class AuthController {
 		session.setAttribute(TEACHER_ID_SESSION_KEY, account.getTeacher().getId());
 		session.setAttribute(TEACHER_NAME_SESSION_KEY, account.getTeacher().getDisplayName());
 		activeUserRegistry.register(session.getId(), account.getId(),
-				account.getTeacher().getId(), account.getTeacher().getDisplayName());
+				account.getTeacher().getId(), account.getTeacher().getDisplayName(),
+				account.getTeacher().getPosition().getDisplayName());
 	}
 }

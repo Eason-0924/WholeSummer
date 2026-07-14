@@ -21,11 +21,13 @@ public class UpdateDownloader {
 
 	private final Path updateDirectory;
 	private final HttpClient httpClient;
+	private final boolean linuxTarget;
 
 	public UpdateDownloader(@Value("${app.update.dir:}") String updateDirectory) {
 		this.updateDirectory = updateDirectory == null || updateDirectory.isBlank()
 				? ExternalConfigPaths.updateDirectory()
 				: Path.of(updateDirectory).toAbsolutePath().normalize();
+		this.linuxTarget = System.getProperty("os.name", "").toLowerCase().contains("linux");
 		this.httpClient = HttpClient.newBuilder()
 				.connectTimeout(Duration.ofSeconds(15))
 				.followRedirects(HttpClient.Redirect.NORMAL)
@@ -69,9 +71,7 @@ public class UpdateDownloader {
 	private void validate(AvailableUpdate update) {
 		if (update == null || update.downloadUri() == null
 				|| update.assetName() == null
-				|| !update.assetName().startsWith("WholeSummer-Windows-Installer-")
-				|| !(update.assetName().toLowerCase().endsWith(".exe")
-						|| update.assetName().toLowerCase().endsWith(".msi"))) {
+				|| !isSupportedAsset(update.assetName())) {
 			throw new IllegalArgumentException("更新安裝檔資訊不合法");
 		}
 		URI uri = update.downloadUri();
@@ -79,5 +79,14 @@ public class UpdateDownloader {
 				|| !"github.com".equalsIgnoreCase(uri.getHost())) {
 			throw new IllegalArgumentException("更新檔案必須來自 GitHub Releases");
 		}
+	}
+
+	private boolean isSupportedAsset(String assetName) {
+		String lowerName = assetName.toLowerCase();
+		if (linuxTarget) {
+			return assetName.startsWith("WholeSummer-") && lowerName.endsWith(".jar");
+		}
+		return assetName.startsWith("WholeSummer-Windows-Installer-")
+				&& (lowerName.endsWith(".exe") || lowerName.endsWith(".msi"));
 	}
 }

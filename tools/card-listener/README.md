@@ -6,7 +6,7 @@ This is the Windows tray application for keyboard-style card readers.
 
 1. Listen to HID keyboard input in the background through Windows Raw Input.
 2. Build a card id from fast reader input.
-3. Send the card id to WholeSummer through the local desktop endpoint.
+3. Send the card id to WholeSummer through the configured desktop endpoint.
 4. Ask the user to scan one card on first launch to bind the Raw Input reader source.
 5. Only accept input from the selected Raw Input device path.
 6. Suppress numeric card-reader keystrokes only after the selected Raw Input source is detected.
@@ -44,6 +44,12 @@ WholeSummer starts the listener with:
 --api-base-url http://127.0.0.1:{port} --device-name windows-card-listener
 ```
 
+For a Windows reader that remains outside the Ubuntu VPS, set `WholeSummer.ApiBaseUrl`
+to `https://app.whole-summer.com` and set `WholeSummer.ApiToken` to the same secret as
+the VPS environment variable `WHOLESUMMER_CARD_LISTENER_TOKEN`. The token is sent in
+the `X-WholeSummer-Card-Token` header. Do not commit the real token to source control.
+The public endpoint is rejected unless this token is configured and matches.
+
 You can also run it manually for testing:
 
 ```powershell
@@ -68,7 +74,7 @@ The listener uses Windows Raw Input so the user does not need to switch input me
 
 On first launch, if `ReaderDevicePath` is empty, the listener asks the user to scan any card once. That scan is used only to bind the reader source and is not sent to WholeSummer.
 
-Use the tray menu's `重新設定讀卡機` item to bind a different reader. Use `顯示狀態` to confirm the selected reader path, ignored non-reader input count, Raw Input messages, and keyboard suppression count. Use `測試 API 連線` to show a success/failure dialog for the local WholeSummer API.
+Use the tray menu's `重新設定讀卡機` item to bind a different reader. Use `顯示狀態` to confirm the selected reader path, ignored non-reader input count, Raw Input messages, and keyboard suppression count. Use `測試 API 連線` to show a success/failure dialog for the configured WholeSummer API.
 
 ## Notes
 

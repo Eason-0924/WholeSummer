@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.4.3**
+目前版本：**1.5.0**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,18 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.5.0 更新內容
+
+- 1.5.0 發布。
+- 發布流程改為 EC2/JAR 取向，GitHub Actions 會在 Ubuntu 上建立 `WholeSummer-{version}.jar` 與 Windows 刷卡監聽工具壓縮檔並上傳 GitHub Release，移除舊 Windows installer workflow。
+- 系統更新流程支援 Linux EC2 JAR 更新，下載 Release JAR 後覆蓋指定 `app.update.jar-path` 並以 `systemctl restart` 重啟服務；新增 `app.update.service-name` 與 sudoers 部署檔。
+- 新增系統狀態管理頁與 API，具備權限者可查看應用版本、執行環境、JVM/主機資源、資料庫/Flyway、備份、LINE 與排程狀態。
+- 新增上線使用者與系統操作紀錄管理頁，記錄登入角色、最後活動時間、IP、裝置資訊並區分在線、閒置與可能離線。
+- 新增 `SYSTEM_STATUS_VIEW` 權限，系統狀態入口會依教師權限顯示。
+- Actuator 監控端點改為私有管理埠，僅開放 health、info、metrics、loggers、threaddump，並關閉敏感端點。
+- Windows 刷卡監聽器支援遠端 EC2 API Base URL 與 `X-WholeSummer-Card-Token` 驗證；未設定 token 時維持本機 loopback 限制。
+- 新增 EC2 更新與 Windows 刷卡監聽部署文件，以及 VPS 搬遷相容性報告。
 
 ## 1.4.3 更新內容
 

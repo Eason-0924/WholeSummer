@@ -22,7 +22,8 @@ public enum TeacherPermissionType {
 	DATA_EDIT("新增與編輯資料"),
 	DATA_DELETE("停用或刪除資料"),
 	DATA_EXPORT("匯出資料"),
-	DATA_VIEW_SENSITIVE("查看資料管理敏感欄位");
+	DATA_VIEW_SENSITIVE("查看資料管理敏感欄位"),
+	SYSTEM_STATUS_VIEW("查看系統狀態");
 
 	private final String displayName;
 

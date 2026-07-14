@@ -10,7 +10,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.example.cramschool.dto.AvailableUpdate;
 import com.example.cramschool.entity.TeacherPermissionType;
-import com.example.cramschool.service.PowerShellUpdateInstaller;
+import com.example.cramschool.service.LinuxJarUpdateInstaller;
 import com.example.cramschool.service.TeacherAccountService;
 import com.example.cramschool.service.UpdateCoordinator;
 import com.example.cramschool.service.UpdateDownloader;
@@ -24,12 +24,12 @@ public class UpdateController {
 
 	private final UpdateCoordinator updateCoordinator;
 	private final UpdateDownloader updateDownloader;
-	private final PowerShellUpdateInstaller updateInstaller;
+	private final LinuxJarUpdateInstaller updateInstaller;
 	private final TeacherAccountService teacherAccountService;
 	private final TeacherPermissionService teacherPermissionService;
 
 	public UpdateController(UpdateCoordinator updateCoordinator, UpdateDownloader updateDownloader,
-			PowerShellUpdateInstaller updateInstaller, TeacherAccountService teacherAccountService,
+			LinuxJarUpdateInstaller updateInstaller, TeacherAccountService teacherAccountService,
 			TeacherPermissionService teacherPermissionService) {
 		this.updateCoordinator = updateCoordinator;
 		this.updateDownloader = updateDownloader;

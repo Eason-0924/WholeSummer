@@ -25,6 +25,7 @@ public class UpdateChecker {
 	private final HttpClient httpClient;
 	private final String repositoryOwner;
 	private final String repositoryName;
+	private final boolean linuxTarget;
 
 	public UpdateChecker(AppVersionService appVersionService, ObjectMapper objectMapper,
 			@Value("${app.update.github-owner:Eason-0924}") String repositoryOwner,
@@ -33,6 +34,7 @@ public class UpdateChecker {
 		this.objectMapper = objectMapper;
 		this.repositoryOwner = repositoryOwner;
 		this.repositoryName = repositoryName;
+		this.linuxTarget = System.getProperty("os.name", "").toLowerCase().contains("linux");
 		this.httpClient = HttpClient.newBuilder()
 				.connectTimeout(Duration.ofSeconds(10))
 				.followRedirects(HttpClient.Redirect.NORMAL)
@@ -64,13 +66,10 @@ public class UpdateChecker {
 		}
 		List<JsonNode> assets = new ArrayList<>();
 		release.path("assets").forEach(assets::add);
-		assets.sort((left, right) -> Boolean.compare(
-				!isMsiInstaller(left.path("name").asText()),
-				!isMsiInstaller(right.path("name").asText())));
 		for (JsonNode asset : assets) {
 			String assetName = asset.path("name").asText();
 			String downloadUrl = asset.path("browser_download_url").asText();
-			if (isWindowsInstaller(assetName) && isTrustedDownloadUrl(downloadUrl)) {
+			if (isTargetAsset(assetName) && isTrustedDownloadUrl(downloadUrl)) {
 				return Optional.of(new AvailableUpdate(currentVersion, latestVersion,
 						release.path("body").asText(""), assetName, URI.create(downloadUrl)));
 			}
@@ -112,9 +111,15 @@ public class UpdateChecker {
 				: normalized;
 	}
 
-	private boolean isWindowsInstaller(String assetName) {
-		return assetName != null
-				&& assetName.startsWith("WholeSummer-Windows-Installer-")
+	private boolean isTargetAsset(String assetName) {
+		if (assetName == null) {
+			return false;
+		}
+		if (linuxTarget) {
+			return assetName.startsWith("WholeSummer-")
+					&& assetName.toLowerCase().endsWith(".jar");
+		}
+		return assetName.startsWith("WholeSummer-Windows-Installer-")
 				&& (assetName.toLowerCase().endsWith(".exe") || isMsiInstaller(assetName));
 	}
 

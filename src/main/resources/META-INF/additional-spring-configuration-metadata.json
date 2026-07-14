@@ -16,6 +16,16 @@
       "description": "Directory used to store downloaded application updates."
     },
     {
+      "name": "app.update.jar-path",
+      "type": "java.lang.String",
+      "description": "Target JAR path used by the Linux VPS updater."
+    },
+    {
+      "name": "app.update.service-name",
+      "type": "java.lang.String",
+      "description": "Systemd service restarted after a Linux JAR update."
+    },
+    {
       "name": "app.mysql.bin-dir",
       "type": "java.lang.String",
       "description": "Optional directory containing MySQL command-line tools."
@@ -24,7 +34,7 @@
       "name": "app.auto-update.enabled",
       "type": "java.lang.Boolean",
       "defaultValue": false,
-      "description": "Enables the Windows automatic update workflow."
+      "description": "Enables the automatic update workflow for the current deployment platform."
     },
     {
       "name": "app.update.check-on-startup",

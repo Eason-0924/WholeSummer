@@ -17,15 +17,33 @@ public class ActiveUserRegistry implements HttpSessionListener {
 	private final Map<String, ActiveUser> activeUsers = new ConcurrentHashMap<>();
 
 	public void register(String sessionId, Long accountId, Long teacherId, String displayName) {
+		register(sessionId, accountId, teacherId, displayName, "未知");
+	}
+
+	public void register(String sessionId, Long accountId, Long teacherId, String displayName, String roleName) {
 		if (sessionId == null || accountId == null) {
 			return;
 		}
+		LocalDateTime now = LocalDateTime.now();
 		activeUsers.put(sessionId, new ActiveUser(
 				sessionId,
 				accountId,
 				teacherId,
 				hasText(displayName) ? displayName.trim() : "未命名使用者",
-				LocalDateTime.now()));
+				hasText(roleName) ? roleName.trim() : "未知",
+				now,
+				now,
+				"未知",
+				"未知"));
+	}
+
+	public void touch(String sessionId, String ipAddress, String userAgent) {
+		if (sessionId == null) {
+			return;
+		}
+		activeUsers.computeIfPresent(sessionId, (key, user) -> new ActiveUser(
+				user.sessionId(), user.accountId(), user.teacherId(), user.displayName(), user.roleName(),
+				user.loginAt(), LocalDateTime.now(), safe(ipAddress), safe(userAgent)));
 	}
 
 	public void unregister(String sessionId) {
@@ -54,6 +72,11 @@ public class ActiveUserRegistry implements HttpSessionListener {
 	}
 
 	public record ActiveUser(String sessionId, Long accountId, Long teacherId,
-			String displayName, LocalDateTime loginAt) {
+			String displayName, String roleName, LocalDateTime loginAt, LocalDateTime lastActiveAt,
+			String ipAddress, String userAgent) {
+	}
+
+	private String safe(String value) {
+		return hasText(value) ? value.trim() : "未知";
 	}
 }

@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.example</groupId>
 	<artifactId>WholeSummer</artifactId>
-	<version>1.4.3</version> <!-- Enter system version before release -->
+	<version>1.5.0</version> <!-- Enter system version before release -->
 	<name>霍爾夏天補習班 Whole Summer</name>
 	<description>Cram school management system</description>
 	<properties>
@@ -33,6 +33,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>

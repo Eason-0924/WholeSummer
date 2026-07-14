@@ -42,12 +42,13 @@ import org.springframework.stereotype.Component;
 
 import com.example.cramschool.config.ExternalConfigPaths;
 import com.example.cramschool.dto.RecentCardCheckInRecord;
-import com.example.cramschool.entity.OperationLog;
 import com.example.cramschool.entity.TeacherAccount;
-import com.example.cramschool.service.ActiveUserRegistry;
-import com.example.cramschool.service.OperationLogService;
 import com.example.cramschool.service.RecentCardCheckInService;
 import com.example.cramschool.service.TeacherAccountService;
+import com.example.cramschool.dto.system.OnlineUserDto;
+import com.example.cramschool.dto.system.SystemLogDto;
+import com.example.cramschool.service.system.OnlineUserService;
+import com.example.cramschool.service.system.SystemLogService;
 
 @Component
 public class DesktopStatusWindow {
@@ -55,8 +56,8 @@ public class DesktopStatusWindow {
 	private static final DateTimeFormatter DATE_TIME_FORMATTER =
 			DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
-	private final ActiveUserRegistry activeUserRegistry;
-	private final OperationLogService operationLogService;
+	private final OnlineUserService onlineUserService;
+	private final SystemLogService systemLogService;
 	private final RecentCardCheckInService recentCardCheckInService;
 	private final TeacherAccountService teacherAccountService;
 	private final ConfigurableApplicationContext applicationContext;
@@ -73,14 +74,14 @@ public class DesktopStatusWindow {
 	private JTextArea cardCheckInsArea;
 	private Timer refreshTimer;
 
-	public DesktopStatusWindow(ActiveUserRegistry activeUserRegistry,
-			OperationLogService operationLogService,
+	public DesktopStatusWindow(OnlineUserService onlineUserService,
+				SystemLogService systemLogService,
 			RecentCardCheckInService recentCardCheckInService,
 			TeacherAccountService teacherAccountService,
 			ConfigurableApplicationContext applicationContext,
 			Environment environment) {
-		this.activeUserRegistry = activeUserRegistry;
-		this.operationLogService = operationLogService;
+		this.onlineUserService = onlineUserService;
+		this.systemLogService = systemLogService;
 		this.recentCardCheckInService = recentCardCheckInService;
 		this.teacherAccountService = teacherAccountService;
 		this.applicationContext = applicationContext;
@@ -228,9 +229,9 @@ public class DesktopStatusWindow {
 			@Override
 			protected StatusSnapshot doInBackground() {
 				return new StatusSnapshot(
-						activeUserRegistry.findActiveUsers(),
+						onlineUserService.findUsers(),
 						teacherAccountService.findRecentLogins(),
-						operationLogService.findRecent(80),
+						systemLogService.findRecent(80),
 						recentCardCheckInService.findRecent(40));
 			}
 
@@ -276,14 +277,14 @@ public class DesktopStatusWindow {
 		return Math.max(0, Math.min(value, maximum));
 	}
 
-	private String formatActiveUsers(List<ActiveUserRegistry.ActiveUser> activeUsers) {
+	private String formatActiveUsers(List<OnlineUserDto> activeUsers) {
 		if (activeUsers.isEmpty()) {
 			return "目前沒有登入中的使用者。";
 		}
 		StringBuilder builder = new StringBuilder();
 		builder.append("上線人數：").append(activeUsers.size()).append("\n\n");
 		for (var user : activeUsers) {
-			builder.append(format(user.loginAt()))
+				builder.append(format(user.loginAt()))
 					.append("  ")
 					.append(user.displayName())
 					.append("  #")
@@ -309,26 +310,26 @@ public class DesktopStatusWindow {
 		return builder.toString();
 	}
 
-	private String formatOperationLogs(List<OperationLog> logs) {
+	private String formatOperationLogs(List<SystemLogDto> logs) {
 		if (logs.isEmpty()) {
 			return "尚無操作紀錄。";
 		}
 		StringBuilder builder = new StringBuilder();
-		for (OperationLog log : logs) {
-			builder.append("・")
-					.append(format(log.getCreatedAt()))
-					.append("  ")
-					.append(log.getAction())
-					.append("  ")
-					.append(log.getResult())
+		for (SystemLogDto log : logs) {
+				builder.append("・")
+						.append(format(log.createdAt()))
+						.append("  ")
+						.append(log.action())
+						.append("  ")
+						.append(log.result())
 					.append("\n")
 					.append("    ")
-					.append(log.getActorName())
+						.append(log.actorName())
 					.append("\n")
 					.append("    ")
-					.append(log.getRequestMethod())
+						.append(log.method())
 					.append(" ")
-					.append(log.getRequestPath())
+						.append(log.path())
 					.append("\n\n");
 		}
 		return builder.toString();
@@ -456,9 +457,9 @@ public class DesktopStatusWindow {
 		return first | (second << 8) | (third << 16) | (fourth << 24);
 	}
 
-	private record StatusSnapshot(List<ActiveUserRegistry.ActiveUser> activeUsers,
-			List<TeacherAccount> recentLogins,
-			List<OperationLog> operationLogs,
+	private record StatusSnapshot(List<OnlineUserDto> activeUsers,
+				List<TeacherAccount> recentLogins,
+				List<SystemLogDto> operationLogs,
 			List<RecentCardCheckInRecord> cardCheckIns) {
 	}
 }

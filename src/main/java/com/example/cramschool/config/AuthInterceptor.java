@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 
 import com.example.cramschool.controller.AuthController;
 import com.example.cramschool.service.TeacherAccountService;
+import com.example.cramschool.service.ActiveUserRegistry;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,9 +18,11 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
 	private final TeacherAccountService teacherAccountService;
+	private final ActiveUserRegistry activeUserRegistry;
 
-	public AuthInterceptor(TeacherAccountService teacherAccountService) {
+	public AuthInterceptor(TeacherAccountService teacherAccountService, ActiveUserRegistry activeUserRegistry) {
 		this.teacherAccountService = teacherAccountService;
+		this.activeUserRegistry = activeUserRegistry;
 	}
 
 	@Override
@@ -27,9 +30,10 @@ public class AuthInterceptor implements HandlerInterceptor {
 		HttpSession session = request.getSession(false);
 		if (session != null) {
 			Object accountIdValue = session.getAttribute(AuthController.ACCOUNT_ID_SESSION_KEY);
-			if (accountIdValue instanceof Long accountId
-					&& teacherAccountService.findActiveAccount(accountId).isPresent()) {
-				return true;
+				if (accountIdValue instanceof Long accountId
+						&& teacherAccountService.findActiveAccount(accountId).isPresent()) {
+					activeUserRegistry.touch(session.getId(), request.getRemoteAddr(), request.getHeader("User-Agent"));
+					return true;
 			}
 			session.invalidate();
 		}

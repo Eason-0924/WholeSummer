@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-Hant" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head(${pageTitle})}"></head>
+<body class="bg-light">
+<nav th:replace="~{fragments/layout :: navbar}"></nav>
+
+<main class="container py-4">
+	<div class="d-flex justify-content-between align-items-center mb-4">
+		<div>
+			<h1 class="h3 mb-1">系統狀態</h1>
+			<p class="text-secondary mb-0">WholeSummer Ubuntu 後台監控摘要</p>
+		</div>
+		<a class="btn btn-outline-secondary" th:href="@{/}">返回首頁</a>
+	</div>
+
+	<section class="row g-3 mb-3">
+		<div class="col-md-3"><div class="card h-100"><div class="card-body">
+			<div class="text-secondary small">系統狀態</div>
+			<div class="fs-4" th:text="${dashboard.application.status}">UP</div>
+			<div class="small text-secondary" th:text="${dashboard.application.version}">版本</div>
+		</div></div></div>
+		<div class="col-md-3"><div class="card h-100"><div class="card-body">
+			<div class="text-secondary small">執行環境</div>
+			<div class="fs-5" th:text="${dashboard.application.environment}">default</div>
+			<div class="small text-secondary" th:text="${dashboard.application.javaVersion}">Java</div>
+		</div></div></div>
+		<div class="col-md-3"><div class="card h-100"><div class="card-body">
+			<div class="text-secondary small">運行時間</div>
+			<div class="fs-5" th:text="${dashboard.application.uptimeSeconds + ' 秒'}">0 秒</div>
+			<div class="small text-secondary" th:text="${dashboard.application.startedAt}">啟動時間</div>
+		</div></div></div>
+		<div class="col-md-3"><div class="card h-100"><div class="card-body">
+			<div class="text-secondary small">伺服器時間</div>
+			<div class="fs-6" th:text="${dashboard.application.serverTime}">時間</div>
+			<div class="small text-secondary" th:text="${dashboard.application.operatingSystem}">OS</div>
+		</div></div></div>
+	</section>
+
+	<section class="row g-3 mb-3">
+		<div class="col-lg-6"><div class="card h-100"><div class="card-body">
+			<h2 class="h5">JVM 狀態</h2>
+			<dl class="row mb-0">
+				<dt class="col-7">記憶體使用率</dt><dd class="col-5" th:text="${dashboard.jvm.memoryUsagePercent + '%'}">-</dd>
+				<dt class="col-7">已使用記憶體</dt><dd class="col-5" th:text="${dashboard.jvm.usedMemoryBytes + ' bytes'}">-</dd>
+				<dt class="col-7">最大記憶體</dt><dd class="col-5" th:text="${dashboard.jvm.maxMemoryBytes + ' bytes'}">-</dd>
+				<dt class="col-7">執行緒數量</dt><dd class="col-5" th:text="${dashboard.jvm.threadCount}">-</dd>
+				<dt class="col-7">Process CPU</dt><dd class="col-5" th:text="${dashboard.jvm.processCpuPercent < 0 ? '未知' : dashboard.jvm.processCpuPercent + '%'}">-</dd>
+			</dl>
+		</div></div></div>
+		<div class="col-lg-6"><div class="card h-100"><div class="card-body">
+			<h2 class="h5">主機狀態</h2>
+			<dl class="row mb-0">
+				<dt class="col-7">主機名稱</dt><dd class="col-5" th:text="${dashboard.server.hostName}">-</dd>
+				<dt class="col-7">可用處理器</dt><dd class="col-5" th:text="${dashboard.server.availableProcessors}">-</dd>
+				<dt class="col-7">系統 CPU</dt><dd class="col-5" th:text="${dashboard.server.systemCpuPercent < 0 ? '未知' : dashboard.server.systemCpuPercent + '%'}">-</dd>
+				<dt class="col-7">系統負載</dt><dd class="col-5" th:text="${dashboard.server.systemLoadAverage < 0 ? '未知' : dashboard.server.systemLoadAverage}">-</dd>
+				<dt class="col-7">儲存空間使用率</dt><dd class="col-5" th:text="${dashboard.server.storageUsagePercent + '%'}">-</dd>
+			</dl>
+		</div></div></div>
+	</section>
+
+	<section class="card"><div class="card-body">
+		<h2 class="h5">資料庫狀態</h2>
+		<div class="alert" th:classappend="${dashboard.database.status == 'UP' ? ' alert-success' : ' alert-danger'}">
+			<strong th:text="${dashboard.database.status}">UP</strong>
+			<span th:text="${dashboard.database.message}">資料庫連線狀態</span>
+		</div>
+		<dl class="row mb-0">
+			<dt class="col-md-3">Schema</dt><dd class="col-md-3" th:text="${dashboard.database.schema}">-</dd>
+			<dt class="col-md-3">Flyway 版本</dt><dd class="col-md-3" th:text="${dashboard.database.flywayVersion}">-</dd>
+			<dt class="col-md-3">資料庫版本</dt><dd class="col-md-3" th:text="${dashboard.database.databaseProduct}">-</dd>
+			<dt class="col-md-3">SELECT 1 回應</dt><dd class="col-md-3" th:text="${dashboard.database.responseTimeMs < 0 ? '未知' : dashboard.database.responseTimeMs + ' ms'}">-</dd>
+		</dl>
+	</div></section>
+
+	<div class="d-flex flex-wrap gap-2 mt-3">
+		<a class="btn btn-outline-primary" th:href="@{/admin/system/users}">查看上線使用者</a>
+		<a class="btn btn-outline-primary" th:href="@{/admin/system/logs}">查看操作紀錄</a>
+	</div>
+
+	<section class="row g-3 mt-1">
+		<div class="col-lg-4"><div class="card h-100"><div class="card-body">
+			<h2 class="h5">最近備份</h2>
+			<div th:text="${dashboard.backup.status}">UNKNOWN</div>
+			<div class="small text-secondary" th:text="${dashboard.backup.latestBackupTime == null ? dashboard.backup.note : #temporals.format(dashboard.backup.latestBackupTime, 'yyyy/MM/dd HH:mm:ss')}">-</div>
+			<div class="small text-secondary" th:text="${dashboard.backup.fileName + ' / ' + dashboard.backup.fileSize}">-</div>
+		</div></div></div>
+		<div class="col-lg-4"><div class="card h-100"><div class="card-body">
+			<h2 class="h5">LINE 狀態</h2>
+			<div th:text="${dashboard.line.enabled ? '已啟用' : '未啟用'}">-</div>
+			<div class="small text-secondary" th:text="${'Channel Secret：' + (dashboard.line.channelSecretConfigured ? '已設定' : '未設定')}">-</div>
+			<div class="small text-secondary" th:text="${'Access Token：' + (dashboard.line.accessTokenConfigured ? '已設定' : '未設定')}">-</div>
+			<div class="small text-secondary" th:text="${'Webhook：' + dashboard.line.webhookPath}">-</div>
+		</div></div></div>
+		<div class="col-lg-4"><div class="card h-100"><div class="card-body">
+			<h2 class="h5">排程狀態</h2>
+			<ul class="list-unstyled mb-0" th:each="task : ${dashboard.tasks}">
+				<li><span th:text="${task.name}">排程</span>：<span th:text="${task.enabled ? task.status : '未啟用'}">已註冊</span></li>
+			</ul>
+		</div></div></div>
+	</section>
+</main>
+</body>
+</html>

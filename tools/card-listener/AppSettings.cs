@@ -29,6 +29,8 @@ internal sealed class AppSettings
 
         settings.WholeSummer.ApiBaseUrl = ArgumentValue(args, "--api-base-url")
             ?? settings.WholeSummer.ApiBaseUrl;
+        settings.WholeSummer.ApiToken = ArgumentValue(args, "--api-token")
+            ?? settings.WholeSummer.ApiToken;
         settings.CardReader.DeviceName = ArgumentValue(args, "--device-name")
             ?? settings.CardReader.DeviceName;
 
@@ -123,6 +125,8 @@ internal sealed class WholeSummerOptions
     public string ApiBaseUrl { get; set; } = "http://127.0.0.1:8080";
 
     public string CheckInApiPath { get; set; } = "/internal/desktop/card-check-in";
+
+    public string ApiToken { get; set; } = "";
 }
 
 internal sealed class CardReaderOptions
