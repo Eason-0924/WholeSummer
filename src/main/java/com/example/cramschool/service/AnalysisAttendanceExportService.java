@@ -64,14 +64,13 @@ public class AnalysisAttendanceExportService {
 		}
 	}
 
-	public Path exportAndOpenFolder(YearMonth month) {
+	public Path exportToFile(YearMonth month) {
 		AttendanceExportFile exportFile = export(month);
 		Path folder = exportFolder();
 		try {
 			Files.createDirectories(folder);
 			Path file = folder.resolve(exportFile.fileName()).normalize();
 			Files.write(file, exportFile.content());
-			openFolder(folder);
 			return file;
 		} catch (IOException ex) {
 			throw new UncheckedIOException("匯出學生出席資料失敗", ex);
@@ -285,23 +284,6 @@ public class AnalysisAttendanceExportService {
 		return sanitized.length() <= 31 ? sanitized : sanitized.substring(0, 31);
 	}
 
-	private void openFolder(Path folder) throws IOException {
-		new ProcessBuilder(openFolderCommand(folder))
-				.redirectErrorStream(true)
-				.start();
-	}
-
-	private List<String> openFolderCommand(Path folder) {
-		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-		String folderPath = folder.toAbsolutePath().toString();
-		if (osName.contains("win")) {
-			return List.of("explorer.exe", folderPath);
-		}
-		if (osName.contains("mac")) {
-			return List.of("open", folderPath);
-		}
-		return List.of("xdg-open", folderPath);
-	}
 
 	private record ExportSheet(String name, List<List<String>> rows) {
 	}

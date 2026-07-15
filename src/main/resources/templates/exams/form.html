@@ -72,10 +72,10 @@
 				<div id="practiceExamMessage" class="form-text text-primary d-none">此測驗為練習，不計分。</div>
 			</div>
 			<div class="col-12">
-				<label for="paperFile" class="form-label">瀏覽選擇考卷檔案</label>
-				<input type="file" id="paperFile" name="paperFile" class="form-control">
+				<label for="paperFiles" class="form-label">選擇考卷檔案（可複選）</label>
+				<input type="file" id="paperFiles" name="paperFiles" class="form-control" multiple>
 				<div class="form-text" th:if="*{paperFileName != null and !paperFileName.isBlank()}"
-						th:text="|目前檔案：${examForm.paperFileName}。重新選擇檔案會取代原檔。|">目前檔案</div>
+						th:text="|目前第一個檔案：${examForm.paperFileName}。重新選擇檔案會取代全部檔案。|">目前檔案</div>
 			</div>
 			<div class="col-12">
 				<label for="paperPageSelection" class="form-label">考卷頁數</label>

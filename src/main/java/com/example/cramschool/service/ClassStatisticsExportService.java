@@ -61,7 +61,7 @@ public class ClassStatisticsExportService {
 		this.scoreService = scoreService;
 	}
 
-	public Path exportAndOpenFolder(Long classRoomId, String section, String range) {
+	public Path exportToFile(Long classRoomId, String section, String range) {
 		if (!VALID_SECTIONS.contains(section)) {
 			throw new IllegalArgumentException("不支援的匯出項目");
 		}
@@ -75,7 +75,6 @@ public class ClassStatisticsExportService {
 			Files.createDirectories(folder);
 			Path file = folder.resolve(exportFileName(classRoom, exportData.title(), range));
 			writeWorkbook(file, exportData.sheets());
-			openFolder(folder);
 			return file;
 		} catch (IOException ex) {
 			throw new UncheckedIOException("匯出班級統計資料失敗", ex);
@@ -405,23 +404,6 @@ public class ClassStatisticsExportService {
 				.replace("\"", "&quot;");
 	}
 
-	private void openFolder(Path folder) throws IOException {
-		new ProcessBuilder(openFolderCommand(folder))
-				.redirectErrorStream(true)
-				.start();
-	}
-
-	private List<String> openFolderCommand(Path folder) {
-		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-		String folderPath = folder.toAbsolutePath().toString();
-		if (osName.contains("win")) {
-			return List.of("explorer.exe", folderPath);
-		}
-		if (osName.contains("mac")) {
-			return List.of("open", folderPath);
-		}
-		return List.of("xdg-open", folderPath);
-	}
 
 	private record ExportData(String title, List<ExportSheet> sheets) {
 	}

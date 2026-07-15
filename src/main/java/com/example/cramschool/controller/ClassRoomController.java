@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Controller;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -302,18 +306,20 @@ public class ClassRoomController {
 	}
 
 	@PostMapping("/{slug}/export")
-	public String exportStatistics(@PathVariable String slug,
+	public ResponseEntity<FileSystemResource> exportStatistics(@PathVariable String slug,
 			@RequestParam String section,
 			@RequestParam String range,
 			RedirectAttributes redirectAttributes) {
 		ClassRoom classRoom = classRoomService.findByUrlSlugOrId(slug);
 		try {
-			classStatisticsExportService.exportAndOpenFolder(classRoom.getId(), section, range);
-			redirectAttributes.addFlashAttribute("message", "已匯出班級統計資料並開啟資料夾");
+			java.nio.file.Path file = classStatisticsExportService.exportToFile(classRoom.getId(), section, range);
+			return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,
+					"attachment; filename*=UTF-8''" + java.net.URLEncoder.encode(file.getFileName().toString(), java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"))
+					.contentType(MediaType.APPLICATION_OCTET_STREAM).body(new FileSystemResource(file));
 		} catch (IllegalArgumentException | java.io.UncheckedIOException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
-		return redirectToClassRoom(classRoom);
+		return ResponseEntity.badRequest().build();
 	}
 
 	@PostMapping("/{slug}/students")

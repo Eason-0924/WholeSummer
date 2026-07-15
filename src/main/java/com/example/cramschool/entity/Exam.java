@@ -2,6 +2,8 @@ package com.example.cramschool.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,6 +12,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -50,6 +53,11 @@ public class Exam {
 
 	@Column(name = "paper_storage_mode", length = 20)
 	private String paperStorageMode;
+
+	@OneToMany(mappedBy = "exam", cascade = jakarta.persistence.CascadeType.ALL, orphanRemoval = true,
+			fetch = jakarta.persistence.FetchType.EAGER)
+	@jakarta.persistence.OrderBy("id ASC")
+	private List<ExamPaperFile> paperFiles = new ArrayList<>();
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
@@ -148,6 +156,9 @@ public class Exam {
 	public void setPaperStorageMode(String paperStorageMode) {
 		this.paperStorageMode = paperStorageMode;
 	}
+
+	public List<ExamPaperFile> getPaperFiles() { return paperFiles; }
+	public void setPaperFiles(List<ExamPaperFile> paperFiles) { this.paperFiles = paperFiles; }
 
 	public LocalDateTime getCreatedAt() {
 		return createdAt;

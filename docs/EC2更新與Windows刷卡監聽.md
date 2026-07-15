@@ -6,6 +6,13 @@
 - Windows：只執行 `WholeSummer.CardListener.exe`，以及保留 `C:\WholeSummer` 班級資料夾。
 - Windows Card Listener 透過 `https://app.whole-summer.com/internal/desktop/card-check-in` 呼叫 EC2。
 
+WholeSummer systemd 服務執行 `/opt/WholeSummer/current.jar`。此檔案是符號連結，會指向
+`/opt/WholeSummer/releases/` 中目前啟用的版本，例如：
+
+```text
+/opt/WholeSummer/current.jar -> /opt/WholeSummer/releases/WholeSummer-1.4.4.jar
+```
+
 ## EC2 更新權限
 
 若要允許管理員從系統更新頁部署 JAR，將 `deploy/wholesummer-update.sudoers` 安裝到 EC2：
@@ -26,7 +33,8 @@ sudo -u wholesummer test -w /opt/WholeSummer/app/WholeSummer.jar
 
 ```bash
 WHOLESUMMER_AUTO_UPDATE_ENABLED=true
-WHOLESUMMER_JAR_PATH=/opt/WholeSummer/app/WholeSummer.jar
+WHOLESUMMER_JAR_PATH=/opt/WholeSummer/current.jar
+WHOLESUMMER_RELEASE_DIR=/opt/WholeSummer/releases
 WHOLESUMMER_SERVICE_NAME=wholesummer.service
 ```
 
@@ -36,6 +44,8 @@ WHOLESUMMER_SERVICE_NAME=wholesummer.service
 sudo systemctl restart wholesummer
 sudo systemctl status wholesummer --no-pager
 ```
+
+更新時不會覆寫舊版 JAR；新版會保留在 `releases`，再原子切換 `current.jar`。
 
 ## Windows 設定
 

@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.5.0**
+目前版本：**1.5.1**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,18 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.5.1 更新內容
+
+- 1.5.1 發布。
+- 主程式啟動流程改為純 Spring Boot/headless 模式，移除桌面狀態視窗、首次設定視窗、啟動畫面與內建刷卡監聽程序，讓 EC2 部署不再依賴 Swing 或桌面環境。
+- 外部設定初始化改為要求先建立 EC2 設定檔，並會自動建立班級檔案資料夾；新增 `WHOLESUMMER_CLASS_DATA_DIR` 支援 Linux 預設 `/opt/WholeSummer/data/class-files`。
+- Linux JAR 更新改為保留版本化 release 檔案於 `app.update.release-dir`，再以 `app.update.jar-path` 的 `current.jar` 符號連結原子切換目前版本，降低覆蓋主程式 JAR 的風險。
+- 考卷檔案支援一次上傳多個檔案，新增 `exam_paper_files` 資料表保存每份檔案，測驗詳細頁可逐一下載試卷；既有單一考卷路徑會自動搬入新表。
+- 分析中心與班級統計匯出改為直接回傳下載檔案，不再嘗試從伺服器開啟本機資料夾，更適合遠端 EC2 環境。
+- LINE 通知中心合併訊息會正規化 CRLF 換行，修正多則成績、學費、補課或調課通知合併時重複問候語未正確移除的問題。
+- 新增 `WholeSummer_教師使用教學手冊.docx`，方便教師端操作與教育訓練使用。
+- 更新 EC2 更新與 Windows 刷卡監聽部署文件，補充 `current.jar`、`releases` 目錄與更新保留舊版 JAR 的部署方式。
 
 ## 1.5.0 更新內容
 

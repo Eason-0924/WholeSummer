@@ -18,7 +18,12 @@
     {
       "name": "app.update.jar-path",
       "type": "java.lang.String",
-      "description": "Target JAR path used by the Linux VPS updater."
+      "description": "Symbolic link to the active JAR used by the Linux VPS service."
+    },
+    {
+      "name": "app.update.release-dir",
+      "type": "java.lang.String",
+      "description": "Directory containing immutable versioned JAR releases."
     },
     {
       "name": "app.update.service-name",

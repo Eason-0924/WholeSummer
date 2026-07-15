@@ -1,6 +1,5 @@
 package com.example.cramschool.config;
 
-import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,18 +16,9 @@ public final class ExternalConfigInitializer {
 		createDirectories();
 		Path configFile = ExternalConfigPaths.configFile();
 		if (!Files.exists(configFile)) {
-			if (GraphicsEnvironment.isHeadless()) {
-				throw new IllegalStateException("找不到外部設定檔，且目前環境無法顯示首次設定視窗："
-						+ configFile);
-			}
-			if (!new FirstRunSetupDialog().showAndCreateConfiguration()) {
-				return false;
-			}
+			throw new IllegalStateException("找不到外部設定檔，請先建立 EC2 設定檔：" + configFile);
 		}
 		ExternalConfigMigration.migrate(configFile);
-		if (!GraphicsEnvironment.isHeadless()) {
-			ReportMailSetupDialog.promptIfRequired(configFile);
-		}
 		System.setProperty("spring.config.additional-location",
 				ExternalConfigPaths.configDirectory().toUri().toString());
 		return true;
@@ -40,5 +30,6 @@ public final class ExternalConfigInitializer {
 		Files.createDirectories(ExternalConfigPaths.dataDirectory());
 		Files.createDirectories(ExternalConfigPaths.backupsDirectory());
 		Files.createDirectories(ExternalConfigPaths.updateDirectory());
+		Files.createDirectories(ExternalConfigPaths.classDataDirectory());
 	}
 }

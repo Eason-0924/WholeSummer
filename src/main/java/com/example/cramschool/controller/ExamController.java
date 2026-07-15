@@ -24,6 +24,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.cramschool.entity.Exam;
+import com.example.cramschool.entity.ExamPaperFile;
 import com.example.cramschool.form.ExamForm;
 import com.example.cramschool.service.ClassRoomService;
 import com.example.cramschool.service.ExamService;
@@ -76,7 +77,7 @@ public class ExamController {
 
 	@PostMapping
 	public String create(@Valid @ModelAttribute("examForm") ExamForm examForm,
-			BindingResult bindingResult, @RequestParam(required = false) MultipartFile paperFile,
+			BindingResult bindingResult, @RequestParam(required = false) MultipartFile[] paperFiles,
 			Model model, RedirectAttributes redirectAttributes) {
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "新增測驗");
@@ -86,7 +87,7 @@ public class ExamController {
 		}
 
 		try {
-			Exam exam = examService.create(examForm, paperFile);
+			Exam exam = examService.create(examForm, paperFiles);
 			redirectAttributes.addFlashAttribute("message", "已新增測驗：" + exam.getName());
 			return "redirect:/exams/" + exam.getId();
 		} catch (IllegalArgumentException | UncheckedIOException ex) {
@@ -118,20 +119,23 @@ public class ExamController {
 		String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
 		String contentType = Files.probeContentType(path);
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
 				.contentType(contentType == null ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(contentType))
 				.body(resource);
 	}
 
-	@PostMapping("/{id}/paper/folder")
-	public String openPaperFolder(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-		try {
-			examService.openPaperFolder(id);
-			redirectAttributes.addFlashAttribute("message", "已開啟考卷檔案資料夾");
-		} catch (IllegalArgumentException | IllegalStateException | UncheckedIOException ex) {
-			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
-		}
-		return "redirect:/exams/" + id;
+	@GetMapping("/{id}/papers/{fileId}")
+	public ResponseEntity<FileSystemResource> paperFile(@PathVariable Long id, @PathVariable Long fileId)
+			throws IOException {
+		ExamPaperFile file = examService.paperFiles(id).stream()
+				.filter(item -> item.getId().equals(fileId)).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("找不到考卷檔案"));
+		Path path = examService.paperPath(id, fileId);
+		String encodedFileName = URLEncoder.encode(file.getFileName(), StandardCharsets.UTF_8).replace("+", "%20");
+		String contentType = Files.probeContentType(path);
+		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedFileName)
+				.contentType(contentType == null ? MediaType.APPLICATION_OCTET_STREAM : MediaType.parseMediaType(contentType))
+				.body(new FileSystemResource(path));
 	}
 
 	@GetMapping("/{id}/edit")
@@ -148,7 +152,7 @@ public class ExamController {
 	@PostMapping("/{id}")
 	public String update(@PathVariable Long id,
 			@Valid @ModelAttribute("examForm") ExamForm examForm,
-			BindingResult bindingResult, @RequestParam(required = false) MultipartFile paperFile,
+			BindingResult bindingResult, @RequestParam(required = false) MultipartFile[] paperFiles,
 			Model model, RedirectAttributes redirectAttributes) {
 		if (bindingResult.hasErrors()) {
 			model.addAttribute("pageTitle", "編輯測驗");
@@ -159,7 +163,7 @@ public class ExamController {
 		}
 
 		try {
-			Exam exam = examService.update(id, examForm, paperFile);
+			Exam exam = examService.update(id, examForm, paperFiles);
 			redirectAttributes.addFlashAttribute("message", "已更新測驗：" + exam.getName());
 			return "redirect:/exams/" + id;
 		} catch (IllegalArgumentException | UncheckedIOException ex) {

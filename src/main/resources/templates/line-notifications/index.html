@@ -693,12 +693,13 @@
 					groups.get(item.templateKey).push(item.text);
 				});
 				const removeRepeatedIntro = (text) => {
-					const greetingEnd = text.indexOf('您好：\n');
+					const normalized = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+					const greetingEnd = normalized.indexOf('您好：\n');
 					if (greetingEnd >= 0) {
-						return text.substring(greetingEnd + '您好：\n'.length);
+						return normalized.substring(greetingEnd + '您好：\n'.length);
 					}
-					const headerEnd = text.indexOf('\n\n');
-					return headerEnd >= 0 ? text.substring(headerEnd + 2) : text;
+					const headerEnd = normalized.indexOf('\n\n');
+					return headerEnd >= 0 ? normalized.substring(headerEnd + 2) : normalized;
 				};
 				const messageBlocks = Array.from(groups.values()).map((messages) =>
 						messages.map((message, index) => index === 0 ? message : removeRepeatedIntro(message)).join('\n')

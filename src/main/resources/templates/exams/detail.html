@@ -52,18 +52,13 @@
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">考卷檔案</div>
-				<div th:if="${exam.paperFilePath != null and !exam.paperFilePath.isBlank()}"
-						class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-					<div class="min-w-0">
-						<div th:text="${exam.paperFileName ?: exam.paperFilePath}">考卷檔案</div>
-						<div class="text-secondary small text-break" th:text="${exam.paperFilePath}">考卷路徑</div>
+				<div th:if="${!#lists.isEmpty(exam.paperFiles)}" class="vstack gap-2">
+					<div th:each="paper : ${exam.paperFiles}" class="d-flex align-items-center justify-content-between gap-3 flex-wrap border rounded p-2">
+						<span class="text-break" th:text="${paper.fileName}">考卷檔案</span>
+						<a class="btn btn-sm btn-outline-primary" th:href="@{/exams/{id}/papers/{fileId}(id=${exam.id},fileId=${paper.id})}">下載試卷</a>
 					</div>
-					<form th:if="${exam.paperFilePath != null and !exam.paperFilePath.isBlank()}"
-							th:action="@{/exams/{id}/paper/folder(id=${exam.id})}" method="post">
-						<button class="btn btn-sm btn-outline-primary" type="submit">開啟資料夾</button>
-					</form>
 				</div>
-				<div th:if="${exam.paperFilePath == null or exam.paperFilePath.isBlank()}">-</div>
+				<div th:if="${#lists.isEmpty(exam.paperFiles)}">-</div>
 			</div>
 			<div class="col-12">
 				<div class="text-secondary small">說明</div>

@@ -12,12 +12,15 @@ import org.springframework.stereotype.Service;
 public class LinuxJarUpdateInstaller {
 
 	private final Path applicationJar;
+	private final Path releaseDirectory;
 	private final String serviceName;
 
 	public LinuxJarUpdateInstaller(
-			@Value("${app.update.jar-path:/opt/WholeSummer/app/WholeSummer.jar}") String applicationJar,
+			@Value("${app.update.jar-path:/opt/WholeSummer/current.jar}") String applicationJar,
+			@Value("${app.update.release-dir:/opt/WholeSummer/releases}") String releaseDirectory,
 			@Value("${app.update.service-name:wholesummer.service}") String serviceName) {
 		this.applicationJar = Path.of(applicationJar).toAbsolutePath().normalize();
+		this.releaseDirectory = Path.of(releaseDirectory).toAbsolutePath().normalize();
 		this.serviceName = serviceName;
 	}
 
@@ -29,14 +32,27 @@ public class LinuxJarUpdateInstaller {
 		if (!Files.isRegularFile(source) || !source.getFileName().toString().toLowerCase().endsWith(".jar")) {
 			throw new IllegalArgumentException("更新 JAR 不存在或格式不正確");
 		}
-		Files.createDirectories(applicationJar.getParent());
-		Path temporaryJar = applicationJar.resolveSibling(applicationJar.getFileName() + ".new");
+		Files.createDirectories(releaseDirectory);
+		Path releaseJar = releaseDirectory.resolve(source.getFileName()).normalize();
+		if (!releaseJar.startsWith(releaseDirectory)) {
+			throw new IllegalArgumentException("更新 JAR 檔名不合法");
+		}
+		Path temporaryJar = releaseDirectory.resolve(source.getFileName() + ".new");
 		Files.copy(source, temporaryJar, StandardCopyOption.REPLACE_EXISTING);
 		try {
-			Files.move(temporaryJar, applicationJar,
+			Files.move(temporaryJar, releaseJar,
 					StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 		} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
-			Files.move(temporaryJar, applicationJar, StandardCopyOption.REPLACE_EXISTING);
+			Files.move(temporaryJar, releaseJar, StandardCopyOption.REPLACE_EXISTING);
+		}
+		Path temporaryLink = applicationJar.resolveSibling(applicationJar.getFileName() + ".new");
+		Files.deleteIfExists(temporaryLink);
+		Files.createSymbolicLink(temporaryLink, releaseJar);
+		try {
+			Files.move(temporaryLink, applicationJar,
+					StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
+			Files.move(temporaryLink, applicationJar, StandardCopyOption.REPLACE_EXISTING);
 		}
 		new ProcessBuilder("sudo", "-n", "systemctl", "restart", serviceName)
 				.redirectErrorStream(true)

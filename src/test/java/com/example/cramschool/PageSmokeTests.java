@@ -179,7 +179,7 @@ class PageSmokeTests {
 		createUploadedExamClassRoom();
 
 		MockMultipartFile paperFile = new MockMultipartFile(
-				"paperFile",
+				"paperFiles",
 				"math-paper.pdf",
 				"application/pdf",
 				testPdfBytes(3));
@@ -211,8 +211,8 @@ class PageSmokeTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("math-paper_pages_2-3.pdf")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(uploadedExam.getPaperFilePath())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("考卷頁數：2-3")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("開啟資料夾")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("/exams/" + uploadedExam.getId() + "/paper/folder")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("下載試卷")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("/exams/" + uploadedExam.getId() + "/papers/")));
 
 		try (PDDocument document = Loader.loadPDF(Path.of(uploadedExam.getPaperFilePath()).toFile())) {
 			org.assertj.core.api.Assertions.assertThat(document.getNumberOfPages()).isEqualTo(2);
@@ -231,7 +231,7 @@ class PageSmokeTests {
 		createUploadedExamClassRoom();
 
 		MockMultipartFile paperFile = new MockMultipartFile(
-				"paperFile",
+				"paperFiles",
 				"delete-me.pdf",
 				"application/pdf",
 				testPdfBytes(2));

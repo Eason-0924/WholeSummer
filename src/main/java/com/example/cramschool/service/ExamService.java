@@ -5,7 +5,6 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.cramschool.entity.ClassRoom;
 import com.example.cramschool.entity.Exam;
+import com.example.cramschool.entity.ExamPaperFile;
 import com.example.cramschool.entity.Subject;
 import com.example.cramschool.form.ExamForm;
 import com.example.cramschool.repository.ClassRoomRepository;
@@ -62,27 +62,35 @@ public class ExamService {
 	}
 
 	public Exam create(ExamForm form) {
-		return create(form, null);
+		return create(form, (MultipartFile[]) null);
 	}
 
 	public Exam create(ExamForm form, MultipartFile paperFile) {
+		return create(form, paperFile == null ? new MultipartFile[0] : new MultipartFile[] {paperFile});
+	}
+
+	public Exam create(ExamForm form, MultipartFile[] paperFiles) {
 		Exam exam = new Exam();
 		form.applyTo(exam);
 		applyRelations(exam, form);
 		Exam savedExam = examRepository.save(exam);
-		storePaperFile(savedExam, form, paperFile);
+		storePaperFiles(savedExam, form, paperFiles);
 		return examRepository.save(savedExam);
 	}
 
 	public Exam update(Long id, ExamForm form) {
-		return update(id, form, null);
+		return update(id, form, (MultipartFile[]) null);
 	}
 
 	public Exam update(Long id, ExamForm form, MultipartFile paperFile) {
+		return update(id, form, paperFile == null ? new MultipartFile[0] : new MultipartFile[] {paperFile});
+	}
+
+	public Exam update(Long id, ExamForm form, MultipartFile[] paperFiles) {
 		Exam exam = findById(id);
 		form.applyTo(exam);
 		applyRelations(exam, form);
-		storePaperFile(exam, form, paperFile);
+		storePaperFiles(exam, form, paperFiles);
 		return examRepository.save(exam);
 	}
 
@@ -90,16 +98,14 @@ public class ExamService {
 		Exam exam = findById(id);
 		scoreRepository.deleteByExamId(id);
 		examRepository.delete(exam);
-		deletePaperFile(exam);
+		deletePaperFiles(exam);
 	}
 
 	@Transactional(readOnly = true)
 	public Path paperPath(Long id) {
-		Exam exam = findById(id);
-		if (exam.getPaperFilePath() == null || exam.getPaperFilePath().isBlank()) {
-			throw new IllegalArgumentException("此測驗尚未設定考卷檔案");
-		}
-		Path path = Path.of(exam.getPaperFilePath());
+		ExamPaperFile file = paperFiles(id).stream().findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("此測驗尚未設定考卷檔案"));
+		Path path = Path.of(file.getFilePath());
 		if (!Files.isRegularFile(path)) {
 			throw new IllegalArgumentException("找不到考卷檔案");
 		}
@@ -107,27 +113,24 @@ public class ExamService {
 	}
 
 	@Transactional(readOnly = true)
-	public Path paperFolderPath(Long id) {
-		Path path = paperPath(id);
-		Path folder = path.getParent();
-		if (folder == null || !Files.isDirectory(folder)) {
-			throw new IllegalArgumentException("找不到考卷檔案資料夾");
-		}
-		return folder;
+	public List<ExamPaperFile> paperFiles(Long id) {
+		Exam exam = findById(id);
+		return exam.getPaperFiles();
 	}
 
 	@Transactional(readOnly = true)
-	public void openPaperFolder(Long id) {
-		Path folder = paperFolderPath(id);
-		try {
-			new ProcessBuilder(openFolderCommand(folder))
-					.redirectErrorStream(true)
-					.start();
-		} catch (IOException ex) {
-			throw new UncheckedIOException("開啟考卷資料夾失敗", ex);
+	public Path paperPath(Long examId, Long fileId) {
+		ExamPaperFile file = paperFiles(examId).stream()
+				.filter(item -> item.getId().equals(fileId)).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("找不到考卷檔案"));
+		Path path = Path.of(file.getFilePath()).toAbsolutePath().normalize();
+		if (!Files.isRegularFile(path)) {
+			throw new IllegalArgumentException("找不到考卷檔案");
 		}
+		return path;
 	}
 
+	@Transactional(readOnly = true)
 	private void applyRelations(Exam exam, ExamForm form) {
 		ClassRoom classRoom = classRoomRepository.findById(form.getClassRoomId())
 				.orElseThrow(() -> new IllegalArgumentException("找不到班級資料"));
@@ -139,45 +142,36 @@ public class ExamService {
 		exam.setSubject(subject);
 	}
 
-	private void storePaperFile(Exam exam, ExamForm form, MultipartFile paperFile) {
-		copyUploadedPaperFile(exam, form, paperFile);
-	}
-
-	private List<String> openFolderCommand(Path folder) {
-		String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-		String folderPath = folder.toAbsolutePath().toString();
-		if (osName.contains("win")) {
-			return List.of("explorer.exe", folderPath);
-		}
-		if (osName.contains("mac")) {
-			return List.of("open", folderPath);
-		}
-		return List.of("xdg-open", folderPath);
-	}
-
-	private void copyUploadedPaperFile(Exam exam, ExamForm form, MultipartFile paperFile) {
-		if (paperFile == null || paperFile.isEmpty()) {
+	private void storePaperFiles(Exam exam, ExamForm form, MultipartFile[] paperFiles) {
+		List<MultipartFile> files = paperFiles == null ? List.of() : java.util.Arrays.stream(paperFiles)
+				.filter(file -> file != null && !file.isEmpty()).toList();
+		if (files.isEmpty()) {
 			return;
 		}
-		String originalFileName = StringUtils.cleanPath(
-				paperFile.getOriginalFilename() == null ? "exam-paper" : paperFile.getOriginalFilename());
-		if (originalFileName.contains("..")) {
-			throw new IllegalArgumentException("考卷檔案名稱不可包含路徑");
-		}
+		deletePaperFiles(exam);
 		try {
-			String storedDisplayName = originalFileName;
-			Path targetPath;
-			if (isPdf(originalFileName) && hasText(form.getPaperPageSelection())) {
-				storedDisplayName = extractedPdfFileName(originalFileName, form.getPaperPageSelection());
-				targetPath = targetPath(exam, storedDisplayName);
-				saveSelectedPdfPages(paperFile, form.getPaperPageSelection(), targetPath);
-			} else {
-				targetPath = targetPath(exam, originalFileName);
-				Files.copy(paperFile.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+			for (int index = 0; index < files.size(); index++) {
+				MultipartFile paperFile = files.get(index);
+				String originalFileName = StringUtils.cleanPath(paperFile.getOriginalFilename() == null
+						? "exam-paper-" + (index + 1) : paperFile.getOriginalFilename());
+				if (originalFileName.contains("..")) throw new IllegalArgumentException("考卷檔案名稱不可包含路徑");
+				String storedDisplayName = originalFileName;
+				Path targetPath = targetPath(exam, storedDisplayName);
+				if (files.size() == 1 && isPdf(originalFileName) && hasText(form.getPaperPageSelection())) {
+					storedDisplayName = extractedPdfFileName(originalFileName, form.getPaperPageSelection());
+					targetPath = targetPath(exam, storedDisplayName);
+					saveSelectedPdfPages(paperFile, form.getPaperPageSelection(), targetPath);
+				} else {
+					Files.copy(paperFile.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+				}
+				ExamPaperFile saved = new ExamPaperFile();
+				saved.setExam(exam); saved.setFilePath(targetPath.toAbsolutePath().toString());
+				saved.setFileName(storedDisplayName); saved.setStorageMode(ExamForm.PAPER_STORAGE_COPY);
+				saved.setCreatedAt(java.time.LocalDateTime.now());
+				exam.getPaperFiles().add(saved);
 			}
-			deletePaperFile(exam);
-			exam.setPaperFilePath(targetPath.toAbsolutePath().toString());
-			exam.setPaperFileName(storedDisplayName);
+			exam.setPaperFilePath(exam.getPaperFiles().get(0).getFilePath());
+			exam.setPaperFileName(exam.getPaperFiles().get(0).getFileName());
 			exam.setPaperStorageMode(ExamForm.PAPER_STORAGE_COPY);
 		} catch (IOException ex) {
 			throw new UncheckedIOException("儲存考卷檔案失敗", ex);
@@ -285,31 +279,19 @@ public class ExamService {
 		return safeValue.length() > 120 ? safeValue.substring(0, 120) : safeValue;
 	}
 
-	private void deletePaperFile(Exam exam) {
-		if (exam.getPaperFilePath() == null || exam.getPaperFilePath().isBlank()) {
-			return;
-		}
-		if (ExamForm.PAPER_STORAGE_LINK.equals(exam.getPaperStorageMode())) {
-			return;
-		}
-		Path storedPath = Path.of(exam.getPaperFilePath()).toAbsolutePath().normalize();
+	private void deletePaperFiles(Exam exam) {
 		Path storageRoot = examPaperDirectory.toAbsolutePath().normalize();
-		if (!storedPath.startsWith(storageRoot)) {
-			return;
-		}
 		try {
-			Path examFolder = storedPath.getParent();
-			if (examFolder == null || !examFolder.startsWith(storageRoot)) {
-				Files.deleteIfExists(storedPath);
-				return;
-			}
-			try (var paths = Files.walk(examFolder)) {
-				for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-					Files.deleteIfExists(path);
+			for (ExamPaperFile file : exam.getPaperFiles()) {
+				if (ExamForm.PAPER_STORAGE_LINK.equals(file.getStorageMode())) continue;
+				Path storedPath = Path.of(file.getFilePath()).toAbsolutePath().normalize();
+				if (storedPath.startsWith(storageRoot)) {
+					Files.deleteIfExists(storedPath);
 				}
 			}
+			exam.getPaperFiles().clear();
 		} catch (IOException ex) {
-			throw new UncheckedIOException("刪除考卷資料夾失敗", ex);
+			throw new UncheckedIOException("刪除考卷檔案失敗", ex);
 		}
 	}
 }

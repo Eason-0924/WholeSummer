@@ -285,13 +285,14 @@ public class LineNotificationCenterService {
 		return content.toString();
 	}
 
-	private String removeRepeatedTemplateIntro(String content) {
-		int greetingEnd = content.indexOf("您好：\n");
+	static String removeRepeatedTemplateIntro(String content) {
+		String normalized = content == null ? "" : content.replace("\r\n", "\n").replace('\r', '\n');
+		int greetingEnd = normalized.indexOf("您好：\n");
 		if (greetingEnd >= 0) {
-			return content.substring(greetingEnd + "您好：\n".length());
+			return normalized.substring(greetingEnd + "您好：\n".length());
 		}
-		int headerEnd = content.indexOf("\n\n");
-		return headerEnd >= 0 ? content.substring(headerEnd + 2) : content;
+		int headerEnd = normalized.indexOf("\n\n");
+		return headerEnd >= 0 ? normalized.substring(headerEnd + 2) : normalized;
 	}
 
 	private void addScoreCandidate(List<NotificationCandidate> candidates, Score score) {
@@ -397,6 +398,7 @@ public class LineNotificationCenterService {
 		String content = template == null || template.isBlank()
 				? templates().get(candidate.templateKey()).body()
 				: template;
+		content = content.replace("\r\n", "\n").replace('\r', '\n');
 		String salutation = parentLabel(candidate.student(), binding);
 		content = content.replace("{稱謂}", salutation)
 				.replace("{學生姓名}", candidate.studentName())

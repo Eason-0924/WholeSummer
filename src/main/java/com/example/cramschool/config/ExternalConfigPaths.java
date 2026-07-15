@@ -7,6 +7,7 @@ public final class ExternalConfigPaths {
 	public static final String ENABLED_PROPERTY = "wholesummer.external-config.enabled";
 	public static final String BASE_DIR_PROPERTY = "wholesummer.base-dir";
 	public static final String HOME_ENVIRONMENT = "WHOLESUMMER_HOME";
+	public static final String CLASS_DATA_ENVIRONMENT = "WHOLESUMMER_CLASS_DATA_DIR";
 
 	private ExternalConfigPaths() {
 	}
@@ -32,14 +33,25 @@ public final class ExternalConfigPaths {
 	}
 
 	public static Path classDataDirectory() {
+		String configured = System.getenv(CLASS_DATA_ENVIRONMENT);
+		if (configured != null && !configured.isBlank()) {
+			return Path.of(configured).toAbsolutePath().normalize();
+		}
 		if (isWindows()) {
 			return Path.of("C:\\WholeSummer").toAbsolutePath().normalize();
+		}
+		if (isLinux()) {
+			return Path.of("/opt/WholeSummer/data/class-files").toAbsolutePath().normalize();
 		}
 		return Path.of(System.getProperty("user.home"), "WholeSummer").toAbsolutePath().normalize();
 	}
 
 	private static boolean isWindows() {
 		return System.getProperty("os.name", "").toLowerCase().contains("win");
+	}
+
+	private static boolean isLinux() {
+		return System.getProperty("os.name", "").toLowerCase().contains("linux");
 	}
 
 	public static Path configDirectory() {
