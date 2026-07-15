@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.5.1**
+目前版本：**1.5.2**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,13 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.5.2 更新內容
+
+- 1.5.2 發布。
+- EC2 預設更新下載目錄改為 `/opt/WholeSummer/update`，避免未設定 `WHOLESUMMER_UPDATE_DIR` 時下載路徑落在不明位置。
+- 外部設定 migration 會將 Linux JAR 更新路徑補齊為 `/opt/WholeSummer/current.jar`，並新增 `/opt/WholeSummer/releases` 版本化 release 目錄設定。
+- Linux JAR 更新啟動失敗時會寫入後端錯誤 log，方便排查權限、符號連結或 systemd 重啟問題。
 
 ## 1.5.1 更新內容
 

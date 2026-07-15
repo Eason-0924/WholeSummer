@@ -3,6 +3,8 @@ package com.example.cramschool.controller;
 import java.nio.file.Path;
 
 import org.springframework.stereotype.Controller;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +23,8 @@ import jakarta.servlet.http.HttpSession;
 @Controller
 @RequestMapping("/updates")
 public class UpdateController {
+
+	private static final Logger logger = LoggerFactory.getLogger(UpdateController.class);
 
 	private final UpdateCoordinator updateCoordinator;
 	private final UpdateDownloader updateDownloader;
@@ -84,6 +88,7 @@ public class UpdateController {
 			model.addAttribute("latestVersion", update.latestVersion());
 			return "updates/installing";
 		} catch (Exception ex) {
+			logger.error("Linux JAR update failed", ex);
 			redirectAttributes.addFlashAttribute("errorMessage", "無法啟動更新：" + ex.getMessage());
 			return "redirect:/settings#system-update";
 		}

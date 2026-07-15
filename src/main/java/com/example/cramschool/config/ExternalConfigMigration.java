@@ -64,7 +64,8 @@ public final class ExternalConfigMigration {
 		values.put("app.status-window.enabled", "false");
 		values.put("app.card-listener.enabled", "false");
 		values.put("app.auto-update.enabled", "false");
-		values.put("app.update.jar-path", "/opt/WholeSummer/app/WholeSummer.jar");
+		values.put("app.update.jar-path", "/opt/WholeSummer/current.jar");
+		values.put("app.update.release-dir", "/opt/WholeSummer/releases");
 		values.put("app.update.service-name", "wholesummer.service");
 		values.put("app.update.check-on-startup", "true");
 		values.put("app.update.check-interval-hours", "24");
