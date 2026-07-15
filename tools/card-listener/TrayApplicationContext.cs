@@ -11,6 +11,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private readonly RawInputForm rawInputForm;
     private readonly KeyboardInputSuppressor keyboardInputSuppressor;
     private readonly System.Windows.Forms.Timer flushTimer;
+    private readonly System.Windows.Forms.Timer startupReaderCheckTimer;
     private readonly List<string> recentRecords = [];
     private string statusText = "監聽中";
     private DateTime? lastInputAt;
@@ -23,6 +24,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private int? lastRejectedLength;
     private string? lastRejectedReason;
     private DateTime? lastRejectedAt;
+    private int consecutiveSingleDigitFailures;
+    private DateTime? lastSingleDigitFailureAt;
+    private DateTime? lastReaderResetPromptAt;
 
     public TrayApplicationContext(AppSettings settings, CardCheckInClient client)
     {
@@ -44,6 +48,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
             string message = $"{rejected.Reason}（收到 {rejected.Length} 碼）";
             AddRecent($"{DateTime.Now:HH:mm:ss} 卡號未送出 {message}");
             ShowNotification("卡號未送出", message, ToolTipIcon.Warning);
+            MonitorReaderFailure(rejected);
         };
 
         notifyIcon = new NotifyIcon
@@ -85,6 +90,10 @@ internal sealed class TrayApplicationContext : ApplicationContext
         flushTimer.Tick += (_, _) => inputBuffer.FlushExpired();
         flushTimer.Start();
 
+        startupReaderCheckTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
+        startupReaderCheckTimer.Tick += (_, _) => CheckConfiguredReaderAfterStartup();
+        startupReaderCheckTimer.Start();
+
         ShowNotification("刷卡監聽已啟動", $"WholeSummer 刷卡背景程式正在監聽。模式：{settings.CardReader.InputMode}", ToolTipIcon.Info);
         if (settings.CardReader.RequireSelectedReader
                 && string.IsNullOrWhiteSpace(settings.CardReader.ReaderDevicePath))
@@ -98,6 +107,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (disposing)
         {
             flushTimer.Dispose();
+            startupReaderCheckTimer.Dispose();
             keyboardInputSuppressor.Dispose();
             rawInputForm.Dispose();
             notifyIcon.Visible = false;
@@ -149,6 +159,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void BeginReaderLearning(bool showPrompt)
     {
+        ClearReaderSelection();
         if (showPrompt)
         {
             MessageBox.Show(
@@ -161,6 +172,98 @@ internal sealed class TrayApplicationContext : ApplicationContext
         statusText = "等待讀卡機設定";
         AddRecent($"{DateTime.Now:HH:mm:ss} 等待設定讀卡機來源，請刷一張卡");
         ShowNotification("請設定讀卡機", "請用實際讀卡機任意刷一張卡，這次不會送出點名。", ToolTipIcon.Info);
+    }
+
+    private void CheckConfiguredReaderAfterStartup()
+    {
+        startupReaderCheckTimer.Stop();
+        if (!settings.CardReader.RequireSelectedReader
+                || string.IsNullOrWhiteSpace(settings.CardReader.ReaderDevicePath))
+        {
+            AddRecent($"{DateTime.Now:HH:mm:ss} 已找到原先設定的讀卡機，沿用現有設定");
+            return;
+        }
+
+        string? matchedPath = rawInputForm.FindConfiguredReaderPath();
+        if (!string.IsNullOrWhiteSpace(matchedPath))
+        {
+            if (!string.Equals(matchedPath, settings.CardReader.ReaderDevicePath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                string previousPath = settings.CardReader.ReaderDevicePath;
+                settings.CardReader.ReaderDevicePath = matchedPath;
+                try
+                {
+                    settings.Save();
+                    AddRecent($"{DateTime.Now:HH:mm:ss} 已依 VID/PID 找到讀卡機並更新 Device Path");
+                    ShowNotification("讀卡機設定已更新", "已找到相同 VID/PID 的讀卡機，並更新目前 Device Path。", ToolTipIcon.Info);
+                }
+                catch (Exception ex)
+                {
+                    settings.CardReader.ReaderDevicePath = previousPath;
+                    AddRecent($"{DateTime.Now:HH:mm:ss} 更新讀卡機 Device Path 失敗 {ex.Message}");
+                }
+            }
+            else
+            {
+                AddRecent($"{DateTime.Now:HH:mm:ss} 已找到原先設定的讀卡機，沿用現有設定");
+            }
+            return;
+        }
+
+        AddRecent($"{DateTime.Now:HH:mm:ss} 啟動後 30 秒仍找不到原先設定的讀卡機");
+        ShowNotification("找不到原先讀卡機", "等待 30 秒後仍未找到設定的讀卡機，請重新設定。", ToolTipIcon.Warning);
+        BeginReaderLearning(showPrompt: true);
+    }
+
+    private void MonitorReaderFailure(CardRejectedEventArgs rejected)
+    {
+        DateTime now = DateTime.Now;
+        if (rejected.Length != 1)
+        {
+            consecutiveSingleDigitFailures = 0;
+            return;
+        }
+        if (lastSingleDigitFailureAt == null || now - lastSingleDigitFailureAt.Value > TimeSpan.FromSeconds(30))
+        {
+            consecutiveSingleDigitFailures = 0;
+        }
+        lastSingleDigitFailureAt = now;
+        consecutiveSingleDigitFailures += 1;
+        if (consecutiveSingleDigitFailures < 3
+                || lastReaderResetPromptAt != null && now - lastReaderResetPromptAt.Value < TimeSpan.FromMinutes(2))
+        {
+            return;
+        }
+        lastReaderResetPromptAt = now;
+        consecutiveSingleDigitFailures = 0;
+        ShowNotification("讀卡機可能異常", "連續刷卡只收到 1 碼，請確認是否重新設定讀卡機。", ToolTipIcon.Warning);
+        BeginInvoke(new Action(() =>
+        {
+            DialogResult result = MessageBox.Show(
+                "最近連續刷卡都只收到 1 碼，可能是讀卡機來源或設定異常。\n\n是否立即重新設定讀卡機？",
+                "讀卡機設定提醒",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button1);
+            if (result == DialogResult.Yes)
+            {
+                BeginReaderLearning(showPrompt: true);
+            }
+        }));
+    }
+
+    private void ClearReaderSelection()
+    {
+        settings.ClearReaderSelection();
+        try
+        {
+            settings.Save();
+        }
+        catch (Exception ex)
+        {
+            AddRecent($"{DateTime.Now:HH:mm:ss} 清除讀卡機設定失敗 {ex.Message}");
+        }
     }
 
     private void SaveLearnedReaderDevice(ReaderDeviceLearnedEventArgs device)

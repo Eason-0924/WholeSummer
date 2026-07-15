@@ -51,6 +51,13 @@ internal sealed class AppSettings
         File.WriteAllText(ConfigPath, json);
     }
 
+    public void ClearReaderSelection()
+    {
+        CardReader.ReaderDevicePath = "";
+        CardReader.ReaderVid = "";
+        CardReader.ReaderPid = "";
+    }
+
     private void Normalize()
     {
         if (string.IsNullOrWhiteSpace(WholeSummer.ApiBaseUrl))

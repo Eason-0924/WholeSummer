@@ -66,6 +66,37 @@ internal sealed class RawInputForm : Form
 
     public bool ReaderSelected => !string.IsNullOrWhiteSpace(options.ReaderDevicePath);
 
+    public string? FindConfiguredReaderPath()
+    {
+        if (!ReaderSelected)
+        {
+            return null;
+        }
+
+        uint deviceCount = 0;
+        uint result = GetRawInputDeviceList(null, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
+        if (result == uint.MaxValue || deviceCount == 0)
+        {
+            return null;
+        }
+
+        RAWINPUTDEVICELIST[] devices = new RAWINPUTDEVICELIST[deviceCount];
+        result = GetRawInputDeviceList(devices, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
+        if (result == uint.MaxValue)
+        {
+            return null;
+        }
+
+        foreach (RAWINPUTDEVICELIST device in devices.Take((int)result))
+        {
+            if (device.dwType == RIM_TYPEKEYBOARD && IsSelectedReader(DevicePath(device.hDevice)))
+            {
+                return DevicePath(device.hDevice);
+            }
+        }
+        return null;
+    }
+
     public bool LearningReader => learningReader;
 
     public char? LastResolvedKey { get; private set; }
@@ -334,6 +365,12 @@ internal sealed class RawInputForm : Form
         IntPtr pData,
         ref uint pcbSize);
 
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetRawInputDeviceList(
+        [Out] RAWINPUTDEVICELIST[]? pRawInputDeviceList,
+        ref uint puiNumDevices,
+        uint cbSize);
+
     [StructLayout(LayoutKind.Sequential)]
     private struct RAWINPUTDEVICE
     {
@@ -341,6 +378,13 @@ internal sealed class RawInputForm : Form
         public ushort usUsage;
         public int dwFlags;
         public IntPtr hwndTarget;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RAWINPUTDEVICELIST
+    {
+        public IntPtr hDevice;
+        public uint dwType;
     }
 
     [StructLayout(LayoutKind.Sequential)]

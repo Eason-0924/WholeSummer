@@ -89,6 +89,16 @@ public class LineNotificationService {
 		return successCount;
 	}
 
+	@Transactional(readOnly = true)
+	public String describeTestNotification(Long studentId) {
+		Student student = findStudent(studentId);
+		String recipients = parentLineBindingRepository.findByStudentAndStatus(student, ParentLineBinding.STATUS_BOUND)
+				.stream().map(binding -> studentNameSuffix(student.getChineseName())
+						+ (binding.getRelation() == null || binding.getRelation().isBlank() ? "家長" : binding.getRelation()))
+				.collect(java.util.stream.Collectors.joining("、"));
+		return "發送給 " + (recipients.isBlank() ? "無符合家長" : recipients) + "【LINE 測試通知】";
+	}
+
 	public int refreshParentDisplayNames(Long studentId, Long currentTeacherId) {
 		teacherPermissionService.requirePermission(currentTeacherId, TeacherPermissionType.STUDENT_UPDATE,
 				"權限不足，無法更新 LINE 家長名稱");

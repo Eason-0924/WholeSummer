@@ -23,6 +23,7 @@ public class DataResourceRegistry {
 		var schedule = new ForeignKeyDefinition("class_schedules", "id", List.of("weekday", "start_time", "end_time"), "{weekday} {start_time}–{end_time}", "id");
 		var exam = new ForeignKeyDefinition("exams", "id", List.of("name", "exam_date"), "{name}｜{exam_date}", "exam_date");
 		var homework = new ForeignKeyDefinition("homeworks", "id", List.of("title", "due_date"), "{title}｜期限 {due_date}", "due_date");
+		var lineStudent = new ForeignKeyDefinition("students", "id", List.of("chinese_name", "english_name"), "{chinese_name} {english_name}", "chinese_name");
 
 		register(new DataResourceDefinition("students", "students", "學生", "教務資料", "id", true, true, true, "active", "id", List.of(
 				field("id", "ID", READ_ONLY, false, false, true, true),
@@ -209,6 +210,21 @@ public class DataResourceRegistry {
 				field("selected_make_up_end", "補課結束", DATETIME, false, false, false, true),
 				field("selected_at", "選擇時間", DATETIME, false, false, false, true),
 				field("note", "備註", TEXT, false, false, true, false),
+				field("created_at", "建立時間", DATETIME, false, false, false, true),
+				field("updated_at", "更新時間", DATETIME, false, false, false, true))));
+		register(new DataResourceDefinition("line-notification-logs", "line_notification_logs", "LINE 發送紀錄", "LINE 通知", "id", false, false, false, null, "created_at", List.of(
+				field("id", "ID", READ_ONLY, false, false, true, true),
+				foreignKey("student_id", "學生", false, false, lineStudent),
+				field("line_user_id", "LINE 使用者 ID", READ_ONLY, false, false, true, true).asSensitive(),
+				field("notification_type", "通知類型", READ_ONLY, false, false, true, true),
+				field("reference_type", "參考類型", READ_ONLY, false, false, true, true),
+				field("reference_id", "參考 ID", READ_ONLY, false, false, true, true),
+				field("title", "標題", READ_ONLY, false, false, true, true),
+				field("content", "訊息內容", LONG_TEXT, false, false, true, false),
+				field("status", "發送狀態", ENUM, false, false, true, true).options("SENT", "FAILED", "SKIPPED"),
+				field("provider_message_id", "LINE 回應 ID", READ_ONLY, false, false, true, true),
+				field("error_message", "錯誤訊息", LONG_TEXT, false, false, true, false),
+				field("sent_at", "發送時間", DATETIME, false, false, false, true),
 				field("created_at", "建立時間", DATETIME, false, false, false, true),
 				field("updated_at", "更新時間", DATETIME, false, false, false, true))));
 	}

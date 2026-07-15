@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set release version
         shell: bash
@@ -26,9 +28,25 @@ jobs:
             TAG_VERSION="${GITHUB_REF_NAME#v}"
             [[ "$TAG_VERSION" == "$VERSION" ]] || { echo "Tag version does not match pom.xml"; exit 1; }
           fi
+          CARD_LISTENER_VERSION="$(tr -d '[:space:]' < tools/card-listener/VERSION)"
+          [[ "$CARD_LISTENER_VERSION" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid Card Listener version"; exit 1; }
+          CARD_LISTENER_CHANGED=true
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            PREVIOUS_TAG="$(git tag --sort=-version:refname | awk -v current="${GITHUB_REF_NAME}" '$0 != current { print; exit }')"
+            if [[ -n "$PREVIOUS_TAG" ]] && git diff --quiet "$PREVIOUS_TAG" "$GITHUB_SHA" -- tools/card-listener; then
+              CARD_LISTENER_CHANGED=false
+            elif [[ -n "$PREVIOUS_TAG" ]]; then
+              PREVIOUS_CARD_LISTENER_VERSION="$(git show "$PREVIOUS_TAG:tools/card-listener/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+              [[ "$CARD_LISTENER_VERSION" != "$PREVIOUS_CARD_LISTENER_VERSION" ]] || {
+                echo "Card Listener changed but tools/card-listener/VERSION was not bumped"; exit 1;
+              }
+            fi
+          fi
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "JAR_NAME=WholeSummer-$VERSION.jar" >> "$GITHUB_ENV"
-          echo "CARD_LISTENER_ZIP=WholeSummer-CardListener-v$VERSION.zip" >> "$GITHUB_ENV"
+          echo "CARD_LISTENER_VERSION=$CARD_LISTENER_VERSION" >> "$GITHUB_ENV"
+          echo "CARD_LISTENER_CHANGED=$CARD_LISTENER_CHANGED" >> "$GITHUB_ENV"
+          echo "CARD_LISTENER_ZIP=WholeSummer-CardListener-v$CARD_LISTENER_VERSION.zip" >> "$GITHUB_ENV"
 
       - name: Set up Java
         uses: actions/setup-java@v5
@@ -38,6 +56,7 @@ jobs:
           cache: maven
 
       - name: Set up .NET
+        if: env.CARD_LISTENER_CHANGED == 'true'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
@@ -46,6 +65,7 @@ jobs:
         run: ./mvnw clean package -DskipTests
 
       - name: Build Windows card listener only
+        if: env.CARD_LISTENER_CHANGED == 'true'
         run: |
           dotnet publish tools/card-listener/WholeSummer.CardListener.csproj \
             -c Release -r win-x64 --self-contained true \
@@ -59,18 +79,17 @@ jobs:
           JAR=$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*.original' | head -n 1)
           test -n "$JAR"
           cp "$JAR" "release/$JAR_NAME"
-          cp card-listener-publish/WholeSummer.CardListener.exe .
-          cp card-listener-publish/appsettings.json .
-          zip -j "release/$CARD_LISTENER_ZIP" \
-            WholeSummer.CardListener.exe appsettings.json
+          if [[ "$CARD_LISTENER_CHANGED" == "true" ]]; then
+            zip -j "release/$CARD_LISTENER_ZIP" \
+              card-listener-publish/WholeSummer.CardListener.exe \
+              card-listener-publish/appsettings.json
+          fi
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: WholeSummer-Release-v${{ env.APP_VERSION }}
-          path: |
-            release/${{ env.JAR_NAME }}
-            release/${{ env.CARD_LISTENER_ZIP }}
+          path: release/
 
       - name: Create or update GitHub Release
         if: github.ref_type == 'tag'
@@ -82,5 +101,7 @@ jobs:
           echo "Release $APP_VERSION" > "$NOTES_FILE"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
             --title "WholeSummer $APP_VERSION" --notes-file "$NOTES_FILE"
-          gh release upload "$TAG" \
-            "release/$JAR_NAME" "release/$CARD_LISTENER_ZIP" --clobber
+          gh release upload "$TAG" "release/$JAR_NAME" --clobber
+          if [[ "$CARD_LISTENER_CHANGED" == "true" ]]; then
+            gh release upload "$TAG" "release/$CARD_LISTENER_ZIP" --clobber
+          fi

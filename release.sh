@@ -218,7 +218,7 @@ echo "發布 tag 完成：$TAG"
 
 if [ "$REPUBLISH" = true ]; then
   echo "這是重新發布版本：$TAG"
-  echo "GitHub Actions 會重新打包 JAR 與 Card Listener，並更新 GitHub Release。"
+  echo "GitHub Actions 會依 tools/card-listener/VERSION 與檔案變更狀態，決定是否重新打包 Card Listener。"
 else
-  echo "GitHub Actions 會自動建立 EC2 JAR 與 Windows Card Listener 並上傳到 GitHub Releases。"
+  echo "GitHub Actions 會建立 EC2 JAR；只有 Card Listener 有變更時才會建立並上傳獨立版本的 Windows Card Listener。"
 fi

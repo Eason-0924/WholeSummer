@@ -78,9 +78,10 @@ public class LineNotificationCenterController {
 			@RequestParam(required = false) String template,
 			RedirectAttributes redirectAttributes) {
 		try {
+			String summary = lineNotificationCenterService.describeCandidateSend(candidateId, bindingIds);
 			int successCount = lineNotificationCenterService.sendCandidate(candidateId, bindingIds, template);
 			if (successCount > 0) {
-				redirectAttributes.addFlashAttribute("message", "已發送 LINE 通知，成功 " + successCount + " 位家長。");
+				redirectAttributes.addFlashAttribute("message", "成功發送 LINE 通知（" + summary + "），成功 " + successCount + " 位家長。");
 			} else {
 				redirectAttributes.addFlashAttribute("errorMessage", "LINE 通知發送失敗，請查看通知紀錄。");
 			}
@@ -94,8 +95,9 @@ public class LineNotificationCenterController {
 	public String sendCombined(@RequestParam(required = false) List<String> candidateIds,
 			@RequestParam(required = false) List<Long> bindingIds, RedirectAttributes redirectAttributes) {
 		try {
+			String summary = lineNotificationCenterService.describeCombinedSend(candidateIds, bindingIds);
 			int successCount = lineNotificationCenterService.sendCandidates(candidateIds, bindingIds);
-			redirectAttributes.addFlashAttribute("message", "已合併發送 LINE 通知，成功 " + successCount + " 位家長。");
+			redirectAttributes.addFlashAttribute("message", "成功發送 LINE 通知（" + summary + "），成功 " + successCount + " 位家長。");
 		} catch (IllegalArgumentException ex) {
 			redirectAttributes.addFlashAttribute("errorMessage", ex.getMessage());
 		}
@@ -128,10 +130,11 @@ public class LineNotificationCenterController {
 			RedirectAttributes redirectAttributes) {
 		Student student = studentService.findByUrlSlugOrId(slug);
 		try {
+			String summary = lineNotificationService.describeTestNotification(student.getId());
 			int successCount = lineNotificationService.sendTestNotification(student.getId(), currentTeacherId(session));
 			if (successCount > 0) {
 				redirectAttributes.addFlashAttribute("message",
-						"已發送 LINE 測試通知，成功 " + successCount + " 位家長。");
+						"成功發送 LINE 通知（" + summary + "），成功 " + successCount + " 位家長。");
 			} else {
 				redirectAttributes.addFlashAttribute("errorMessage", "LINE 測試通知發送失敗，請查看通知紀錄。");
 			}

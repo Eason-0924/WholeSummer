@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Collections;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class LateArrivalReminderService {
 	private final ClassRoomRepository classRoomRepository;
 	private final WebPushEventNotificationService webPushEventNotificationService;
 	private Clock clock = Clock.systemDefaultZone();
+	private final Set<String> sentWebPushReminders = Collections.synchronizedSet(new HashSet<>());
 
 	public LateArrivalReminderService(WeeklyScheduleService weeklyScheduleService,
 			ClassStudentRepository classStudentRepository,
@@ -47,9 +49,15 @@ public class LateArrivalReminderService {
 
 	@Scheduled(cron = "${line.late-reminder.cron:0 * * * * *}", zone = "Asia/Taipei")
 	public void sendDueLateArrivalReminders() {
-		sendDueLateArrivalReminders(LocalDateTime.now(clock), true, false);
+		sendDueLateArrivalReminders(LocalDateTime.now(clock), true, true);
 	}
 
+	/**
+	 * Kept as a compatibility entry point for existing scheduler/test wiring.
+	 * The minute scheduler above already sends the browser notification together
+	 * with LINE; the occurrence key prevents this fallback schedule from sending
+	 * it a second time.
+	 */
 	@Scheduled(cron = "${webpush.late-arrival.cron:0 */10 * * * *}", zone = "Asia/Taipei")
 	public void sendDueLateArrivalWebPushNotifications() {
 		sendDueLateArrivalReminders(LocalDateTime.now(clock), false, true);
@@ -117,11 +125,15 @@ public class LateArrivalReminderService {
 				lineReminders.add(new LineNotificationService.LateArrivalReminder(
 						classStudent.getStudent(), referenceId, schedule.getClassName(), schedule.getStartTime()));
 			}
-			if (sendWebPush) {
+			if (sendWebPush && sentWebPushReminders.add(webPushReference(schedule, classStudent.getStudent().getId()))) {
 				webPushEventNotificationService.notifyLateArrival(
 						classStudent.getStudent().getDisplayName(), schedule.getClassName(), responsibleTeacherId);
 			}
 		}
+	}
+
+	private String webPushReference(WeeklyScheduleDto schedule, Long studentId) {
+		return schedule.getCourseDate() + ":" + schedule.getScheduleId() + ":" + studentId;
 	}
 
 	private Long occurrenceReferenceId(WeeklyScheduleDto schedule) {

@@ -207,6 +207,29 @@ public class LineNotificationCenterService {
 		return successCount;
 	}
 
+	public String describeCandidateSend(String candidateId, List<Long> bindingIds) {
+		NotificationCandidate candidate = findCandidate(candidateId);
+		List<ParentLineBinding> bindings = resolveBindings(candidate.student(), bindingIds);
+		String recipients = bindings.stream().map(binding -> parentLabel(candidate.student(), binding))
+				.collect(java.util.stream.Collectors.joining("、"));
+		return "發送給 " + (recipients.isBlank() ? "無符合家長" : recipients) + "【" + candidate.title() + "】";
+	}
+
+	public String describeCombinedSend(List<String> candidateIds, List<Long> bindingIds) {
+		List<NotificationCandidate> candidates = buildCandidates().stream()
+				.filter(candidate -> candidateIds != null && candidateIds.contains(candidate.id())).toList();
+		if (candidates.isEmpty()) {
+			return "無符合通知";
+		}
+		NotificationCandidate first = candidates.get(0);
+		List<ParentLineBinding> bindings = resolveBindings(first.student(), bindingIds);
+		String recipients = bindings.stream().map(binding -> parentLabel(first.student(), binding))
+				.collect(java.util.stream.Collectors.joining("、"));
+		String titles = candidates.stream().map(NotificationCandidate::title).distinct()
+				.collect(java.util.stream.Collectors.joining("、"));
+		return "發送給 " + (recipients.isBlank() ? "無符合家長" : recipients) + "【" + titles + "】";
+	}
+
 	public int sendCandidates(List<String> candidateIds, List<Long> bindingIds) {
 		if (candidateIds == null || candidateIds.isEmpty()) {
 			throw new IllegalArgumentException("請至少勾選一則通知");

@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.5.2**
+目前版本：**1.5.3**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,18 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 1.5.3 更新內容
+
+- 1.5.3 發布。
+- Windows Card Listener 改為獨立版本號，版本存放於 `tools/card-listener/VERSION`，本次同步發布為 `v2`，Release 檔名為 `WholeSummer-CardListener-v2.zip`。
+- GitHub Actions 發布流程會判斷 `tools/card-listener` 是否有變更；只有 Card Listener 變更時才打包並上傳新版 Windows Card Listener，且會檢查 Card Listener 變更時必須遞增獨立版本號。
+- Card Listener 首次啟動後會加入 Windows 使用者登入啟動項目，之後登入 Windows 會自動啟動刷卡監聽。
+- Card Listener 啟動後會在 30 秒內比對已記住的讀卡機；找到相同讀卡機會沿用設定，若 Device Path 改變但 VID/PID 相同會自動更新設定。
+- Card Listener 偵測到連續刷卡只收到 1 碼時，會提示可能讀卡機來源異常並引導重新設定讀卡機。
+- LINE 通知發送完成訊息會顯示實際發送對象與通知標題，讓單筆、合併與測試通知更容易追蹤。
+- 資料管理新增 LINE 發送紀錄資源，可在後台查看通知類型、內容、狀態、LINE 回應 ID 與錯誤訊息。
+- 遲到提醒排程會在 LINE 掃描時同步發送 Web Push，並以課程/學生 occurrence key 避免 Web Push 重複通知。
 
 ## 1.5.2 更新內容
 

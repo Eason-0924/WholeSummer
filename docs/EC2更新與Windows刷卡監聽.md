@@ -49,7 +49,7 @@ sudo systemctl status wholesummer --no-pager
 
 ## Windows 設定
 
-解壓縮 GitHub Release 的 `WholeSummer-CardListener-v{version}.zip`，設定同目錄的
+解壓縮 GitHub Release 的 `WholeSummer-CardListener-v{card-listener-version}.zip`，設定同目錄的
 `appsettings.json`：
 
 ```json

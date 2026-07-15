@@ -225,10 +225,11 @@ public class StudentController {
 			RedirectAttributes redirectAttributes) {
 		Student student = studentService.findByUrlSlugOrId(slug);
 		try {
+			String summary = lineNotificationService.describeTestNotification(student.getId());
 			int successCount = lineNotificationService.sendTestNotification(student.getId(), currentTeacherId(session));
 			if (successCount > 0) {
 				redirectAttributes.addFlashAttribute("message",
-						"已發送 LINE 測試通知，成功 " + successCount + " 位家長。");
+						"成功發送 LINE 通知（" + summary + "），成功 " + successCount + " 位家長。");
 			} else {
 				redirectAttributes.addFlashAttribute("errorMessage", "LINE 測試通知發送失敗，請查看通知紀錄。");
 			}

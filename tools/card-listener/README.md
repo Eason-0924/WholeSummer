@@ -23,6 +23,15 @@ WholeSummer\app\tools\card-listener\appsettings.json
 
 WholeSummer will try to start the executable automatically on Windows after the Spring Boot application is ready.
 
+Card Listener 使用獨立版本號，版本存放在 `tools/card-listener/VERSION`（目前為 `2`），發布檔名為
+`WholeSummer-CardListener-v2.zip`。只有 Card Listener 目錄有變更時，Release 才會包含新版 Card Listener；
+修改 Card Listener 時請同步遞增 `VERSION`。
+
+首次啟動後，Card Listener 會加入目前 Windows 使用者的登入啟動項目，之後登入 Windows
+會自動執行。每次 Card Listener 重新啟動時，會先比對已記住的讀卡機來源；若 30 秒內找到就沿用，
+找不到才會顯示提示並要求重新刷一張卡完成設定。若裝置路徑改變但 VID/PID 相同，會自動更新設定檔中的 Device Path。
+若在 30 秒內連續三次只收到 1 碼，程式會顯示通知並詢問是否重新設定讀卡機。
+
 For local manual builds, install .NET 8 SDK on Windows, then run:
 
 ```powershell

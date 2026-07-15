@@ -20,6 +20,14 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
 
         var settings = AppSettings.Load(args);
+        try
+        {
+            StartupRegistration.EnsureRegistered();
+        }
+        catch
+        {
+            // The listener can still run manually if startup registration is unavailable.
+        }
         using var client = new CardCheckInClient(settings);
         Application.Run(new TrayApplicationContext(settings, client));
     }
