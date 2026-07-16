@@ -18,15 +18,16 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 		return List.of();
 	}
 
-	@EntityGraph(attributePaths = { "student" })
+	@EntityGraph(attributePaths = { "student", "classRoom" })
 	List<StudentAttendance> findByStudentIdOrderByAttendanceDateDescIdDesc(Long studentId);
 
-	@EntityGraph(attributePaths = { "student" })
+	@EntityGraph(attributePaths = { "student", "classRoom" })
 	List<StudentAttendance> findByStudentIdAndAttendanceDateOrderByIdDesc(Long studentId, LocalDate attendanceDate);
 
+	@EntityGraph(attributePaths = { "student", "classRoom" })
 	List<StudentAttendance> findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(LocalDate attendanceDate);
 
-	@EntityGraph(attributePaths = { "student" })
+	@EntityGraph(attributePaths = { "student", "classRoom" })
 	List<StudentAttendance> findAllByOrderByAttendanceDateDescIdDesc();
 
 	default Optional<StudentAttendance> findByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,

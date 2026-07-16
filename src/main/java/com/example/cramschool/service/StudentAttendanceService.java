@@ -410,7 +410,7 @@ public class StudentAttendanceService {
 			StudentAttendance attendance = openAttendances.getFirst();
 
 			CardCheckInResponse response = CardCheckInResponse.studentCheckOut(
-					student.getId(), student.getDisplayName(), attendance.getClassRoom().getDisplayName(),
+					student.getId(), student.getDisplayName(), classNameOrUnknown(attendance),
 					attendance.getCheckInTime(), cardTime);
 			response.setCardId(normalizedCardId);
 			return response;
@@ -596,6 +596,12 @@ public class StudentAttendanceService {
 			return hasNote ? "請假：" + note.trim() : "請假";
 		}
 		return hasNote ? note.trim() : "-";
+	}
+
+	private String classNameOrUnknown(StudentAttendance attendance) {
+		return attendance == null || attendance.getClassRoom() == null
+				? "無"
+				: attendance.getClassRoom().getDisplayName();
 	}
 
 	private List<DayOfWeek> classDays(Long classRoomId) {

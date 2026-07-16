@@ -30,7 +30,8 @@ public class StudentAttendance {
 	@JoinColumn(name = "student_id", nullable = false)
 	private Student student;
 
-	@jakarta.persistence.Transient
+	@ManyToOne
+	@JoinColumn(name = "class_id")
 	private ClassRoom classRoom;
 
 	@jakarta.persistence.Transient
