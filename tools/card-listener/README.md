@@ -23,8 +23,8 @@ WholeSummer\app\tools\card-listener\appsettings.json
 
 WholeSummer will try to start the executable automatically on Windows after the Spring Boot application is ready.
 
-Card Listener 使用獨立版本號，版本存放在 `tools/card-listener/VERSION`（目前為 `2`），發布檔名為
-`WholeSummer-CardListener-v2.zip`。只有 Card Listener 目錄有變更時，Release 才會包含新版 Card Listener；
+Card Listener 使用獨立版本號，版本存放在 `tools/card-listener/VERSION`（目前為 `3`），發布檔名為
+`WholeSummer-CardListener-v3.zip`。只有 Card Listener 目錄有變更時，Release 才會包含新版 Card Listener；
 修改 Card Listener 時請同步遞增 `VERSION`。
 
 首次啟動後，Card Listener 會加入目前 Windows 使用者的登入啟動項目，之後登入 Windows

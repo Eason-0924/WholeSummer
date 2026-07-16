@@ -404,6 +404,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 - 班級詳細頁移除班級內點名入口，出席管理集中到每日出席頁；學生詳細頁可顯示依日期保存的出席紀錄。
 - 刷卡點名會依學生當日課程彙整到單一出席紀錄，LINE 到班/簽退通知會顯示當日相關課程名稱。
 - Card Listener v2 的讀卡機異常提示改用 Raw Input 視窗安全呼叫，避免提示視窗在控制代碼尚未建立或已釋放時失敗。
+- Card Listener 獨立版本更新為 `v3`，Release 檔名調整為 `WholeSummer-CardListener-v3.zip`。
 
 ## 1.5.2 更新內容
 
