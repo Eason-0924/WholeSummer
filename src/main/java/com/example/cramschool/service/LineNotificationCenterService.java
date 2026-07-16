@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.cramschool.entity.ClassRoom;
@@ -52,6 +53,27 @@ public class LineNotificationCenterService {
 	private final LineNotificationLogRepository lineNotificationLogRepository;
 	private final LineNotificationTemplateRepository lineNotificationTemplateRepository;
 	private final LineMessageService lineMessageService;
+	private final WebPushEventNotificationService webPushEventNotificationService;
+
+	@Autowired
+	public LineNotificationCenterService(ScoreRepository scoreRepository,
+			MakeUpClassRequestRepository makeUpClassRequestRepository,
+			TuitionRecordRepository tuitionRecordRepository,
+			ClassStudentRepository classStudentRepository,
+			ParentLineBindingRepository parentLineBindingRepository,
+			LineNotificationLogRepository lineNotificationLogRepository,
+			LineNotificationTemplateRepository lineNotificationTemplateRepository,
+			LineMessageService lineMessageService, WebPushEventNotificationService webPushEventNotificationService) {
+		this.scoreRepository = scoreRepository;
+		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
+		this.tuitionRecordRepository = tuitionRecordRepository;
+		this.classStudentRepository = classStudentRepository;
+		this.parentLineBindingRepository = parentLineBindingRepository;
+		this.lineNotificationLogRepository = lineNotificationLogRepository;
+		this.lineNotificationTemplateRepository = lineNotificationTemplateRepository;
+		this.lineMessageService = lineMessageService;
+		this.webPushEventNotificationService = webPushEventNotificationService;
+	}
 
 	public LineNotificationCenterService(ScoreRepository scoreRepository,
 			MakeUpClassRequestRepository makeUpClassRequestRepository,
@@ -61,14 +83,9 @@ public class LineNotificationCenterService {
 			LineNotificationLogRepository lineNotificationLogRepository,
 			LineNotificationTemplateRepository lineNotificationTemplateRepository,
 			LineMessageService lineMessageService) {
-		this.scoreRepository = scoreRepository;
-		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
-		this.tuitionRecordRepository = tuitionRecordRepository;
-		this.classStudentRepository = classStudentRepository;
-		this.parentLineBindingRepository = parentLineBindingRepository;
-		this.lineNotificationLogRepository = lineNotificationLogRepository;
-		this.lineNotificationTemplateRepository = lineNotificationTemplateRepository;
-		this.lineMessageService = lineMessageService;
+		this(scoreRepository, makeUpClassRequestRepository, tuitionRecordRepository, classStudentRepository,
+				parentLineBindingRepository, lineNotificationLogRepository, lineNotificationTemplateRepository,
+				lineMessageService, null);
 	}
 
 	@Transactional(readOnly = true)
@@ -202,8 +219,12 @@ public class LineNotificationCenterService {
 		}
 		saveLog(candidate, firstContent, successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
 				successCount == bindings.size() ? null : "成功 " + successCount + " / " + bindings.size()
-						+ (firstError == null ? "" : "；" + firstError),
+					+ (firstError == null ? "" : "；" + firstError),
 				firstProviderMessageId);
+		if (webPushEventNotificationService != null) {
+			webPushEventNotificationService.notifyLineSendAttempt(null, candidate.title(),
+					candidate.studentName() + "的家長", successCount, bindings.size());
+		}
 		return successCount;
 	}
 
@@ -283,6 +304,14 @@ public class LineNotificationCenterService {
 							+ (firstErrorByTemplate.get(entry.getKey()) == null ? "" : "；" + firstErrorByTemplate.get(entry.getKey()));
 			for (NotificationCandidate candidate : entry.getValue()) {
 				saveLog(candidate, firstContentByTemplate.get(entry.getKey()), status, error, firstProviderMessageId);
+			}
+			int totalAttempts = bindings.size();
+			int successfulAttempts = successByTemplate.getOrDefault(entry.getKey(), 0);
+			String type = entry.getValue().stream().map(NotificationCandidate::title).distinct()
+					.collect(java.util.stream.Collectors.joining("、"));
+			if (webPushEventNotificationService != null) {
+				webPushEventNotificationService.notifyLineSendAttempt(null, type,
+						student.getDisplayName() + "的家長", successfulAttempts, totalAttempts);
 			}
 		}
 		return successfulParentIds.size();

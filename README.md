@@ -17,7 +17,7 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 
 系統以瀏覽器作為操作介面，可在本機或區域網路中使用；Windows 正式版本可透過安裝程式部署，首次啟動時會協助完成 MySQL 連線與資料庫初始化。
 
-目前版本：**1.5.3**
+目前版本：**2.0.0**
 
 ## 使用者操作教學與須知
 
@@ -386,6 +386,27 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
   - Windows 外部設定檔與 GitHub Releases 更新
   - Windows 發布流程會同時打包主程式安裝檔與刷卡監聽工具
   - 發布腳本可從 README 版本章節讀取 Release 說明
+
+## 2.0.0 更新內容
+
+- 2.0.0 發布，整合 EC2 部署、更新、監控、遠端刷卡與資料操作調整。
+- 發布流程正式改為 EC2/JAR 架構，GitHub Actions 在 Ubuntu 建立 `WholeSummer-{version}.jar`，並依 Card Listener 目錄變更狀態另外產生 Windows Card Listener 壓縮檔。
+- 系統更新流程支援 EC2 Linux JAR 部署：下載 Release JAR 後保留到 `/opt/WholeSummer/releases`，再以 `/opt/WholeSummer/current.jar` 符號連結原子切換版本並重啟 `wholesummer.service`。
+- EC2 更新設定整合 `WHOLESUMMER_UPDATE_DIR`、`WHOLESUMMER_JAR_PATH`、`WHOLESUMMER_RELEASE_DIR`、`WHOLESUMMER_SERVICE_NAME` 與 sudoers 部署檔，更新失敗會寫入後端錯誤 log，並會等待 systemd 服務重啟驗證。
+- 主程式啟動流程改為純 Spring Boot/headless 模式，移除 Windows 桌面狀態視窗、首次設定視窗、啟動畫面與內建刷卡監聽程序，EC2 不再依賴 Swing 或桌面環境。
+- 外部設定初始化改為要求先建立 EC2 設定檔，並支援 `WHOLESUMMER_CLASS_DATA_DIR`，Linux 預設班級與考卷檔案路徑為 `/opt/WholeSummer/data/class-files`。
+- Actuator 監控端點改為私有管理埠，僅開放 health、info、metrics、loggers、threaddump，並關閉 heapdump、env、configprops、beans、mappings 等敏感端點。
+- 新增系統狀態管理頁與 API，具備權限者可查看應用版本、執行環境、JVM/主機資源、資料庫/Flyway、備份、LINE、排程、上線使用者與系統操作紀錄。
+- 新增 `SYSTEM_STATUS_VIEW` 權限，系統狀態入口會依教師權限顯示。
+- Windows 端改為只執行 Card Listener，透過 EC2 API Base URL 與 `X-WholeSummer-Card-Token` 呼叫遠端刷卡點名端點；未設定 token 時維持本機 loopback 限制。
+- Card Listener 使用獨立版本號，本次同步發布為 `v4`，Release 檔名為 `WholeSummer-CardListener-v4.zip`；程式支援登入自啟、讀卡機來源復原、VID/PID 更新、異常重設提示與取代上一則系統匣通知。
+- 分析中心與班級統計匯出改為直接回傳下載檔案，不再嘗試從伺服器開啟本機資料夾，更適合遠端 EC2 環境。
+- 考卷檔案支援一次上傳多個檔案，新增 `exam_paper_files` 資料表保存每份檔案，測驗詳細頁可逐一下載試卷；既有單一考卷路徑會自動搬入新表。
+- 學生出席改為以「學生＋日期」保存單日紀錄，集中到「學生出席」頁管理每日出席、待審核請假與已確認請假，降低同日多班級造成的重複點名與簽退判斷混亂。
+- 刷卡點名會依學生當日課程彙整到單一出席紀錄，LINE 到班/簽退通知會顯示當日相關課程名稱。
+- LINE 通知中心與 LINE 測試/請假/出席通知會記錄發送結果，並同步發送 Web Push 事件通知，方便在 EC2 後台追蹤 LINE 發送成功、失敗與對象。
+- 遲到提醒排程會在 LINE 掃描時同步發送 Web Push，並以課程/學生 occurrence key 避免 Web Push 重複通知。
+- 新增 EC2 更新與 Windows 刷卡監聽部署文件，以及 VPS 搬遷相容性報告，說明 EC2、systemd、JAR symlink、releases 目錄與 Windows 現場刷卡端分工。
 
 ## 1.5.3 更新內容
 

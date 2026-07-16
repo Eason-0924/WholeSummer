@@ -61,6 +61,23 @@ public class WebPushEventNotificationService {
 				"/settings#system-update", "/icons/icon-192.png"));
 	}
 
+	@Async
+	public void notifyLineSendAttempt(Long teacherId, String notificationType, String recipient,
+			int successCount, int totalCount) {
+		boolean success = successCount > 0;
+		String status = success ? "成功" : "失敗";
+		String detail = totalCount <= 1 ? status : status + "（成功 " + successCount + " / " + totalCount + "）";
+		WebPushPayload payload = new WebPushPayload(
+				"LINE 訊息發送" + status,
+				"【" + safe(notificationType) + "】" + detail + "，對象：" + safe(recipient) + "。",
+				"/line-notifications", "/icons/icon-192.png");
+		if (teacherId != null) {
+			webPushService.sendToUser(teacherId, payload);
+		} else {
+			sendToTeachersWithPermission(TeacherPermissionType.STUDENT_UPDATE, payload);
+		}
+	}
+
 	private void sendToTeachersWithPermission(TeacherPermissionType permission, WebPushPayload payload) {
 		Set<Long> recipientIds = new LinkedHashSet<>();
 		for (Teacher teacher : teacherRepository.findByStatusOrderByIdAsc(TeacherStatus.ACTIVE)) {

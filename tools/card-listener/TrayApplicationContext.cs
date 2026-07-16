@@ -390,6 +390,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             return;
         }
+
+        // NotifyIcon does not expose a close operation for the current balloon.
+        // Re-registering the tray icon removes the previous balloon before the
+        // latest card result is shown, instead of letting Windows queue it.
+        if (settings.Notification.ReplacePrevious)
+        {
+            notifyIcon.Visible = false;
+            notifyIcon.Visible = true;
+        }
         notifyIcon.ShowBalloonTip(3500, title, message, icon);
     }
 

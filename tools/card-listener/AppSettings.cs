@@ -172,4 +172,6 @@ internal sealed class CardReaderOptions
 internal sealed class NotificationOptions
 {
     public bool Enabled { get; set; } = true;
+
+    public bool ReplacePrevious { get; set; } = true;
 }

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,18 +35,30 @@ public class LineNotificationService {
 	private final TeacherPermissionService teacherPermissionService;
 	private final LineMessageService lineMessageService;
 	private final LineProperties lineProperties;
+	private final WebPushEventNotificationService webPushEventNotificationService;
 
+	@Autowired
 	public LineNotificationService(StudentRepository studentRepository,
 			ParentLineBindingRepository parentLineBindingRepository,
 			LineNotificationLogRepository lineNotificationLogRepository,
 			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService,
-			LineProperties lineProperties) {
+			LineProperties lineProperties, WebPushEventNotificationService webPushEventNotificationService) {
 		this.studentRepository = studentRepository;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.lineNotificationLogRepository = lineNotificationLogRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.lineMessageService = lineMessageService;
 		this.lineProperties = lineProperties;
+		this.webPushEventNotificationService = webPushEventNotificationService;
+	}
+
+	public LineNotificationService(StudentRepository studentRepository,
+			ParentLineBindingRepository parentLineBindingRepository,
+			LineNotificationLogRepository lineNotificationLogRepository,
+			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService,
+			LineProperties lineProperties) {
+		this(studentRepository, parentLineBindingRepository, lineNotificationLogRepository,
+				teacherPermissionService, lineMessageService, lineProperties, null);
 	}
 
 	public boolean isLineEnabled() {
@@ -85,6 +98,10 @@ public class LineNotificationService {
 			if (result.success()) {
 				successCount++;
 			}
+		}
+		if (webPushEventNotificationService != null) {
+			webPushEventNotificationService.notifyLineSendAttempt(currentTeacherId, "LINE 測試通知",
+					student.getDisplayName() + "的家長", successCount, bindings.size());
 		}
 		return successCount;
 	}
@@ -208,6 +225,11 @@ public class LineNotificationService {
 					result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
 					result.errorMessage(), result.providerMessageId());
 		}
+		if (webPushEventNotificationService != null) {
+			webPushEventNotificationService.notifyLineSendAttempt(null, title,
+					binding.getLineDisplayName() == null ? "家長" : binding.getLineDisplayName(),
+					result.success() ? 1 : 0, 1);
+		}
 	}
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -242,6 +264,10 @@ public class LineNotificationService {
 			return;
 		}
 		var result = lineMessageService.pushText(lineUserId, content);
+		if (webPushEventNotificationService != null) {
+			webPushEventNotificationService.notifyLineSendAttempt(null, title, "請假申請人",
+					result.success() ? 1 : 0, 1);
+		}
 		saveStudentNotificationLog(student, lineUserId, notificationType, "STUDENT_LEAVE_REQUEST",
 				leaveRequest.getId(), title, content,
 				result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
@@ -287,6 +313,10 @@ public class LineNotificationService {
 		saveAttendanceLog(attendance, notificationType, title,
 				buildAttendanceMessage(attendance, null, statusText, eventTime),
 				status, error, firstProviderMessageId);
+		if (webPushEventNotificationService != null) {
+			webPushEventNotificationService.notifyLineSendAttempt(null, title,
+					student.getDisplayName() + "的家長", successCount, bindings.size());
+		}
 	}
 
 	private String buildAttendanceMessage(StudentAttendance attendance, ParentLineBinding binding,
