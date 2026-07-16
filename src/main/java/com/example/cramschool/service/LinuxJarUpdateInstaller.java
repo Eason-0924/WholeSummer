@@ -1,9 +1,11 @@
 package com.example.cramschool.service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -54,9 +56,23 @@ public class LinuxJarUpdateInstaller {
 		} catch (java.nio.file.AtomicMoveNotSupportedException ex) {
 			Files.move(temporaryLink, applicationJar, StandardCopyOption.REPLACE_EXISTING);
 		}
-		new ProcessBuilder("sudo", "-n", "systemctl", "restart", serviceName)
+		restartService();
+	}
+
+	private void restartService() throws IOException, InterruptedException {
+		Process process = new ProcessBuilder("sudo", "-n", "systemctl", "restart", serviceName)
 				.redirectErrorStream(true)
 				.start();
+		if (!process.waitFor(90, TimeUnit.SECONDS)) {
+			process.destroyForcibly();
+			throw new IOException("重啟 WholeSummer 服務逾時");
+		}
+		String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+		if (process.exitValue() != 0) {
+			String detail = output.isBlank() ? "systemctl 未提供錯誤訊息" : output;
+			throw new IOException("重啟 WholeSummer 服務失敗（exit code "
+					+ process.exitValue() + "）：" + detail);
+		}
 	}
 
 	private boolean isLinux() {
