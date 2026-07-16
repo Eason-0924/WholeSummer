@@ -171,10 +171,7 @@
 				</tr>
 				<tr th:each="attendance : ${attendances}">
 					<td th:text="${#temporals.format(attendance.attendanceDate, 'yyyy/MM/dd')}">2026/01/01</td>
-					<td>
-						<a th:href="@{/classes/{slug}(slug=${attendance.classRoom.urlSlug})}"
-								th:text="${attendance.classRoom.displayName}">班級</a>
-					</td>
+					<td th:text="${attendance.classRoom == null ? '依日期出席' : attendance.classRoom.displayName}">依日期出席</td>
 					<td>
 						<span th:class="${attendance.status.name() == 'PRESENT' ? 'badge text-bg-success' : (attendance.status.name() == 'LATE' ? 'badge text-bg-warning text-dark' : (attendance.status.name() == 'ABSENT' ? 'badge text-bg-danger' : 'badge text-bg-secondary'))}"
 								th:text="${attendance.status.displayName}">狀態</span>

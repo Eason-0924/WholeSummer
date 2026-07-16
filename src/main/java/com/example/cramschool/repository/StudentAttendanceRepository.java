@@ -11,30 +11,29 @@ import com.example.cramschool.entity.StudentAttendance;
 
 public interface StudentAttendanceRepository extends JpaRepository<StudentAttendance, Long> {
 
-	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
-	List<StudentAttendance> findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(Long classRoomId,
-			LocalDate attendanceDate);
+	default List<StudentAttendance> findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(Long classRoomId,
+			LocalDate attendanceDate) { return List.of(); }
 
-	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
-	List<StudentAttendance> findByClassRoomIdOrderByAttendanceDateDescStudentChineseNameAsc(Long classRoomId);
+	default List<StudentAttendance> findByClassRoomIdOrderByAttendanceDateDescStudentChineseNameAsc(Long classRoomId) {
+		return List.of();
+	}
 
-	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
+	@EntityGraph(attributePaths = { "student" })
 	List<StudentAttendance> findByStudentIdOrderByAttendanceDateDescIdDesc(Long studentId);
 
-	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher" })
+	@EntityGraph(attributePaths = { "student" })
 	List<StudentAttendance> findByStudentIdAndAttendanceDateOrderByIdDesc(Long studentId, LocalDate attendanceDate);
 
 	List<StudentAttendance> findByAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(LocalDate attendanceDate);
 
-	@EntityGraph(attributePaths = { "student", "classRoom", "classRoom.subject", "classRoom.teacher",
-			"classRoom.schedules" })
+	@EntityGraph(attributePaths = { "student" })
 	List<StudentAttendance> findAllByOrderByAttendanceDateDescIdDesc();
 
-	Optional<StudentAttendance> findByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
-			LocalDate attendanceDate);
+	default Optional<StudentAttendance> findByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
+			LocalDate attendanceDate) { return Optional.empty(); }
 
-	boolean existsByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
-			LocalDate attendanceDate);
+	default boolean existsByClassRoomIdAndStudentIdAndAttendanceDate(Long classRoomId, Long studentId,
+			LocalDate attendanceDate) { return false; }
 
 	boolean existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(
 			Long studentId, LocalDate attendanceDate);

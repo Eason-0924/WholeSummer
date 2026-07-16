@@ -297,7 +297,9 @@ public class LineNotificationService {
 				: studentNameSuffix(student.getChineseName()) + binding.getRelation();
 		String greeting = recipient.isBlank() ? "" : recipient + "您好：\n";
 		String timeText = eventTime == null ? "-" : eventTime.format(DISPLAY_TIME_FORMAT);
-		String className = attendance.getClassRoom() == null ? "-" : attendance.getClassRoom().getDisplayName();
+		String className = attendance.getCourseDisplayText() == null || attendance.getCourseDisplayText().isBlank()
+				? (attendance.getClassRoom() == null ? "無" : attendance.getClassRoom().getDisplayName())
+				: attendance.getCourseDisplayText();
 		return "【Whole Summer " + statusText + "通知】\n\n"
 				+ greeting
 				+ "學生：" + student.getDisplayName() + "\n"

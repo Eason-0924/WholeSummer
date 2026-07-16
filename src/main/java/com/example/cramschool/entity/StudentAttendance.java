@@ -19,7 +19,7 @@ import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "student_attendances",
-		uniqueConstraints = @UniqueConstraint(columnNames = { "student_id", "class_id", "attendance_date" }))
+		uniqueConstraints = @UniqueConstraint(columnNames = { "student_id", "attendance_date" }))
 public class StudentAttendance {
 
 	@Id
@@ -30,9 +30,11 @@ public class StudentAttendance {
 	@JoinColumn(name = "student_id", nullable = false)
 	private Student student;
 
-	@ManyToOne
-	@JoinColumn(name = "class_id", nullable = false)
+	@jakarta.persistence.Transient
 	private ClassRoom classRoom;
+
+	@jakarta.persistence.Transient
+	private String courseDisplayText;
 
 	@Column(name = "attendance_date", nullable = false)
 	private LocalDate attendanceDate;
@@ -100,6 +102,8 @@ public class StudentAttendance {
 	public void setClassRoom(ClassRoom classRoom) {
 		this.classRoom = classRoom;
 	}
+	public String getCourseDisplayText() { return courseDisplayText; }
+	public void setCourseDisplayText(String courseDisplayText) { this.courseDisplayText = courseDisplayText; }
 
 	public LocalDate getAttendanceDate() {
 		return attendanceDate;

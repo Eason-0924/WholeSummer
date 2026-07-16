@@ -53,6 +53,9 @@ public class StudentAttendanceService {
 			String className, String classTime, String statusLabel, String statusBadgeClass, String note) {
 	}
 
+	public record DailyAttendanceSchedule(String timeText, LocalTime startTime, LocalTime endTime) {
+	}
+
 	private static final Map<DayOfWeek, String> WEEKDAY_NAMES = Map.of(
 			DayOfWeek.MONDAY, "星期一",
 			DayOfWeek.TUESDAY, "星期二",
@@ -100,7 +103,13 @@ public class StudentAttendanceService {
 
 	@Transactional(readOnly = true)
 	public List<StudentAttendance> findByClassRoomId(Long classRoomId) {
-		return studentAttendanceRepository.findByClassRoomIdOrderByAttendanceDateDescStudentChineseNameAsc(classRoomId);
+		ClassRoom classRoom = classRoomService.findById(classRoomId);
+		List<DayOfWeek> classDays = classRoom.getEffectiveSchedules().stream()
+				.map(schedule -> weekday(schedule.getWeekday())).filter(java.util.Objects::nonNull).distinct().toList();
+		return studentAttendanceRepository.findAllByOrderByAttendanceDateDescIdDesc().stream()
+				.filter(attendance -> attendance.getAttendanceDate() != null
+						&& classDays.contains(attendance.getAttendanceDate().getDayOfWeek()))
+				.toList();
 	}
 
 	@Transactional(readOnly = true)
@@ -113,7 +122,8 @@ public class StudentAttendanceService {
 		LocalDate targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
 		Map<Long, StudentAttendance> attendancesByStudentId = new LinkedHashMap<>();
 		for (StudentAttendance attendance : studentAttendanceRepository
-				.findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(classRoomId, targetDate)) {
+				.findAllByOrderByAttendanceDateDescIdDesc().stream()
+				.filter(attendance -> targetDate.equals(attendance.getAttendanceDate())).toList()) {
 			attendancesByStudentId.put(attendance.getStudent().getId(), attendance);
 		}
 
@@ -139,6 +149,85 @@ public class StudentAttendanceService {
 			form.getEntries().add(entry);
 		}
 		return form;
+	}
+
+	@Transactional(readOnly = true)
+	public StudentAttendanceForm buildDailyForm(LocalDate attendanceDate) {
+		LocalDate targetDate = attendanceDate == null ? LocalDate.now() : attendanceDate;
+		StudentAttendanceForm form = new StudentAttendanceForm();
+		form.setAttendanceDate(targetDate);
+		for (Student student : studentRepository.findByActiveTrueOrderByChineseNameAsc()) {
+			List<ClassStudent> memberships = classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
+					.filter(membership -> membership.getClassRoom() != null && membership.getClassRoom().isActive())
+					.toList();
+			List<ClassSchedule> schedules = memberships.stream()
+					.flatMap(membership -> membership.getClassRoom().getEffectiveSchedules().stream()
+							.filter(schedule -> WEEKDAY_NAMES.get(targetDate.getDayOfWeek()).equals(schedule.getWeekday())))
+					.sorted(Comparator.comparing(ClassSchedule::getStartTime))
+					.toList();
+			if (schedules.isEmpty()) {
+				continue;
+			}
+			StudentAttendanceEntryForm entry = new StudentAttendanceEntryForm();
+			entry.setStudentId(student.getId());
+			entry.setStudentName(student.getDisplayName());
+			entry.setStudentGrade(student.getGrade());
+			LocalTime first = schedules.stream().map(ClassSchedule::getStartTime).min(LocalTime::compareTo).orElse(null);
+			LocalTime last = schedules.stream().map(ClassSchedule::getEndTime).max(LocalTime::compareTo).orElse(null);
+			entry.setScheduleText(first == null || last == null ? "-" : first.format(ARRIVAL_TIME_FORMATTER) + "~" + last.format(ARRIVAL_TIME_FORMATTER));
+			List<StudentAttendance> existing = studentAttendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(student.getId(), targetDate);
+			StudentAttendance attendance = existing.isEmpty() ? null : existing.getFirst();
+			if (attendance != null) {
+				entry.setStatus(attendance.getStatus());
+				entry.setCheckInTime(attendance.getCheckInTime() == null ? null : attendance.getCheckInTime().toLocalTime());
+				entry.setCheckOutTime(attendance.getCheckOutTime() == null ? null : attendance.getCheckOutTime().toLocalTime());
+			}
+			form.getEntries().add(entry);
+		}
+		return form;
+	}
+
+	public void saveDailyAttendance(StudentAttendanceForm form) {
+		LocalDate attendanceDate = form.getAttendanceDate() == null ? LocalDate.now() : form.getAttendanceDate();
+		for (StudentAttendanceEntryForm entry : form.getEntries()) {
+			Student student = studentRepository.findById(entry.getStudentId())
+					.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
+			List<ClassRoom> classes = classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
+					.map(ClassStudent::getClassRoom).filter(ClassRoom::isActive)
+					.filter(classRoom -> hasCourseOnDate(classRoom, attendanceDate)).distinct().toList();
+			for (ClassRoom classRoom : classes) {
+				StudentAttendance attendance = studentAttendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(
+						student.getId(), attendanceDate).stream().findFirst().orElseGet(StudentAttendance::new);
+				boolean hadCheckIn = attendance.getCheckInTime() != null;
+				boolean hadCheckOut = attendance.getCheckOutTime() != null;
+				attendance.setClassRoom(classRoom);
+				attendance.setCourseDisplayText(courseDisplayText(student, attendanceDate));
+				attendance.setStudent(student);
+				attendance.setAttendanceDate(attendanceDate);
+				attendance.setStatus(entry.getStatus() == null ? AttendanceStatus.PRESENT : entry.getStatus());
+				attendance.setCheckMethod("MANUAL");
+				attendance.setNote(entry.getNote());
+				applyManualAttendanceTimes(attendance, entry, attendanceDate);
+				StudentAttendance saved = studentAttendanceRepository.save(attendance);
+				if (classes.getFirst().equals(classRoom)) {
+					sendManualAttendanceNotifications(saved, !hadCheckIn, !hadCheckOut);
+				}
+			}
+		}
+	}
+
+	private boolean hasCourseOnDate(ClassRoom classRoom, LocalDate date) {
+		return classRoom.getEffectiveSchedules().stream()
+				.anyMatch(schedule -> WEEKDAY_NAMES.get(date.getDayOfWeek()).equals(schedule.getWeekday()));
+	}
+
+	private String courseDisplayText(Student student, LocalDate date) {
+		return classStudentRepository.findByStudentIdAndActiveTrue(student.getId()).stream()
+				.map(ClassStudent::getClassRoom).filter(ClassRoom::isActive)
+				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
+						.filter(schedule -> WEEKDAY_NAMES.get(date.getDayOfWeek()).equals(schedule.getWeekday()))
+						.map(schedule -> classRoom.getDisplayName()))
+				.distinct().sorted().collect(java.util.stream.Collectors.joining("、"));
 	}
 
 	@Transactional(readOnly = true)
@@ -189,9 +278,8 @@ public class StudentAttendanceService {
 		for (StudentAttendanceEntryForm entry : form.getEntries()) {
 			Student student = studentRepository.findById(entry.getStudentId())
 					.orElseThrow(() -> new IllegalArgumentException("找不到學生資料"));
-			StudentAttendance attendance = studentAttendanceRepository
-					.findByClassRoomIdAndStudentIdAndAttendanceDate(classRoomId, entry.getStudentId(), attendanceDate)
-					.orElseGet(StudentAttendance::new);
+			StudentAttendance attendance = studentAttendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(
+					entry.getStudentId(), attendanceDate).stream().findFirst().orElseGet(StudentAttendance::new);
 			if (hasApprovedLeave(student.getId(), classRoomId, attendanceDate)) {
 				saveApprovedLeaveAttendance(attendance, classRoom, student, attendanceDate, attendance.getNote());
 				continue;
@@ -199,6 +287,7 @@ public class StudentAttendanceService {
 			boolean hadCheckInTime = attendance.getCheckInTime() != null;
 			boolean hadCheckOutTime = attendance.getCheckOutTime() != null;
 			attendance.setClassRoom(classRoom);
+			attendance.setCourseDisplayText(courseDisplayText(student, attendanceDate));
 			attendance.setStudent(student);
 			attendance.setAttendanceDate(attendanceDate);
 			attendance.setStatus(entry.getStatus() == null ? AttendanceStatus.PRESENT : entry.getStatus());
@@ -215,9 +304,8 @@ public class StudentAttendanceService {
 			throw new IllegalArgumentException("請假資料不完整，無法更新出席狀態");
 		}
 		StudentAttendance attendance = studentAttendanceRepository
-				.findByClassRoomIdAndStudentIdAndAttendanceDate(
-						leaveRequest.getClassRoom().getId(), leaveRequest.getStudent().getId(), leaveRequest.getCourseDate())
-				.orElseGet(StudentAttendance::new);
+				.findByStudentIdAndAttendanceDateOrderByIdDesc(leaveRequest.getStudent().getId(), leaveRequest.getCourseDate())
+					.stream().findFirst().orElseGet(StudentAttendance::new);
 		return saveApprovedLeaveAttendance(
 				attendance,
 				leaveRequest.getClassRoom(),
@@ -311,6 +399,7 @@ public class StudentAttendanceService {
 				.toList();
 		if (!openAttendances.isEmpty()) {
 			for (StudentAttendance attendance : openAttendances) {
+				attendance.setCourseDisplayText(courseDisplayText(student, attendanceDate));
 				attendance.setCheckOutTime(cardTime);
 				attendance.setCheckMethod("CARD");
 				attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
@@ -328,55 +417,36 @@ public class StudentAttendanceService {
 		}
 
 		List<CardClassMatch> matches = findTodayCardClasses(student, cardTime);
-		if (matches.isEmpty()) {
-			CardCheckInResponse response = CardCheckInResponse.fail("NO_CLASS_TODAY",
-					student.getDisplayName() + " 今日沒有需要點名的課程");
-			response.setStudentId(student.getId());
-			response.setStudentName(student.getDisplayName());
-			response.setCardId(normalizedCardId);
-			return response;
-		}
-
-		CardClassMatch match = matches.getFirst();
-		List<StudentAttendance> existingAttendances = new ArrayList<>();
-		for (CardClassMatch candidate : matches) {
-			studentAttendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
-					candidate.classRoom().getId(), student.getId(), attendanceDate)
-					.ifPresent(existingAttendances::add);
-		}
-		if (existingAttendances.size() == matches.size()) {
+		CardClassMatch match = matches.isEmpty() ? null : matches.getFirst();
+		Optional<StudentAttendance> existing = studentAttendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(
+				student.getId(), attendanceDate).stream().findFirst();
+		if (existing.isPresent() && existing.get().getCheckInTime() != null && existing.get().getCheckOutTime() != null) {
 			CardCheckInResponse response = CardCheckInResponse.fail("DUPLICATE_CHECK_IN",
-					student.getDisplayName() + "已完成本堂課點名與簽退，請勿重複刷卡");
+					student.getDisplayName() + " 已完成今日點名與簽退，請勿重複刷卡");
 			response.setStudentId(student.getId());
 			response.setStudentName(student.getDisplayName());
-			response.setClassName(match.classRoom().getDisplayName());
+			response.setClassName(match == null ? "無" : match.classRoom().getDisplayName());
 			response.setCardId(normalizedCardId);
-			response.setCheckInTime(existingAttendances.getFirst().getCheckInTime());
-			response.setCheckOutTime(existingAttendances.getFirst().getCheckOutTime());
+			response.setCheckInTime(existing.get().getCheckInTime());
+			response.setCheckOutTime(existing.get().getCheckOutTime());
 			return response;
 		}
-
-		for (CardClassMatch candidate : matches) {
-			if (studentAttendanceRepository.findByClassRoomIdAndStudentIdAndAttendanceDate(
-					candidate.classRoom().getId(), student.getId(), attendanceDate).isPresent()) {
-				continue;
-			}
-			StudentAttendance attendance = new StudentAttendance();
-			attendance.setStudent(student);
-			attendance.setClassRoom(candidate.classRoom());
-			attendance.setAttendanceDate(attendanceDate);
-			attendance.setStatus(resolveCardAttendanceStatus(candidate.schedule(), cardTime));
-			attendance.setNote("到班時間：" + cardTime.toLocalTime().format(ARRIVAL_TIME_FORMATTER));
-			attendance.setCheckMethod("CARD");
-			attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
-			attendance.setCardId(normalizedCardId);
-			attendance.setCheckInTime(cardTime);
-			studentAttendanceRepository.save(attendance);
-			sendCardCheckInNotification(attendance);
-		}
+		StudentAttendance attendance = existing.orElseGet(StudentAttendance::new);
+		attendance.setStudent(student);
+		attendance.setClassRoom(match == null ? null : match.classRoom());
+		attendance.setCourseDisplayText(courseDisplayText(student, attendanceDate));
+		attendance.setAttendanceDate(attendanceDate);
+		attendance.setStatus(match == null ? AttendanceStatus.PRESENT : resolveCardAttendanceStatus(match.schedule(), cardTime));
+		attendance.setNote("到班時間：" + cardTime.toLocalTime().format(ARRIVAL_TIME_FORMATTER));
+		attendance.setCheckMethod("CARD");
+		attendance.setDeviceName(normalizeDeviceName(request == null ? null : request.getDeviceName()));
+		attendance.setCardId(normalizedCardId);
+		attendance.setCheckInTime(cardTime);
+		studentAttendanceRepository.save(attendance);
+		sendCardCheckInNotification(attendance);
 
 		CardCheckInResponse response = CardCheckInResponse.success(
-				student.getId(), student.getDisplayName(), match.classRoom().getDisplayName(), cardTime);
+			student.getId(), student.getDisplayName(), match == null ? "無" : match.classRoom().getDisplayName(), cardTime);
 		response.setCardId(normalizedCardId);
 		return response;
 	}
@@ -617,7 +687,6 @@ public class StudentAttendanceService {
 				.filter(ClassRoom::isActive)
 				.flatMap(classRoom -> classRoom.getEffectiveSchedules().stream()
 						.filter(schedule -> weekdayName.equals(schedule.getWeekday()))
-						.filter(schedule -> isWithinCardCheckInWindow(schedule, checkInTime))
 						.map(schedule -> new CardClassMatch(classRoom, schedule, distanceFromSchedule(schedule, checkInTime))))
 				.sorted(Comparator.comparingLong(CardClassMatch::distanceSeconds))
 				.toList();

@@ -11,6 +11,14 @@ fi
 
 REPUBLISH=false
 
+read_card_listener_version() {
+  tr -d '[:space:]' < tools/card-listener/VERSION
+}
+
+card_listener_has_changes() {
+  git status --porcelain -- tools/card-listener | grep -q .
+}
+
 read_project_version() {
   ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout
 }
@@ -23,7 +31,12 @@ refresh_version_state() {
     exit 1
   fi
 
-  TAG="v$VERSION"
+  CARD_LISTENER_VERSION=$(read_card_listener_version)
+  if card_listener_has_changes; then
+    TAG="v$VERSION-card-listener-v$CARD_LISTENER_VERSION"
+  else
+    TAG="v$VERSION"
+  fi
   LOCAL_TAG_EXISTS=false
   REMOTE_TAG_EXISTS=false
 

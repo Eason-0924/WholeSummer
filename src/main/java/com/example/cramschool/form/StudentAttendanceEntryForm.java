@@ -18,6 +18,8 @@ public class StudentAttendanceEntryForm {
 
 	private String studentGrade;
 
+	private String scheduleText;
+
 	private AttendanceStatus status = AttendanceStatus.PRESENT;
 
 	@DateTimeFormat(pattern = "HH:mm")
@@ -50,6 +52,10 @@ public class StudentAttendanceEntryForm {
 	public String getStudentGrade() {
 		return studentGrade;
 	}
+
+	public String getScheduleText() { return scheduleText; }
+
+	public void setScheduleText(String scheduleText) { this.scheduleText = scheduleText; }
 
 	public void setStudentGrade(String studentGrade) {
 		this.studentGrade = studentGrade;

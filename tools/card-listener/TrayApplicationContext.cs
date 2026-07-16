@@ -238,7 +238,11 @@ internal sealed class TrayApplicationContext : ApplicationContext
         lastReaderResetPromptAt = now;
         consecutiveSingleDigitFailures = 0;
         ShowNotification("讀卡機可能異常", "連續刷卡只收到 1 碼，請確認是否重新設定讀卡機。", ToolTipIcon.Warning);
-        BeginInvoke(new Action(() =>
+        if (rawInputForm.IsDisposed || !rawInputForm.IsHandleCreated)
+        {
+            return;
+        }
+        rawInputForm.BeginInvoke(new Action(() =>
         {
             DialogResult result = MessageBox.Show(
                 "最近連續刷卡都只收到 1 碼，可能是讀卡機來源或設定異常。\n\n是否立即重新設定讀卡機？",

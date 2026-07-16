@@ -181,8 +181,8 @@ public class TodayWorkbenchService {
 
 	private Map<Long, StudentAttendance> attendanceByStudentId(Long classRoomId, LocalDate today) {
 		Map<Long, StudentAttendance> records = new LinkedHashMap<>();
-		for (StudentAttendance attendance : studentAttendanceRepository
-				.findByClassRoomIdAndAttendanceDateOrderByStudentChineseNameAsc(classRoomId, today)) {
+		for (StudentAttendance attendance : studentAttendanceRepository.findAllByOrderByAttendanceDateDescIdDesc().stream()
+				.filter(record -> today.equals(record.getAttendanceDate())).toList()) {
 			records.putIfAbsent(attendance.getStudent().getId(), attendance);
 		}
 		return records;

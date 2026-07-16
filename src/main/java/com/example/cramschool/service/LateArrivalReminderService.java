@@ -114,10 +114,8 @@ public class LateArrivalReminderService {
 			if (classStudent.getStudent() == null || !classStudent.getStudent().isActive()) {
 				continue;
 			}
-			boolean arrived = studentAttendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(
-					schedule.getClassRoomId(), classStudent.getStudent().getId(), schedule.getCourseDate())
-					|| studentAttendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(
-							classStudent.getStudent().getId(), schedule.getCourseDate());
+			boolean arrived = studentAttendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(
+					classStudent.getStudent().getId(), schedule.getCourseDate());
 			if (arrived) {
 				continue;
 			}

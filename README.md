@@ -398,6 +398,12 @@ WholeSummer 是一套以 Spring Boot 與 MySQL 建立的補習班管理系統，
 - LINE 通知發送完成訊息會顯示實際發送對象與通知標題，讓單筆、合併與測試通知更容易追蹤。
 - 資料管理新增 LINE 發送紀錄資源，可在後台查看通知類型、內容、狀態、LINE 回應 ID 與錯誤訊息。
 - 遲到提醒排程會在 LINE 掃描時同步發送 Web Push，並以課程/學生 occurrence key 避免 Web Push 重複通知。
+- 重新發布時若 Card Listener 有變更，發布 tag 會帶上 `-card-listener-vN`，並由 GitHub Actions 驗證 tag 內的 Card Listener 版本必須與 `tools/card-listener/VERSION` 一致。
+- 學生出席改為以「學生＋日期」保存單日紀錄，資料庫允許 `student_attendances.class_id` 為空，避免同一學生同日多班級造成重複點名與簽退判斷混亂。
+- 「學生請假」入口調整為「學生出席」，同頁提供每日學生出席登記、日期切換、待審核請假與已確認請假列表。
+- 班級詳細頁移除班級內點名入口，出席管理集中到每日出席頁；學生詳細頁可顯示依日期保存的出席紀錄。
+- 刷卡點名會依學生當日課程彙整到單一出席紀錄，LINE 到班/簽退通知會顯示當日相關課程名稱。
+- Card Listener v2 的讀卡機異常提示改用 Raw Input 視窗安全呼叫，避免提示視窗在控制代碼尚未建立或已釋放時失敗。
 
 ## 1.5.2 更新內容
 

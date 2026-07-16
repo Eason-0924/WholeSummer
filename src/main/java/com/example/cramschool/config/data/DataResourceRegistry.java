@@ -78,7 +78,6 @@ public class DataResourceRegistry {
 				field("updated_at", "更新時間", DATETIME, false, false, false, true))));
 		register(new DataResourceDefinition("class-schedules", "class_schedules", "補調課紀錄", "補課/調課", "id", false, false, true, null, "id", List.of(
 				field("id", "ID", READ_ONLY, false, false, true, true),
-				foreignKey("class_id", "班級", false, true, classRoom),
 				field("weekday", "星期", TEXT, false, true, true, true),
 				field("start_time", "開始時間", TIME, false, true, false, true),
 				field("end_time", "結束時間", TIME, false, true, false, true),
@@ -94,7 +93,6 @@ public class DataResourceRegistry {
 				foreignKey("teacher_id", "教師", false, true, teacher))));
 		register(new DataResourceDefinition("exams", "exams", "測驗", "課程紀錄", "id", true, true, true, null, "exam_date", List.of(
 				field("id", "ID", READ_ONLY, false, false, true, true),
-				foreignKey("class_id", "班級", true, true, classRoom),
 				foreignKey("subject_id", "科目", true, true, subject),
 				field("name", "測驗名稱", TEXT, true, true, true, true).max(100),
 				field("exam_date", "測驗日期", DATE, true, true, false, true),
@@ -134,7 +132,6 @@ public class DataResourceRegistry {
 		register(new DataResourceDefinition("student-attendances", "student_attendances", "學生出缺勤", "點名資料", "id", true, true, true, null, "attendance_date", List.of(
 				field("id", "ID", READ_ONLY, false, false, true, true),
 				foreignKey("student_id", "學生", true, true, student),
-				foreignKey("class_id", "班級", true, true, classRoom),
 				field("attendance_date", "日期", DATE, true, true, false, true),
 				field("status", "狀態", ENUM, true, true, true, true).options("PRESENT", "ABSENT", "LATE", "LEAVE"),
 				field("note", "備註", LONG_TEXT, true, false, true, false).max(1000),
