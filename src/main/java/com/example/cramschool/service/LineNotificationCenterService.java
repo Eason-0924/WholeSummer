@@ -53,7 +53,23 @@ public class LineNotificationCenterService {
 	private final LineNotificationLogRepository lineNotificationLogRepository;
 	private final LineNotificationTemplateRepository lineNotificationTemplateRepository;
 	private final LineMessageService lineMessageService;
+	private final LineNotificationDeliveryService lineNotificationDeliveryService;
 	private final WebPushEventNotificationService webPushEventNotificationService;
+
+	public LineNotificationCenterService(ScoreRepository scoreRepository,
+			MakeUpClassRequestRepository makeUpClassRequestRepository,
+			TuitionRecordRepository tuitionRecordRepository,
+			ClassStudentRepository classStudentRepository,
+			ParentLineBindingRepository parentLineBindingRepository,
+			LineNotificationLogRepository lineNotificationLogRepository,
+			LineNotificationTemplateRepository lineNotificationTemplateRepository,
+			LineMessageService lineMessageService, WebPushEventNotificationService webPushEventNotificationService) {
+		this(scoreRepository, makeUpClassRequestRepository, tuitionRecordRepository, classStudentRepository,
+				parentLineBindingRepository, lineNotificationLogRepository, lineNotificationTemplateRepository,
+				lineMessageService, webPushEventNotificationService,
+				new LineNotificationDeliveryService(new LineNotificationAttemptRecorder(lineNotificationLogRepository),
+						lineMessageService));
+	}
 
 	@Autowired
 	public LineNotificationCenterService(ScoreRepository scoreRepository,
@@ -63,7 +79,8 @@ public class LineNotificationCenterService {
 			ParentLineBindingRepository parentLineBindingRepository,
 			LineNotificationLogRepository lineNotificationLogRepository,
 			LineNotificationTemplateRepository lineNotificationTemplateRepository,
-			LineMessageService lineMessageService, WebPushEventNotificationService webPushEventNotificationService) {
+			LineMessageService lineMessageService, WebPushEventNotificationService webPushEventNotificationService,
+			LineNotificationDeliveryService lineNotificationDeliveryService) {
 		this.scoreRepository = scoreRepository;
 		this.makeUpClassRequestRepository = makeUpClassRequestRepository;
 		this.tuitionRecordRepository = tuitionRecordRepository;
@@ -72,6 +89,7 @@ public class LineNotificationCenterService {
 		this.lineNotificationLogRepository = lineNotificationLogRepository;
 		this.lineNotificationTemplateRepository = lineNotificationTemplateRepository;
 		this.lineMessageService = lineMessageService;
+		this.lineNotificationDeliveryService = lineNotificationDeliveryService;
 		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
 
@@ -200,27 +218,16 @@ public class LineNotificationCenterService {
 
 		int successCount = 0;
 		String firstError = null;
-		String firstProviderMessageId = null;
-		String firstContent = null;
 		for (ParentLineBinding binding : bindings) {
 			String content = renderTemplate(template, candidate, binding);
-			if (firstContent == null) {
-				firstContent = content;
-			}
-			var result = lineMessageService.pushText(binding.getLineUserId(), content);
+			var result = lineNotificationDeliveryService.send(candidate.student(), binding.getLineUserId(),
+					candidate.notificationType(), candidate.referenceType(), candidate.referenceId(), candidate.title(), content);
 			if (result.success()) {
 				successCount++;
-				if (firstProviderMessageId == null) {
-					firstProviderMessageId = result.providerMessageId();
-				}
 			} else if (firstError == null) {
 				firstError = result.errorMessage();
 			}
 		}
-		saveLog(candidate, firstContent, successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
-				successCount == bindings.size() ? null : "成功 " + successCount + " / " + bindings.size()
-					+ (firstError == null ? "" : "；" + firstError),
-				firstProviderMessageId);
 		if (webPushEventNotificationService != null) {
 			webPushEventNotificationService.notifyLineSendAttempt(null, candidate.title(),
 					candidate.studentName() + "的家長", successCount, bindings.size());
@@ -273,9 +280,7 @@ public class LineNotificationCenterService {
 		if (bindings.isEmpty()) {
 			throw new IllegalArgumentException("此學生尚無可發送的 LINE 家長");
 		}
-		String firstProviderMessageId = null;
 		Map<String, List<NotificationCandidate>> candidatesByTemplate = groupCandidatesByTemplate(candidates);
-		Map<String, String> firstContentByTemplate = new LinkedHashMap<>();
 		Map<String, Integer> successByTemplate = new LinkedHashMap<>();
 		Map<String, String> firstErrorByTemplate = new LinkedHashMap<>();
 		Set<String> successfulParentIds = new HashSet<>();
@@ -283,28 +288,21 @@ public class LineNotificationCenterService {
 			for (Map.Entry<String, List<NotificationCandidate>> entry : candidatesByTemplate.entrySet()) {
 				String templateKey = entry.getKey();
 				String content = renderTemplateGroup(entry.getValue(), binding);
-				firstContentByTemplate.putIfAbsent(templateKey, content);
-				var result = lineMessageService.pushText(binding.getLineUserId(), content);
+				List<LineNotificationDeliveryService.DeliveryAttempt> attempts = entry.getValue().stream()
+						.map(candidate -> new LineNotificationDeliveryService.DeliveryAttempt(candidate.student(),
+								binding.getLineUserId(), candidate.notificationType(), candidate.referenceType(),
+								candidate.referenceId(), candidate.title(), content))
+						.toList();
+				var result = lineNotificationDeliveryService.send(attempts, binding.getLineUserId(), content);
 				if (result.success()) {
 					successByTemplate.merge(templateKey, 1, Integer::sum);
 					successfulParentIds.add(binding.getLineUserId());
-					if (firstProviderMessageId == null) {
-						firstProviderMessageId = result.providerMessageId();
-					}
 				} else {
 					firstErrorByTemplate.putIfAbsent(templateKey, result.errorMessage());
 				}
 			}
 		}
 		for (Map.Entry<String, List<NotificationCandidate>> entry : candidatesByTemplate.entrySet()) {
-			int templateSuccessCount = successByTemplate.getOrDefault(entry.getKey(), 0);
-			String status = templateSuccessCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
-			String error = templateSuccessCount == bindings.size() ? null
-					: "成功 " + templateSuccessCount + " / " + bindings.size()
-							+ (firstErrorByTemplate.get(entry.getKey()) == null ? "" : "；" + firstErrorByTemplate.get(entry.getKey()));
-			for (NotificationCandidate candidate : entry.getValue()) {
-				saveLog(candidate, firstContentByTemplate.get(entry.getKey()), status, error, firstProviderMessageId);
-			}
 			int totalAttempts = bindings.size();
 			int successfulAttempts = successByTemplate.getOrDefault(entry.getKey(), 0);
 			String type = entry.getValue().stream().map(NotificationCandidate::title).distinct()

@@ -14,6 +14,9 @@ public interface LineNotificationLogRepository extends JpaRepository<LineNotific
 	boolean existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
 			Student student, String notificationType, String referenceType, Long referenceId);
 
+	boolean existsByStudentAndLineUserIdAndNotificationTypeAndReferenceTypeAndReferenceId(
+			Student student, String lineUserId, String notificationType, String referenceType, Long referenceId);
+
 	List<LineNotificationLog> findTop10ByStudentOrderByCreatedAtDesc(Student student);
 
 	@Modifying

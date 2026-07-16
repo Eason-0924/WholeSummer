@@ -21,6 +21,8 @@ public class LineNotificationLog {
 	public static final String STATUS_SENT = "SENT";
 	public static final String STATUS_FAILED = "FAILED";
 	public static final String STATUS_SKIPPED = "SKIPPED";
+	/** A durable reservation written before a LINE request is made. */
+	public static final String STATUS_PENDING = "PENDING";
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)

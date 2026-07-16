@@ -39,14 +39,14 @@ public class LineMessageService {
 				.build();
 	}
 
-	public void replyText(String replyToken, String text) {
+	public LineSendResult replyText(String replyToken, String text) {
 		if (replyToken == null || replyToken.isBlank() || text == null || text.isBlank()) {
-			return;
+			return LineSendResult.failure("缺少 LINE replyToken 或訊息內容");
 		}
 		if (lineProperties.getChannelAccessToken() == null
 				|| lineProperties.getChannelAccessToken().isBlank()) {
 			log.warn("Cannot reply LINE message because channel access token is not configured.");
-			return;
+			return LineSendResult.failure("尚未設定 LINE Channel access token");
 		}
 		try {
 			Map<String, Object> textMessage = new LinkedHashMap<>();
@@ -64,11 +64,16 @@ public class LineMessageService {
 					.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
 					.build();
 			HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-			if (response.statusCode() < 200 || response.statusCode() >= 300) {
-				log.warn("LINE reply failed. status={} body={}", response.statusCode(), response.body());
+			if (response.statusCode() >= 200 && response.statusCode() < 300) {
+				return LineSendResult.success(response.headers().firstValue("x-line-request-id").orElse(null));
 			}
+			log.warn("LINE reply failed. status={} body={}", response.statusCode(), response.body());
+			return LineSendResult.failure("LINE Reply API 失敗（HTTP " + response.statusCode() + "）：" + response.body());
 		} catch (Exception ex) {
 			log.warn("LINE reply failed.", ex);
+			return LineSendResult.failure(ex.getMessage() == null
+					? ex.getClass().getSimpleName()
+					: ex.getMessage());
 		}
 	}
 

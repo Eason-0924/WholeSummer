@@ -64,7 +64,7 @@ class LineNotificationServiceTests {
 		assertThat(contentCaptor.getValue()).contains("到班通知", "狀態：到班");
 		assertThat(contentCaptor.getValue()).doesNotContain("遲到通知", "狀態：遲到");
 		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
-		verify(logRepository).save(logCaptor.capture());
+		verify(logRepository, times(2)).saveAndFlush(logCaptor.capture());
 		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("ATTENDANCE_CHECK_IN");
 	}
 
@@ -82,6 +82,33 @@ class LineNotificationServiceTests {
 		service.sendLateArrivalReminder(student, 123L, "國一（A班）", LocalDateTime.of(2026, 7, 5, 18, 0));
 
 		verifyNoInteractions(bindingRepository, lineMessageService);
+	}
+
+	@Test
+	void recordsFailedLateArrivalPushAfterCreatingPendingAttempt() {
+		Student student = student();
+		ParentLineBinding binding = new ParentLineBinding();
+		binding.setStudent(student);
+		binding.setLineUserId("line-user-1");
+		ParentLineBindingRepository bindingRepository = mock(ParentLineBindingRepository.class);
+		LineNotificationLogRepository logRepository = mock(LineNotificationLogRepository.class);
+		LineMessageService lineMessageService = mock(LineMessageService.class);
+		when(bindingRepository.findByStudentAndStatus(student, ParentLineBinding.STATUS_BOUND))
+				.thenReturn(List.of(binding));
+		when(lineMessageService.pushText(eq("line-user-1"), any()))
+				.thenReturn(LineSendResult.failure("LINE Push API 失敗（HTTP 400）"));
+		LineNotificationService service = new LineNotificationService(null, bindingRepository, logRepository,
+				null, lineMessageService, new LineProperties());
+
+		service.sendLateArrivalReminder(student, 123L, "國一數學", LocalDateTime.of(2026, 7, 5, 18, 0));
+
+		verify(lineMessageService).pushText(eq("line-user-1"), any());
+		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
+		verify(logRepository, times(2)).saveAndFlush(logCaptor.capture());
+		LineNotificationLog finalLog = logCaptor.getAllValues().getLast();
+		assertThat(finalLog.getStatus()).isEqualTo(LineNotificationLog.STATUS_FAILED);
+		assertThat(finalLog.getLineUserId()).isEqualTo("line-user-1");
+		assertThat(finalLog.getErrorMessage()).contains("HTTP 400");
 	}
 
 	@Test
@@ -114,7 +141,7 @@ class LineNotificationServiceTests {
 		ArgumentCaptor<String> contentCaptor = ArgumentCaptor.forClass(String.class);
 		verify(lineMessageService, times(1)).pushText(eq("shared-parent"), contentCaptor.capture());
 		assertThat(contentCaptor.getValue()).contains("王小明", "王小華", "國一數學", "國一英文");
-		verify(logRepository, times(2)).save(any(LineNotificationLog.class));
+		verify(logRepository, times(4)).saveAndFlush(any(LineNotificationLog.class));
 	}
 
 	@Test
@@ -138,7 +165,7 @@ class LineNotificationServiceTests {
 						"時間：2026/07/08 18:00-20:00", "請假原因：病假：發燒",
 						"若有疑問可直接詢問告知");
 		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
-		verify(logRepository).save(logCaptor.capture());
+		verify(logRepository, times(2)).saveAndFlush(logCaptor.capture());
 		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("STUDENT_LEAVE_SUBMITTED");
 		assertThat(logCaptor.getValue().getLineUserId()).isEqualTo("line-user-1");
 	}
@@ -163,7 +190,7 @@ class LineNotificationServiceTests {
 				.contains("請假審核通知", "補習班教師已確認請假紀錄", "學生：王小明",
 						"課程：國一（A班）", "時間：2026/07/08 18:00-20:00", "請假原因：病假：發燒");
 		ArgumentCaptor<LineNotificationLog> logCaptor = ArgumentCaptor.forClass(LineNotificationLog.class);
-		verify(logRepository).save(logCaptor.capture());
+		verify(logRepository, times(2)).saveAndFlush(logCaptor.capture());
 		assertThat(logCaptor.getValue().getNotificationType()).isEqualTo("STUDENT_LEAVE_APPROVED");
 	}
 

@@ -34,20 +34,34 @@ public class LineNotificationService {
 	private final LineNotificationLogRepository lineNotificationLogRepository;
 	private final TeacherPermissionService teacherPermissionService;
 	private final LineMessageService lineMessageService;
+	private final LineNotificationDeliveryService lineNotificationDeliveryService;
 	private final LineProperties lineProperties;
 	private final WebPushEventNotificationService webPushEventNotificationService;
+
+	public LineNotificationService(StudentRepository studentRepository,
+			ParentLineBindingRepository parentLineBindingRepository,
+			LineNotificationLogRepository lineNotificationLogRepository,
+			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService,
+			LineProperties lineProperties, WebPushEventNotificationService webPushEventNotificationService) {
+		this(studentRepository, parentLineBindingRepository, lineNotificationLogRepository, teacherPermissionService,
+				lineMessageService, lineProperties, webPushEventNotificationService,
+				new LineNotificationDeliveryService(new LineNotificationAttemptRecorder(lineNotificationLogRepository),
+						lineMessageService));
+	}
 
 	@Autowired
 	public LineNotificationService(StudentRepository studentRepository,
 			ParentLineBindingRepository parentLineBindingRepository,
 			LineNotificationLogRepository lineNotificationLogRepository,
 			TeacherPermissionService teacherPermissionService, LineMessageService lineMessageService,
-			LineProperties lineProperties, WebPushEventNotificationService webPushEventNotificationService) {
+			LineProperties lineProperties, WebPushEventNotificationService webPushEventNotificationService,
+			LineNotificationDeliveryService lineNotificationDeliveryService) {
 		this.studentRepository = studentRepository;
 		this.parentLineBindingRepository = parentLineBindingRepository;
 		this.lineNotificationLogRepository = lineNotificationLogRepository;
 		this.teacherPermissionService = teacherPermissionService;
 		this.lineMessageService = lineMessageService;
+		this.lineNotificationDeliveryService = lineNotificationDeliveryService;
 		this.lineProperties = lineProperties;
 		this.webPushEventNotificationService = webPushEventNotificationService;
 	}
@@ -91,10 +105,8 @@ public class LineNotificationService {
 
 		int successCount = 0;
 		for (ParentLineBinding binding : bindings) {
-			var result = lineMessageService.pushText(binding.getLineUserId(), content);
-			saveLog(student, binding.getLineUserId(),
-					result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
-					"LINE 測試通知", content, result.errorMessage(), result.providerMessageId());
+			var result = lineNotificationDeliveryService.send(student, binding.getLineUserId(), "TEST",
+					"MANUAL_TEST", null, "LINE 測試通知", content);
 			if (result.success()) {
 				successCount++;
 			}
@@ -175,7 +187,13 @@ public class LineNotificationService {
 		}
 		Map<String, List<LateArrivalReminder>> remindersByParentAndTime = new LinkedHashMap<>();
 		for (LateArrivalReminder reminder : reminders) {
-			if (!isUnsentLateArrivalReminder(reminder)) {
+			if (!isValidLateArrivalReminder(reminder)) {
+				continue;
+			}
+			// Preserve idempotency for legacy aggregate rows created before
+			// recipient-level logging was introduced.
+			if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+					reminder.student(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE", reminder.referenceId())) {
 				continue;
 			}
 			List<ParentLineBinding> bindings = parentLineBindingRepository.findByStudentAndStatus(
@@ -186,10 +204,19 @@ public class LineNotificationService {
 						buildLateArrivalReminderMessage(reminder.student(), null, reminder.className(), reminder.classStartTime()),
 						LineNotificationLog.STATUS_SKIPPED, "尚無已綁定家長", null);
 			}
+			boolean hasDeliverableBinding = false;
 			for (ParentLineBinding binding : bindings) {
+				if (binding == null || binding.getLineUserId() == null || binding.getLineUserId().isBlank()
+						|| hasLateArrivalAttempt(reminder, binding.getLineUserId())) {
+					continue;
+				}
+				hasDeliverableBinding = true;
 				String key = binding.getLineUserId() + "|" + reminder.classStartTime();
 				remindersByParentAndTime.computeIfAbsent(key, ignored -> new ArrayList<>())
 						.add(reminder.withBinding(binding));
+			}
+			if (!bindings.isEmpty() && !hasDeliverableBinding) {
+				continue;
 			}
 		}
 		for (List<LateArrivalReminder> parentReminders : remindersByParentAndTime.values()) {
@@ -197,18 +224,21 @@ public class LineNotificationService {
 		}
 	}
 
-	private boolean isUnsentLateArrivalReminder(LateArrivalReminder reminder) {
+	private boolean isValidLateArrivalReminder(LateArrivalReminder reminder) {
 		if (reminder == null || reminder.student() == null || reminder.student().getId() == null
 				|| reminder.referenceId() == null) {
-			return false;
-		}
-		String notificationType = "ATTENDANCE_LATE_REMINDER";
-		String referenceType = "CLASS_SCHEDULE_OCCURRENCE";
-		if (lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
-				reminder.student(), notificationType, referenceType, reminder.referenceId())) {
-			return false;
+				return false;
 		}
 		return true;
+	}
+
+	private boolean hasLateArrivalAttempt(LateArrivalReminder reminder, String lineUserId) {
+		return lineNotificationLogRepository.existsByStudentAndLineUserIdAndNotificationTypeAndReferenceTypeAndReferenceId(
+				reminder.student(), lineUserId, "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
+				reminder.referenceId())
+				|| lineNotificationLogRepository.existsByStudentAndNotificationTypeAndReferenceTypeAndReferenceId(
+						reminder.student(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
+						reminder.referenceId());
 	}
 
 	private void sendGroupedLateArrivalReminder(List<LateArrivalReminder> reminders) {
@@ -218,13 +248,12 @@ public class LineNotificationService {
 		String title = "LINE 遲到提醒";
 		ParentLineBinding binding = reminders.get(0).binding();
 		String content = buildGroupedLateArrivalReminderMessage(reminders, binding);
-		var result = lineMessageService.pushText(binding.getLineUserId(), content);
-		for (LateArrivalReminder reminder : reminders) {
-			saveStudentNotificationLog(reminder.student(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
-					reminder.referenceId(), title, content,
-					result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
-					result.errorMessage(), result.providerMessageId());
-		}
+		List<LineNotificationDeliveryService.DeliveryAttempt> attempts = reminders.stream()
+				.map(reminder -> new LineNotificationDeliveryService.DeliveryAttempt(reminder.student(),
+						binding.getLineUserId(), "ATTENDANCE_LATE_REMINDER", "CLASS_SCHEDULE_OCCURRENCE",
+						reminder.referenceId(), title, content))
+				.toList();
+		var result = lineNotificationDeliveryService.send(attempts, binding.getLineUserId(), content);
 		if (webPushEventNotificationService != null) {
 			webPushEventNotificationService.notifyLineSendAttempt(null, title,
 					binding.getLineDisplayName() == null ? "家長" : binding.getLineDisplayName(),
@@ -263,15 +292,12 @@ public class LineNotificationService {
 					"缺少請假申請 LINE 使用者", null);
 			return;
 		}
-		var result = lineMessageService.pushText(lineUserId, content);
+		var result = lineNotificationDeliveryService.send(student, lineUserId, notificationType,
+				"STUDENT_LEAVE_REQUEST", leaveRequest.getId(), title, content);
 		if (webPushEventNotificationService != null) {
 			webPushEventNotificationService.notifyLineSendAttempt(null, title, "請假申請人",
 					result.success() ? 1 : 0, 1);
 		}
-		saveStudentNotificationLog(student, lineUserId, notificationType, "STUDENT_LEAVE_REQUEST",
-				leaveRequest.getId(), title, content,
-				result.success() ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED,
-				result.errorMessage(), result.providerMessageId());
 	}
 
 	private void sendAttendanceNotification(StudentAttendance attendance, String notificationType,
@@ -291,28 +317,14 @@ public class LineNotificationService {
 		}
 
 		int successCount = 0;
-		String firstError = null;
-		String firstProviderMessageId = null;
 		for (ParentLineBinding binding : bindings) {
 			String content = buildAttendanceMessage(attendance, binding, statusText, eventTime);
-			var result = lineMessageService.pushText(binding.getLineUserId(), content);
+			var result = lineNotificationDeliveryService.send(student, binding.getLineUserId(), notificationType,
+					"STUDENT_ATTENDANCE", attendance.getId(), title, content);
 			if (result.success()) {
 				successCount++;
-				if (firstProviderMessageId == null) {
-					firstProviderMessageId = result.providerMessageId();
-				}
-			} else if (firstError == null) {
-				firstError = result.errorMessage();
 			}
 		}
-		String status = successCount > 0 ? LineNotificationLog.STATUS_SENT : LineNotificationLog.STATUS_FAILED;
-		String error = successCount == bindings.size()
-				? null
-				: "成功 " + successCount + " / " + bindings.size()
-						+ (firstError == null ? "" : "；" + firstError);
-		saveAttendanceLog(attendance, notificationType, title,
-				buildAttendanceMessage(attendance, null, statusText, eventTime),
-				status, error, firstProviderMessageId);
 		if (webPushEventNotificationService != null) {
 			webPushEventNotificationService.notifyLineSendAttempt(null, title,
 					student.getDisplayName() + "的家長", successCount, bindings.size());

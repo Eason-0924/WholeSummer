@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.Collections;
 
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,8 @@ import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
+import com.example.cramschool.repository.StudentLeaveRequestRepository;
+import com.example.cramschool.entity.StudentLeaveStatus;
 
 @Service
 @Transactional
@@ -28,23 +31,36 @@ public class LateArrivalReminderService {
 	private final WeeklyScheduleService weeklyScheduleService;
 	private final ClassStudentRepository classStudentRepository;
 	private final StudentAttendanceRepository studentAttendanceRepository;
+	private final StudentLeaveRequestRepository studentLeaveRequestRepository;
 	private final LineNotificationService lineNotificationService;
 	private final ClassRoomRepository classRoomRepository;
 	private final WebPushEventNotificationService webPushEventNotificationService;
 	private Clock clock = Clock.systemDefaultZone();
 	private final Set<String> sentWebPushReminders = Collections.synchronizedSet(new HashSet<>());
 
+	@Autowired
+	public LateArrivalReminderService(WeeklyScheduleService weeklyScheduleService,
+			ClassStudentRepository classStudentRepository,
+			StudentAttendanceRepository studentAttendanceRepository,
+			LineNotificationService lineNotificationService, ClassRoomRepository classRoomRepository,
+			WebPushEventNotificationService webPushEventNotificationService,
+			StudentLeaveRequestRepository studentLeaveRequestRepository) {
+		this.weeklyScheduleService = weeklyScheduleService;
+		this.classStudentRepository = classStudentRepository;
+		this.studentAttendanceRepository = studentAttendanceRepository;
+		this.studentLeaveRequestRepository = studentLeaveRequestRepository;
+		this.lineNotificationService = lineNotificationService;
+		this.classRoomRepository = classRoomRepository;
+		this.webPushEventNotificationService = webPushEventNotificationService;
+	}
+
 	public LateArrivalReminderService(WeeklyScheduleService weeklyScheduleService,
 			ClassStudentRepository classStudentRepository,
 			StudentAttendanceRepository studentAttendanceRepository,
 			LineNotificationService lineNotificationService, ClassRoomRepository classRoomRepository,
 			WebPushEventNotificationService webPushEventNotificationService) {
-		this.weeklyScheduleService = weeklyScheduleService;
-		this.classStudentRepository = classStudentRepository;
-		this.studentAttendanceRepository = studentAttendanceRepository;
-		this.lineNotificationService = lineNotificationService;
-		this.classRoomRepository = classRoomRepository;
-		this.webPushEventNotificationService = webPushEventNotificationService;
+		this(weeklyScheduleService, classStudentRepository, studentAttendanceRepository, lineNotificationService,
+				classRoomRepository, webPushEventNotificationService, null);
 	}
 
 	@Scheduled(cron = "${line.late-reminder.cron:0 * * * * *}", zone = "Asia/Taipei")
@@ -114,8 +130,18 @@ public class LateArrivalReminderService {
 			if (classStudent.getStudent() == null || !classStudent.getStudent().isActive()) {
 				continue;
 			}
+			if (studentLeaveRequestRepository != null
+					&& studentLeaveRequestRepository.existsByStudentIdAndClassRoomIdAndCourseDateAndStatus(
+							classStudent.getStudent().getId(), schedule.getClassRoomId(), schedule.getCourseDate(),
+							StudentLeaveStatus.APPROVED)) {
+				continue;
+			}
+			// The attendance record represents the student's campus state. An open
+			// check-in suppresses reminders for all classes that day; a check-out
+			// means the student has left and may be reminded for a later class.
 			boolean arrived = studentAttendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(
-					classStudent.getStudent().getId(), schedule.getCourseDate());
+					classStudent.getStudent().getId(), schedule.getCourseDate())
+					|| wasPresentWhenScheduleStarted(classStudent.getStudent().getId(), schedule);
 			if (arrived) {
 				continue;
 			}
@@ -128,6 +154,19 @@ public class LateArrivalReminderService {
 						classStudent.getStudent().getDisplayName(), schedule.getClassName(), responsibleTeacherId);
 			}
 		}
+	}
+
+	private boolean wasPresentWhenScheduleStarted(Long studentId, WeeklyScheduleDto schedule) {
+		if (studentId == null || schedule == null || schedule.getStartTime() == null) {
+			return false;
+		}
+		LocalDateTime scheduleStart = schedule.getStartTime();
+		return studentAttendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(studentId,
+				scheduleStart.toLocalDate()).stream()
+				.filter(attendance -> attendance != null && attendance.getCheckInTime() != null)
+				.anyMatch(attendance -> !attendance.getCheckInTime().isAfter(scheduleStart)
+						&& (attendance.getCheckOutTime() == null
+								|| !attendance.getCheckOutTime().isBefore(scheduleStart)));
 	}
 
 	private String webPushReference(WeeklyScheduleDto schedule, Long studentId) {

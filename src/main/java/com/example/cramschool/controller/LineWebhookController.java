@@ -1,5 +1,6 @@
 package com.example.cramschool.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import com.example.cramschool.config.LineProperties;
 import com.example.cramschool.service.LineMessageRouter;
 import com.example.cramschool.service.LineMessageService;
 import com.example.cramschool.service.LineSignatureValidator;
+import com.example.cramschool.service.LineReplyDeliveryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -25,15 +27,24 @@ public class LineWebhookController {
 	private final LineSignatureValidator signatureValidator;
 	private final LineMessageRouter lineMessageRouter;
 	private final LineMessageService lineMessageService;
+	private final LineReplyDeliveryService lineReplyDeliveryService;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	public LineWebhookController(LineProperties lineProperties,
 			LineSignatureValidator signatureValidator, LineMessageRouter lineMessageRouter,
 			LineMessageService lineMessageService) {
+		this(lineProperties, signatureValidator, lineMessageRouter, lineMessageService, null);
+	}
+
+	@Autowired
+	public LineWebhookController(LineProperties lineProperties,
+			LineSignatureValidator signatureValidator, LineMessageRouter lineMessageRouter,
+			LineMessageService lineMessageService, LineReplyDeliveryService lineReplyDeliveryService) {
 		this.lineProperties = lineProperties;
 		this.signatureValidator = signatureValidator;
 		this.lineMessageRouter = lineMessageRouter;
 		this.lineMessageService = lineMessageService;
+		this.lineReplyDeliveryService = lineReplyDeliveryService;
 	}
 
 	@PostMapping("${line.webhook-path:/api/line/webhook}")
@@ -85,7 +96,13 @@ public class LineWebhookController {
 				? lineMessageService.getProfileDisplayName(lineUserId).orElse(null)
 				: null;
 		lineMessageRouter.routeTextMessage(lineUserId, displayName, messageText)
-				.ifPresent(reply -> lineMessageService.replyText(replyToken, reply));
+				.ifPresent(reply -> {
+					if (lineReplyDeliveryService == null) {
+						lineMessageService.replyText(replyToken, reply);
+					} else {
+						lineReplyDeliveryService.send(lineUserId, replyToken, reply);
+					}
+				});
 		
 	}
 

@@ -25,6 +25,7 @@ import com.example.cramschool.dto.WeeklyScheduleDto;
 import com.example.cramschool.entity.ClassStudent;
 import com.example.cramschool.entity.ScheduleType;
 import com.example.cramschool.entity.Student;
+import com.example.cramschool.entity.StudentAttendance;
 import com.example.cramschool.repository.ClassStudentRepository;
 import com.example.cramschool.repository.ClassRoomRepository;
 import com.example.cramschool.repository.StudentAttendanceRepository;
@@ -50,10 +51,10 @@ class LateArrivalReminderServiceTests {
 				.thenReturn(List.of(schedule));
 		when(classStudentRepository.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(11L))
 				.thenReturn(List.of(classStudent(missingStudent), classStudent(arrivedStudent)));
-		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 21L, date))
-				.thenReturn(false);
-		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 22L, date))
-				.thenReturn(true);
+			when(attendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date))
+					.thenReturn(false);
+			when(attendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(22L, date))
+					.thenReturn(true);
 		LateArrivalReminderService service = new LateArrivalReminderService(
 				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService,
 				classRoomRepository, webPushEventNotificationService);
@@ -101,7 +102,7 @@ class LateArrivalReminderServiceTests {
 				.thenReturn(List.of(schedule(date)));
 		when(classStudentRepository.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(11L))
 				.thenReturn(List.of(classStudent(student)));
-		when(attendanceRepository.existsByClassRoomIdAndStudentIdAndAttendanceDate(11L, 21L, date)).thenReturn(false);
+			when(attendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date)).thenReturn(false);
 		when(attendanceRepository.existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date))
 				.thenReturn(true);
 		LateArrivalReminderService service = new LateArrivalReminderService(
@@ -114,6 +115,35 @@ class LateArrivalReminderServiceTests {
 		verifyNoInteractions(webPushEventNotificationService);
 		verify(lineNotificationService, never()).sendLateArrivalReminders(org.mockito.ArgumentMatchers.anyList());
 		verify(attendanceRepository).existsByStudentIdAndAttendanceDateAndCheckInTimeIsNotNullAndCheckOutTimeIsNull(21L, date);
+	}
+
+	@Test
+	void doesNotSendLateReminderWhenStudentWasPresentAtThisScheduleStartButCheckedOutDuringClass() {
+		LocalDate date = LocalDate.of(2026, 7, 5);
+		WeeklyScheduleService weeklyScheduleService = mock(WeeklyScheduleService.class);
+		ClassStudentRepository classStudentRepository = mock(ClassStudentRepository.class);
+		StudentAttendanceRepository attendanceRepository = mock(StudentAttendanceRepository.class);
+		LineNotificationService lineNotificationService = mock(LineNotificationService.class);
+		WebPushEventNotificationService webPushEventNotificationService = mock(WebPushEventNotificationService.class);
+		Student student = student(21L, "已於上課中離校");
+		StudentAttendance attendance = new StudentAttendance();
+		attendance.setStudent(student);
+		attendance.setCheckInTime(LocalDateTime.of(date, LocalTime.of(16, 54)));
+		attendance.setCheckOutTime(LocalDateTime.of(date, LocalTime.of(19, 32)));
+		when(weeklyScheduleService.findWeeklySchedules(eq(date), eq(null), eq(true), eq(null), eq(null)))
+				.thenReturn(List.of(schedule(date)));
+		when(classStudentRepository.findByClassRoomIdAndActiveTrueOrderByStudentChineseNameAsc(11L))
+				.thenReturn(List.of(classStudent(student)));
+		when(attendanceRepository.findByStudentIdAndAttendanceDateOrderByIdDesc(21L, date))
+				.thenReturn(List.of(attendance));
+		LateArrivalReminderService service = new LateArrivalReminderService(
+				weeklyScheduleService, classStudentRepository, attendanceRepository, lineNotificationService,
+				mock(ClassRoomRepository.class), webPushEventNotificationService);
+		setNow(service, LocalDateTime.of(date, LocalTime.of(19, 33)));
+
+		service.sendDueLateArrivalReminders();
+
+		verifyNoInteractions(lineNotificationService, webPushEventNotificationService);
 	}
 
 	@Test
