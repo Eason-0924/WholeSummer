@@ -106,9 +106,13 @@ public class UpdateChecker {
 			return "0.0.0";
 		}
 		String normalized = version.trim();
-		return normalized.startsWith("v") || normalized.startsWith("V")
-				? normalized.substring(1)
-				: normalized;
+		if (normalized.startsWith("v") || normalized.startsWith("V")) {
+			normalized = normalized.substring(1);
+		}
+		// Keep compatibility with releases created before tags were restricted
+		// to the application version (for example v1.5.3-card-listener-v3).
+		int suffixIndex = normalized.indexOf("-card-listener-v");
+		return suffixIndex >= 0 ? normalized.substring(0, suffixIndex) : normalized;
 	}
 
 	private boolean isTargetAsset(String assetName) {

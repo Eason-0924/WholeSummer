@@ -15,10 +15,6 @@ read_card_listener_version() {
   tr -d '[:space:]' < tools/card-listener/VERSION
 }
 
-card_listener_has_changes() {
-  git status --porcelain -- tools/card-listener | grep -q .
-}
-
 read_project_version() {
   ./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout
 }
@@ -31,12 +27,9 @@ refresh_version_state() {
     exit 1
   fi
 
-  CARD_LISTENER_VERSION=$(read_card_listener_version)
-  if card_listener_has_changes; then
-    TAG="v$VERSION-card-listener-v$CARD_LISTENER_VERSION"
-  else
-    TAG="v$VERSION"
-  fi
+  # Release tags represent the WholeSummer application version only.
+  # Card Listener details belong in the GitHub Release title/assets.
+  TAG="v$VERSION"
   LOCAL_TAG_EXISTS=false
   REMOTE_TAG_EXISTS=false
 
@@ -231,7 +224,5 @@ echo "發布 tag 完成：$TAG"
 
 if [ "$REPUBLISH" = true ]; then
   echo "這是重新發布版本：$TAG"
-  echo "GitHub Actions 會依 tools/card-listener/VERSION 與檔案變更狀態，決定是否重新打包 Card Listener。"
-else
-  echo "GitHub Actions 會建立 EC2 JAR；只有 Card Listener 有變更時才會建立並上傳獨立版本的 Windows Card Listener。"
 fi
+echo "GitHub Actions 會依 tools/card-listener/VERSION 與檔案變更狀態，決定是否重新打包 Card Listener。"

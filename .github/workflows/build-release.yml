@@ -24,12 +24,9 @@ jobs:
         shell: bash
         run: |
           VERSION="$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)"
-          TAG_HAS_CARD_LISTENER=false
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG_VERSION="${GITHUB_REF_NAME#v}"
-            TAG_APP_VERSION="${TAG_VERSION%%-card-listener-v*}"
-            [[ "$TAG_APP_VERSION" == "$VERSION" ]] || { echo "Tag system version does not match pom.xml"; exit 1; }
-            [[ "$TAG_VERSION" == "$TAG_APP_VERSION" ]] || TAG_HAS_CARD_LISTENER=true
+            [[ "$TAG_VERSION" == "$VERSION" ]] || { echo "Tag version does not match pom.xml"; exit 1; }
           fi
           CARD_LISTENER_VERSION="$(tr -d '[:space:]' < tools/card-listener/VERSION)"
           [[ "$CARD_LISTENER_VERSION" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid Card Listener version"; exit 1; }
@@ -43,16 +40,6 @@ jobs:
               [[ "$CARD_LISTENER_VERSION" != "$PREVIOUS_CARD_LISTENER_VERSION" ]] || {
                 echo "Card Listener changed but tools/card-listener/VERSION was not bumped"; exit 1;
               }
-            fi
-            if [[ "$TAG_HAS_CARD_LISTENER" == "true" ]]; then
-              [[ "$CARD_LISTENER_VERSION" == "${TAG_VERSION##*-card-listener-v}" ]] || {
-                echo "Card Listener tag version does not match tools/card-listener/VERSION"; exit 1;
-              }
-              [[ "$CARD_LISTENER_CHANGED" == "true" ]] || {
-                echo "Card Listener tag used without Card Listener changes"; exit 1;
-              }
-            elif [[ "$CARD_LISTENER_CHANGED" == "true" ]]; then
-              echo "Card Listener changed but tag does not include -card-listener-vN"; exit 1
             fi
           fi
           echo "APP_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -112,9 +99,9 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           NOTES_FILE=release/release-notes.md
           if [[ "$CARD_LISTENER_CHANGED" == "true" ]]; then
-            RELEASE_TITLE="Release $APP_VERSION and Card Listener $CARD_LISTENER_VERSION"
+            RELEASE_TITLE="WholeSummer $APP_VERSION · Card Listener v$CARD_LISTENER_VERSION"
           else
-            RELEASE_TITLE="Release $APP_VERSION"
+            RELEASE_TITLE="WholeSummer $APP_VERSION"
           fi
           echo "$RELEASE_TITLE" > "$NOTES_FILE"
           gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
